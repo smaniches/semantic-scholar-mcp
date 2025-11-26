@@ -9,7 +9,7 @@ Author: Santiago Maniches (ORCID: 0009-0005-6480-1987)
 Organization: TOPOLOGICA LLC (https://topologica.ai)
 License: MIT
 
-For documentation: https://github.com/topologica-ai/semantic-scholar-mcp
+For documentation: https://github.com/smaniches/semantic-scholar-mcp
 """
 
 from .server import mcp, main

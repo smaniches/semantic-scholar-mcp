@@ -39,7 +39,7 @@ pip install semantic-scholar-mcp
 
 ### Option 2: From Source
 ```bash
-git clone https://github.com/topologica-ai/semantic-scholar-mcp.git
+git clone https://github.com/smaniches/semantic-scholar-mcp.git
 cd semantic-scholar-mcp
 pip install -e .
 ```
@@ -141,7 +141,7 @@ Retrieve these papers: DOI:10.1038/nature12373, ARXIV:2106.15928, PMID:32908142
 
 ```bash
 # Clone
-git clone https://github.com/topologica-ai/semantic-scholar-mcp.git
+git clone https://github.com/smaniches/semantic-scholar-mcp.git
 cd semantic-scholar-mcp
 
 # Install dev dependencies
@@ -180,8 +180,8 @@ Contributions welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md
 
 ## 📬 Support
 
-- 🐛 Issues: [GitHub Issues](https://github.com/topologica-ai/semantic-scholar-mcp/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/topologica-ai/semantic-scholar-mcp/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/smaniches/semantic-scholar-mcp/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/smaniches/semantic-scholar-mcp/discussions)
 - 📧 Contact: santiago@topologica.ai
 
 ---

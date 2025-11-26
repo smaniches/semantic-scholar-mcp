@@ -26,7 +26,7 @@ Organization: TOPOLOGICA LLC
     - Email: santiago@topologica.ai
 
 License: MIT
-Repository: https://github.com/topologica-ai/semantic-scholar-mcp
+Repository: https://github.com/smaniches/semantic-scholar-mcp
 
 Copyright (c) 2025 TOPOLOGICA LLC. All rights reserved.
 """
