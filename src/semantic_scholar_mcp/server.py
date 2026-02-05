@@ -41,14 +41,23 @@ import json
 import logging
 import os
 import random
+import re
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VERSION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+__version__ = "1.1.0"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -98,7 +107,6 @@ SEMANTIC_SCHOLAR_API_KEY: str = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 
 SEMANTIC_SCHOLAR_API_BASE: str = "https://api.semanticscholar.org/graph/v1"
 RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
-DEFAULT_TIMEOUT: float = 30.0
 
 # Field sets for paper metadata (tiered for efficiency)
 # Lightweight: for search results, recommendations, bulk, and citation/reference sublists
@@ -144,8 +152,24 @@ logger.setLevel(logging.INFO)
 logger.propagate = False
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MCP SERVER
+# MCP SERVER LIFECYCLE
 # ═══════════════════════════════════════════════════════════════════════════════
+
+@asynccontextmanager
+async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
+    """Lifespan context manager for proper HTTP client cleanup on shutdown."""
+    global _client
+    logger.info(f"Starting semantic-scholar-mcp v{__version__}")
+    try:
+        yield
+    finally:
+        # Close the shared HTTP client on shutdown
+        if _client is not None and not _client.is_closed:
+            await _client.aclose()
+            _client = None
+            logger.info("HTTP client closed")
+        logger.info("Server shutdown complete")
+
 
 mcp = FastMCP(
     "semantic_scholar_mcp",
@@ -153,9 +177,10 @@ mcp = FastMCP(
     Semantic Scholar MCP Server - Access 200M+ academic papers.
     Created by Santiago Maniches (ORCID: 0009-0005-6480-1987)
     TOPOLOGICA LLC - https://topologica.ai
-    
+
     Supports DOI, ArXiv, PubMed, ACL, and Semantic Scholar IDs.
-    """
+    """,
+    lifespan=_lifespan,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -380,6 +405,54 @@ def _handle_error(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAPER ID VALIDATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Regex patterns for valid paper ID formats
+_PAPER_ID_PATTERNS = [
+    re.compile(r"^[a-f0-9]{40}$", re.IGNORECASE),  # 40-char hex (S2 ID)
+    re.compile(r"^DOI:.+$", re.IGNORECASE),         # DOI:xxx
+    re.compile(r"^ARXIV:\d+\.\d+.*$", re.IGNORECASE),  # ARXIV:2106.15928
+    re.compile(r"^PMID:\d+$", re.IGNORECASE),       # PMID:32908142
+    re.compile(r"^CorpusId:\d+$", re.IGNORECASE),   # CorpusId:215416146
+    re.compile(r"^URL:.+$", re.IGNORECASE),         # URL:xxx
+    re.compile(r"^ACL:.+$", re.IGNORECASE),         # ACL:P19-1285
+]
+
+
+def _validate_paper_id(paper_id: str) -> None:
+    """Validate paper ID format before API request.
+
+    Accepts:
+        - 40-character hex (Semantic Scholar paper ID)
+        - DOI:xxx (e.g., DOI:10.1038/s41586-021-03819-2)
+        - ARXIV:xxx (e.g., ARXIV:2106.15928)
+        - PMID:xxx (e.g., PMID:32908142)
+        - CorpusId:xxx (e.g., CorpusId:215416146)
+        - URL:xxx (e.g., URL:https://arxiv.org/abs/2106.15928)
+        - ACL:xxx (e.g., ACL:P19-1285)
+
+    Raises:
+        ValidationError: If the paper ID does not match any accepted format.
+    """
+    if not paper_id or not paper_id.strip():
+        raise ValidationError("Paper ID cannot be empty.", status_code=400)
+
+    paper_id = paper_id.strip()
+
+    for pattern in _PAPER_ID_PATTERNS:
+        if pattern.match(paper_id):
+            return
+
+    raise ValidationError(
+        f"Invalid paper ID format: '{paper_id}'. "
+        "Accepted formats: 40-char hex (S2 ID), DOI:xxx, ARXIV:xxx, PMID:xxx, "
+        "CorpusId:xxx, URL:xxx, ACL:xxx",
+        status_code=400
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # FORMATTING UTILITIES
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -457,7 +530,10 @@ def _format_author_markdown(author: Dict[str, Any]) -> str:
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@mcp.tool(name="semantic_scholar_search_papers")
+@mcp.tool(
+    name="semantic_scholar_search_papers",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def search_papers(params: PaperSearchInput) -> str:
     """Search for academic papers. Supports boolean operators (AND, OR, NOT), phrase search with quotes."""
     logger.info(f"Searching: {params.query}")
@@ -487,12 +563,16 @@ async def search_papers(params: PaperSearchInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_get_paper")
+@mcp.tool(
+    name="semantic_scholar_get_paper",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def get_paper_details(params: PaperDetailsInput) -> str:
     """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx"""
     logger.info(f"Getting paper: {params.paper_id}")
 
     try:
+        _validate_paper_id(params.paper_id)
         paper = await _make_request("GET", f"paper/{params.paper_id}", params={"fields": ",".join(PAPER_DETAIL_FIELDS)}, api_key=params.api_key)
         if not isinstance(paper, dict):
             return "**Error:** Unexpected response format"
@@ -524,7 +604,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_search_authors")
+@mcp.tool(
+    name="semantic_scholar_search_authors",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def search_authors(params: AuthorSearchInput) -> str:
     """Search for academic authors by name."""
     logger.info(f"Searching authors: {params.query}")
@@ -545,7 +628,10 @@ async def search_authors(params: AuthorSearchInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_get_author")
+@mcp.tool(
+    name="semantic_scholar_get_author",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
     logger.info(f"Getting author: {params.author_id}")
@@ -573,12 +659,16 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_recommendations")
+@mcp.tool(
+    name="semantic_scholar_recommendations",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def get_recommendations(params: PaperRecommendationsInput) -> str:
     """Get paper recommendations based on a seed paper."""
     logger.info(f"Recommendations for: {params.paper_id}")
 
     try:
+        _validate_paper_id(params.paper_id)
         response = await _make_request(
             "GET",
             f"papers/forpaper/{params.paper_id}",
@@ -599,10 +689,26 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_bulk_papers")
+@mcp.tool(
+    name="semantic_scholar_bulk_papers",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def get_bulk_papers(params: BulkPaperInput) -> str:
     """Retrieve multiple papers in a single request (max 500)."""
     logger.info(f"Bulk retrieval: {len(params.paper_ids)} papers")
+
+    # Validate all paper IDs before making request
+    invalid_ids = []
+    for paper_id in params.paper_ids:
+        try:
+            _validate_paper_id(paper_id)
+        except ValidationError:
+            invalid_ids.append(paper_id)
+
+    if invalid_ids:
+        return f"**Error:** Invalid paper ID format(s): {', '.join(invalid_ids[:10])}" + (
+            f" ... +{len(invalid_ids) - 10} more" if len(invalid_ids) > 10 else ""
+        )
 
     try:
         response = await _make_request("POST", "paper/batch", params={"fields": ",".join(PAPER_SEARCH_FIELDS)}, json_body={"ids": params.paper_ids}, api_key=params.api_key)
@@ -640,23 +746,29 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(name="semantic_scholar_status")
+@mcp.tool(
+    name="semantic_scholar_status",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
     status: Dict[str, Any] = {
         "server": "semantic-scholar-mcp",
-        "version": "1.0.0",
+        "version": __version__,
         "api_key_configured": bool(SEMANTIC_SCHOLAR_API_KEY),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     try:
-        client = await _get_client()
-        resp = await client.get(
-            f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search",
+        # Route health check through _make_request for retry/rate-limit protection
+        await _make_request(
+            "GET",
+            "paper/search",
             params={"query": "test", "limit": 1, "fields": "paperId"},
-            headers=_get_headers(),
         )
-        status["api_reachable"] = resp.status_code == 200
+        status["api_reachable"] = True
+    except SemanticScholarError as e:
+        status["api_reachable"] = False
+        status["error"] = str(e)
     except Exception as e:
         status["api_reachable"] = False
         status["error"] = str(e)
