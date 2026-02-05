@@ -12,6 +12,7 @@ Tools Provided:
     - semantic_scholar_get_author: Author profiles and publications
     - semantic_scholar_recommendations: AI-powered related paper discovery
     - semantic_scholar_bulk_papers: Batch retrieval (up to 500 papers)
+    - semantic_scholar_status: Health check and API connectivity status
 
 Configuration:
     API Key (choose one):
@@ -35,9 +36,12 @@ Copyright (c) 2025 TOPOLOGICA LLC. All rights reserved.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import random
+import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -45,6 +49,44 @@ from typing import Any, Dict, List, Optional
 import httpx
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CUSTOM EXCEPTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SemanticScholarError(Exception):
+    """Base exception for Semantic Scholar MCP."""
+    def __init__(self, message: str, status_code: int | None = None):
+        self.status_code = status_code
+        super().__init__(message)
+
+
+class AuthenticationError(SemanticScholarError):
+    """API key invalid or missing (401/403)."""
+    pass
+
+
+class RateLimitError(SemanticScholarError):
+    """Rate limit exceeded (429)."""
+    def __init__(self, message: str, retry_after: float | None = None):
+        self.retry_after = retry_after
+        super().__init__(message, status_code=429)
+
+
+class NotFoundError(SemanticScholarError):
+    """Paper/author not found (404)."""
+    pass
+
+
+class ValidationError(SemanticScholarError):
+    """Bad request — invalid parameters (400)."""
+    pass
+
+
+class ServerError(SemanticScholarError):
+    """Semantic Scholar server error (500/502/503)."""
+    pass
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -55,15 +97,23 @@ from pydantic import BaseModel, ConfigDict, Field
 SEMANTIC_SCHOLAR_API_KEY: str = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 
 SEMANTIC_SCHOLAR_API_BASE: str = "https://api.semanticscholar.org/graph/v1"
+RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
 DEFAULT_TIMEOUT: float = 30.0
 
-# Field sets for comprehensive paper metadata
-PAPER_FIELDS: List[str] = [
-    "paperId", "corpusId", "url", "title", "abstract", "venue", "publicationVenue",
-    "year", "referenceCount", "citationCount", "influentialCitationCount",
-    "isOpenAccess", "openAccessPdf", "fieldsOfStudy", "s2FieldsOfStudy",
-    "publicationTypes", "publicationDate", "journal", "citationStyles",
-    "authors", "externalIds", "tldr"
+# Field sets for paper metadata (tiered for efficiency)
+# Lightweight: for search results, recommendations, bulk, and citation/reference sublists
+PAPER_SEARCH_FIELDS: List[str] = [
+    "paperId", "corpusId", "url", "title", "venue", "year",
+    "citationCount", "influentialCitationCount", "isOpenAccess",
+    "openAccessPdf", "fieldsOfStudy", "authors", "externalIds", "tldr"
+]
+
+# Comprehensive: for single paper detail views only
+PAPER_DETAIL_FIELDS: List[str] = [
+    *PAPER_SEARCH_FIELDS,
+    "abstract", "publicationVenue", "referenceCount",
+    "s2FieldsOfStudy", "publicationTypes", "publicationDate",
+    "journal", "citationStyles"
 ]
 
 AUTHOR_FIELDS: List[str] = [
@@ -71,9 +121,27 @@ AUTHOR_FIELDS: List[str] = [
     "homepage", "paperCount", "citationCount", "hIndex"
 ]
 
-# Logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+# Structured JSON logging
+class _StructuredFormatter(logging.Formatter):
+    """JSON formatter for structured logging in production."""
+    def format(self, record: logging.LogRecord) -> str:
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[0]:
+            entry["exc"] = self.formatException(record.exc_info)
+        return json.dumps(entry)
+
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(_StructuredFormatter())
 logger = logging.getLogger("semantic_scholar_mcp")
+logger.addHandler(_handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP SERVER
@@ -161,6 +229,36 @@ class BulkPaperInput(BaseModel):
 # HTTP CLIENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Shared HTTP client (lazy singleton)
+_client: httpx.AsyncClient | None = None
+
+# Rate limiting state
+_rate_semaphore = asyncio.Semaphore(1)
+_last_request_time: float = 0.0
+_MIN_REQUEST_INTERVAL = 1.0  # seconds (public tier: 1 req/sec)
+_MIN_REQUEST_INTERVAL_KEYED = 0.1  # seconds (keyed tier: 10 req/sec)
+
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_BACKOFF_BASE = 1.0  # seconds
+
+
+async def _get_client() -> httpx.AsyncClient:
+    """Get or create shared HTTP client with connection pooling."""
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(
+                max_connections=10,
+                max_keepalive_connections=5,
+                keepalive_expiry=30
+            ),
+            headers={"Accept": "application/json", "Content-Type": "application/json"}
+        )
+    return _client
+
+
 def _get_headers(api_key: Optional[str] = None) -> Dict[str, str]:
     """Build request headers. User-provided api_key takes priority over env var."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
@@ -176,11 +274,40 @@ async def _make_request(
     params: Optional[Dict] = None,
     json_body: Optional[Dict] = None,
     api_key: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Make HTTP request to Semantic Scholar API."""
-    url = f"{SEMANTIC_SCHOLAR_API_BASE}/{endpoint}"
+    base_url: Optional[str] = None,
+) -> dict[str, Any] | list:
+    """Make HTTP request to Semantic Scholar API with rate limiting and retry."""
+    global _last_request_time
+
+    url = f"{base_url or SEMANTIC_SCHOLAR_API_BASE}/{endpoint}"
     headers = _get_headers(api_key)
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+    effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
+
+    # Rate limiting: serialize requests and enforce minimum interval
+    async with _rate_semaphore:
+        now = time.monotonic()
+        elapsed = now - _last_request_time
+        interval = _MIN_REQUEST_INTERVAL_KEYED if effective_key else _MIN_REQUEST_INTERVAL
+        if elapsed < interval:
+            await asyncio.sleep(interval - elapsed)
+        _last_request_time = time.monotonic()
+
+        # Execute request with retry logic
+        return await _execute_request_with_retry(method, url, params, json_body, headers, api_key)
+
+
+async def _execute_request_with_retry(
+    method: str,
+    url: str,
+    params: Optional[Dict],
+    json_body: Optional[Dict],
+    headers: Dict[str, str],
+    api_key: Optional[str],
+) -> dict[str, Any] | list:
+    """Execute HTTP request with exponential backoff retry for retriable errors."""
+    client = await _get_client()
+
+    for attempt in range(MAX_RETRIES + 1):
         try:
             if method == "GET":
                 resp = await client.get(url, params=params, headers=headers)
@@ -189,34 +316,67 @@ async def _make_request(
             resp.raise_for_status()
             return resp.json()
         except httpx.HTTPStatusError as e:
-            _handle_error(e.response.status_code, api_key)
+            status = e.response.status_code
+            # Retriable: 429, 503 only
+            if status in (429, 503) and attempt < MAX_RETRIES:
+                if status == 429:
+                    retry_after = float(e.response.headers.get(
+                        "Retry-After", RETRY_BACKOFF_BASE * (2 ** attempt)
+                    ))
+                else:
+                    retry_after = RETRY_BACKOFF_BASE * (2 ** attempt)
+                jitter = random.uniform(0, 0.5)
+                wait = min(retry_after + jitter, 30.0)
+                logger.warning(f"HTTP {status}. Retry {attempt+1}/{MAX_RETRIES} after {wait:.1f}s")
+                await asyncio.sleep(wait)
+                continue
+            # Non-retriable or exhausted retries: raise appropriate exception
+            retry_after_header = e.response.headers.get("Retry-After")
+            _handle_error(
+                status,
+                api_key,
+                retry_after=float(retry_after_header) if retry_after_header else None
+            )
         except httpx.TimeoutException:
-            raise Exception("Request timed out")
-    return {}
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
+                logger.warning(f"Timeout. Retry {attempt+1}/{MAX_RETRIES} after {wait:.1f}s")
+                await asyncio.sleep(wait)
+                continue
+            raise SemanticScholarError("Request timed out after all retries")
+
+    # This line should be unreachable — every path above either returns or raises
+    raise SemanticScholarError("Request failed: no response received")
 
 
-def _handle_error(status: int, api_key: Optional[str] = None) -> None:
-    """Handle API errors with contextual messages."""
+def _handle_error(
+    status: int,
+    api_key: Optional[str] = None,
+    retry_after: float | None = None,
+) -> None:
+    """Handle API errors with contextual messages and typed exceptions."""
+    if status == 400:
+        raise ValidationError("Bad request. Check syntax.", status_code=400)
     if status == 401:
         if api_key:
             msg = "Auth failed. Check your provided API key."
         else:
             msg = "Auth failed. Set SEMANTIC_SCHOLAR_API_KEY env var or provide api_key parameter."
-        raise Exception(f"API Error ({status}): {msg}")
+        raise AuthenticationError(msg, status_code=401)
     if status == 403:
         if api_key:
             msg = "Forbidden. Your provided API key may be invalid or expired."
         else:
             msg = "Forbidden. Check SEMANTIC_SCHOLAR_API_KEY env var or provide api_key parameter."
-        raise Exception(f"API Error ({status}): {msg}")
-    errors = {
-        400: "Bad request. Check syntax.",
-        404: "Not found. Check ID format.",
-        429: "Rate limited. Wait and retry.",
-        500: "Server error. Try later.",
-        503: "Service unavailable."
-    }
-    raise Exception(f"API Error ({status}): {errors.get(status, 'Unknown')}")
+        raise AuthenticationError(msg, status_code=403)
+    if status == 404:
+        raise NotFoundError("Not found. Check ID format.", status_code=404)
+    if status == 429:
+        raise RateLimitError("Rate limited. Wait and retry.", retry_after=retry_after)
+    if status in (500, 502, 503):
+        msg = "Service unavailable." if status == 503 else "Server error. Try later."
+        raise ServerError(msg, status_code=status)
+    raise SemanticScholarError(f"Unknown error (HTTP {status})", status_code=status)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -301,20 +461,24 @@ def _format_author_markdown(author: Dict[str, Any]) -> str:
 async def search_papers(params: PaperSearchInput) -> str:
     """Search for academic papers. Supports boolean operators (AND, OR, NOT), phrase search with quotes."""
     logger.info(f"Searching: {params.query}")
-    
-    api_params = {"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(PAPER_FIELDS)}
+
+    api_params = {"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(PAPER_SEARCH_FIELDS)}
     if params.year: api_params["year"] = params.year
     if params.fields_of_study: api_params["fieldsOfStudy"] = ",".join(params.fields_of_study)
     if params.publication_types: api_params["publicationTypes"] = ",".join(params.publication_types)
     if params.open_access_only: api_params["openAccessPdf"] = ""
     if params.min_citation_count: api_params["minCitationCount"] = params.min_citation_count
 
-    response = await _make_request("GET", "paper/search", params=api_params, api_key=params.api_key)
-    total, papers = response.get("total", 0), response.get("data", [])
-    
+    try:
+        response = await _make_request("GET", "paper/search", params=api_params, api_key=params.api_key)
+        total = response.get("total", 0) if isinstance(response, dict) else 0
+        papers = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "papers": papers}, indent=2)
-    
+
     lines = [f"## Search Results: \"{params.query}\"", f"**Found:** {total} papers (showing {params.offset + 1}-{params.offset + len(papers)})", ""]
     for paper in papers:
         lines.append(_format_paper_markdown(paper))
@@ -327,20 +491,25 @@ async def search_papers(params: PaperSearchInput) -> str:
 async def get_paper_details(params: PaperDetailsInput) -> str:
     """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx"""
     logger.info(f"Getting paper: {params.paper_id}")
-    
-    paper = await _make_request("GET", f"paper/{params.paper_id}", params={"fields": ",".join(PAPER_FIELDS)}, api_key=params.api_key)
-    result = {"paper": paper}
 
-    if params.include_citations:
-        cit = await _make_request("GET", f"paper/{params.paper_id}/citations", params={"fields": ",".join(PAPER_FIELDS), "limit": params.citations_limit}, api_key=params.api_key)
-        result["citations"] = cit.get("data", [])
-    if params.include_references:
-        ref = await _make_request("GET", f"paper/{params.paper_id}/references", params={"fields": ",".join(PAPER_FIELDS), "limit": params.references_limit}, api_key=params.api_key)
-        result["references"] = ref.get("data", [])
-    
+    try:
+        paper = await _make_request("GET", f"paper/{params.paper_id}", params={"fields": ",".join(PAPER_DETAIL_FIELDS)}, api_key=params.api_key)
+        if not isinstance(paper, dict):
+            return "**Error:** Unexpected response format"
+        result: Dict[str, Any] = {"paper": paper}
+
+        if params.include_citations:
+            cit = await _make_request("GET", f"paper/{params.paper_id}/citations", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.citations_limit}, api_key=params.api_key)
+            result["citations"] = cit.get("data", []) if isinstance(cit, dict) else []
+        if params.include_references:
+            ref = await _make_request("GET", f"paper/{params.paper_id}/references", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.references_limit}, api_key=params.api_key)
+            result["references"] = ref.get("data", []) if isinstance(ref, dict) else []
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
     if params.response_format == ResponseFormat.JSON:
         return json.dumps(result, indent=2)
-    
+
     lines = ["## Paper Details", "", _format_paper_markdown(paper)]
     if result.get("citations"):
         lines.extend(["---", f"### Citing Papers ({len(result['citations'])} shown)", ""])
@@ -359,13 +528,17 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 async def search_authors(params: AuthorSearchInput) -> str:
     """Search for academic authors by name."""
     logger.info(f"Searching authors: {params.query}")
-    
-    response = await _make_request("GET", "author/search", params={"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
-    total, authors = response.get("total", 0), response.get("data", [])
-    
+
+    try:
+        response = await _make_request("GET", "author/search", params={"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
+        total = response.get("total", 0) if isinstance(response, dict) else 0
+        authors = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "authors": authors}, indent=2)
-    
+
     lines = [f"## Author Search: \"{params.query}\"", f"**Found:** {total} authors", ""]
     for author in authors:
         lines.append(_format_author_markdown(author))
@@ -377,16 +550,21 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
     logger.info(f"Getting author: {params.author_id}")
 
-    author = await _make_request("GET", f"author/{params.author_id}", params={"fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
-    result = {"author": author}
+    try:
+        author = await _make_request("GET", f"author/{params.author_id}", params={"fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
+        if not isinstance(author, dict):
+            return "**Error:** Unexpected response format"
+        result: Dict[str, Any] = {"author": author}
 
-    if params.include_papers:
-        papers = await _make_request("GET", f"author/{params.author_id}/papers", params={"fields": ",".join(PAPER_FIELDS), "limit": params.papers_limit}, api_key=params.api_key)
-        result["papers"] = papers.get("data", [])
-    
+        if params.include_papers:
+            papers = await _make_request("GET", f"author/{params.author_id}/papers", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.papers_limit}, api_key=params.api_key)
+            result["papers"] = papers.get("data", []) if isinstance(papers, dict) else []
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
     if params.response_format == ResponseFormat.JSON:
         return json.dumps(result, indent=2)
-    
+
     lines = ["## Author Profile", "", _format_author_markdown(author)]
     if result.get("papers"):
         lines.extend(["---", f"### Publications ({len(result['papers'])} shown)", ""])
@@ -400,21 +578,21 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
     """Get paper recommendations based on a seed paper."""
     logger.info(f"Recommendations for: {params.paper_id}")
 
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-        resp = await client.post(
-            f"https://api.semanticscholar.org/recommendations/v1/papers/forpaper/{params.paper_id}",
-            params={"fields": ",".join(PAPER_FIELDS), "limit": params.limit},
-            json={"positivePaperIds": [params.paper_id]},
-            headers=_get_headers(params.api_key)
+    try:
+        response = await _make_request(
+            "GET",
+            f"papers/forpaper/{params.paper_id}",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.limit},
+            api_key=params.api_key,
+            base_url=RECOMMENDATIONS_BASE,
         )
-        resp.raise_for_status()
-        data = resp.json()
-    
-    papers = data.get("recommendedPapers", [])
-    
+        papers = response.get("recommendedPapers", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"seed": params.paper_id, "recommendations": papers}, indent=2)
-    
+
     lines = [f"## Recommendations", f"**Seed:** {params.paper_id}", f"**Found:** {len(papers)}", ""]
     for paper in papers:
         lines.append(_format_paper_markdown(paper))
@@ -425,17 +603,65 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
 async def get_bulk_papers(params: BulkPaperInput) -> str:
     """Retrieve multiple papers in a single request (max 500)."""
     logger.info(f"Bulk retrieval: {len(params.paper_ids)} papers")
-    
-    response = await _make_request("POST", "paper/batch", params={"fields": ",".join(PAPER_FIELDS)}, json_body={"ids": params.paper_ids}, api_key=params.api_key)
-    papers = response if isinstance(response, list) else response.get("data", [])
-    
+
+    try:
+        response = await _make_request("POST", "paper/batch", params={"fields": ",".join(PAPER_SEARCH_FIELDS)}, json_body={"ids": params.paper_ids}, api_key=params.api_key)
+        papers = response if isinstance(response, list) else response.get("data", [])
+    except SemanticScholarError as e:
+        return f"**Error:** {e}"
+
+    # Track and report failures (null entries for unfound papers)
+    succeeded = [p for p in papers if p]
+    failed_indices = [i for i, p in enumerate(papers) if not p]
+    failed_ids = [params.paper_ids[i] for i in failed_indices if i < len(params.paper_ids)]
+
+    if failed_ids:
+        logger.warning(f"Bulk retrieval: {len(failed_ids)} papers not found: {failed_ids[:10]}")
+
     if params.response_format == ResponseFormat.JSON:
-        return json.dumps({"requested": len(params.paper_ids), "retrieved": len(papers), "papers": papers}, indent=2)
-    
-    lines = [f"## Bulk Retrieval", f"**Requested:** {len(params.paper_ids)} | **Retrieved:** {len(papers)}", ""]
-    for paper in papers:
-        if paper: lines.append(_format_paper_markdown(paper))
+        result = {
+            "requested": len(params.paper_ids),
+            "retrieved": len(succeeded),
+            "papers": succeeded,
+        }
+        if failed_ids:
+            result["not_found"] = failed_ids
+        return json.dumps(result, indent=2)
+
+    lines = [f"## Bulk Retrieval", f"**Requested:** {len(params.paper_ids)} | **Retrieved:** {len(succeeded)}", ""]
+    if failed_ids:
+        display_ids = failed_ids[:20]
+        lines.append(f"**Not found ({len(failed_ids)}):** {', '.join(display_ids)}")
+        if len(failed_ids) > 20:
+            lines[-1] += f" ... +{len(failed_ids) - 20} more"
+        lines.append("")
+    for paper in succeeded:
+        lines.append(_format_paper_markdown(paper))
     return "\n".join(lines)
+
+
+@mcp.tool(name="semantic_scholar_status")
+async def server_status() -> str:
+    """Check server health, API connectivity, and key status."""
+    status: Dict[str, Any] = {
+        "server": "semantic-scholar-mcp",
+        "version": "1.0.0",
+        "api_key_configured": bool(SEMANTIC_SCHOLAR_API_KEY),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        client = await _get_client()
+        resp = await client.get(
+            f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search",
+            params={"query": "test", "limit": 1, "fields": "paperId"},
+            headers=_get_headers(),
+        )
+        status["api_reachable"] = resp.status_code == 200
+    except Exception as e:
+        status["api_reachable"] = False
+        status["error"] = str(e)
+
+    return json.dumps(status, indent=2)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
