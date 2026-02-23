@@ -1,6 +1,6 @@
 # Semantic Scholar MCP Server
 
-[![PyPI version](https://badge.fury.io/py/semantic-scholar-mcp.svg)](https://pypi.org/project/semantic-scholar-mcp/)
+[![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -11,16 +11,20 @@
 
 ## Installation
 
-### Option 1: pip (Recommended)
-```bash
-pip install semantic-scholar-mcp
-```
-
-### Option 2: From Source
+### Option 1: From Source
 ```bash
 git clone https://github.com/smaniches/semantic-scholar-mcp.git
 cd semantic-scholar-mcp
 pip install -e .
+```
+
+### Option 2: Claude Code
+```bash
+# First install the package:
+pip install -e .
+
+# Then register with Claude Code:
+claude mcp add semantic-scholar -- python -m semantic_scholar_mcp
 ```
 
 ---
@@ -56,7 +60,7 @@ Add to your Claude Desktop config file:
 ```json
 {
   "mcpServers": {
-    "semantic_scholar": {
+    "semantic-scholar": {
       "command": "python",
       "args": ["-m", "semantic_scholar_mcp"],
       "env": {
@@ -284,7 +288,7 @@ Check Semantic Scholar API status
 ```json
 {
   "server": "semantic-scholar-mcp",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "api_key_configured": true,
   "timestamp": "2025-01-15T12:00:00.000000+00:00",
   "api_reachable": true
@@ -343,6 +347,12 @@ pytest --cov=src/semantic_scholar_mcp --cov-report=term-missing
 # Type checking
 mypy src/
 ```
+
+---
+
+## Security
+
+API keys are never stored in code — environment variables only. See [SECURITY.md](.github/SECURITY.md) for vulnerability reporting. All API communication uses HTTPS.
 
 ---
 
