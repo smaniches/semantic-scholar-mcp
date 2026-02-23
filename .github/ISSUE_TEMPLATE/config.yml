@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/smaniches/semantic-scholar-mcp/security/policy
+    about: Please report security vulnerabilities privately
+  - name: General Questions
+    url: https://github.com/smaniches/semantic-scholar-mcp/discussions
+    about: Ask questions and discuss ideas

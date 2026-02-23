@@ -1,8 +1,9 @@
 [project]
 name = "semantic-scholar-mcp"
-version = "1.1.0"
-description = "MCP server for Semantic Scholar API - Access 200M+ academic papers in Claude Desktop"
+version = "1.0.0"
+description = "MCP server for Semantic Scholar — 200M+ academic papers in Claude Desktop"
 readme = "README.md"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Santiago Maniches", email = "santiago@topologica.ai"}
@@ -10,25 +11,18 @@ authors = [
 maintainers = [
     {name = "TOPOLOGICA LLC", email = "support@topologica.ai"}
 ]
-requires-python = ">=3.10"
-keywords = [
-    "mcp", "semantic-scholar", "research", "papers", "citations",
-    "academic", "literature", "claude", "anthropic", "ai-tools"
-]
+keywords = ["mcp", "model-context-protocol", "semantic-scholar", "academic-research", "claude", "python", "llm", "research-tools"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 dependencies = [
@@ -49,10 +43,10 @@ dev = [
 
 [project.urls]
 Homepage = "https://topologica.ai"
-Documentation = "https://github.com/smaniches/semantic-scholar-mcp#readme"
 Repository = "https://github.com/smaniches/semantic-scholar-mcp"
 Issues = "https://github.com/smaniches/semantic-scholar-mcp/issues"
-Changelog = "https://github.com/smaniches/semantic-scholar-mcp/releases"
+Changelog = "https://github.com/smaniches/semantic-scholar-mcp/blob/main/CHANGELOG.md"
+"Semantic Scholar API" = "https://www.semanticscholar.org/product/api"
 
 [project.scripts]
 semantic-scholar-mcp = "semantic_scholar_mcp:main"
@@ -82,3 +76,6 @@ strict = true
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
