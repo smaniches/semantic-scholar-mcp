@@ -13,17 +13,17 @@ For documentation: https://github.com/smaniches/semantic-scholar-mcp
 """
 
 from .server import (
-    mcp,
-    main,
-    SemanticScholarError,
     AuthenticationError,
-    RateLimitError,
     NotFoundError,
-    ValidationError,
+    RateLimitError,
+    SemanticScholarError,
     ServerError,
+    ValidationError,
+    __version__,
+    main,
+    mcp,
 )
 
-__version__ = "1.0.0"
 __author__ = "Santiago Maniches"
 __email__ = "santiago@topologica.ai"
 __org__ = "TOPOLOGICA LLC"

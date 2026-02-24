@@ -10,27 +10,26 @@ Coverage targets:
 
 from __future__ import annotations
 
-import pytest
 import httpx
+import pytest
 import respx
 from httpx import Response
 
 from semantic_scholar_mcp.server import (
-    __version__,
-    _handle_error,
-    _format_paper_markdown,
-    _validate_paper_id,
-    _execute_request_with_retry,
-    _get_client,
-    SemanticScholarError,
-    AuthenticationError,
-    RateLimitError,
-    NotFoundError,
-    ValidationError,
-    ServerError,
     SEMANTIC_SCHOLAR_API_BASE,
+    AuthenticationError,
+    NotFoundError,
+    RateLimitError,
+    SemanticScholarError,
+    ServerError,
+    ValidationError,
+    __version__,
+    _execute_request_with_retry,
+    _format_paper_markdown,
+    _get_client,
+    _handle_error,
+    _validate_paper_id,
 )
-
 
 # ===============================================================================
 # VERSION TESTS
@@ -419,7 +418,7 @@ class TestRetryLogic:
             ]
         )
 
-        client = await _get_client()
+        await _get_client()
         result = await _execute_request_with_retry(
             "GET", url, {"query": "test"}, None, {}, None
         )
@@ -441,7 +440,7 @@ class TestRetryLogic:
             ]
         )
 
-        client = await _get_client()
+        await _get_client()
         result = await _execute_request_with_retry(
             "GET", url, None, None, {}, None
         )
@@ -457,7 +456,7 @@ class TestRetryLogic:
 
         route = respx.get(url).mock(return_value=Response(404))
 
-        client = await _get_client()
+        await _get_client()
         with pytest.raises(NotFoundError):
             await _execute_request_with_retry(
                 "GET", url, None, None, {}, None
@@ -475,7 +474,7 @@ class TestRetryLogic:
         # All calls return 503
         route = respx.get(url).mock(return_value=Response(503))
 
-        client = await _get_client()
+        await _get_client()
         with pytest.raises(ServerError):
             await _execute_request_with_retry(
                 "GET", url, None, None, {}, None
@@ -494,7 +493,7 @@ class TestRetryLogic:
             side_effect=httpx.TimeoutException("Connection timed out")
         )
 
-        client = await _get_client()
+        await _get_client()
         with pytest.raises(SemanticScholarError) as exc_info:
             await _execute_request_with_retry(
                 "GET", url, None, None, {}, None
@@ -511,7 +510,7 @@ class TestRetryLogic:
 
         route = respx.get(url).mock(return_value=Response(400))
 
-        client = await _get_client()
+        await _get_client()
         with pytest.raises(ValidationError):
             await _execute_request_with_retry(
                 "GET", url, None, None, {}, None
@@ -527,7 +526,7 @@ class TestRetryLogic:
 
         route = respx.get(url).mock(return_value=Response(401))
 
-        client = await _get_client()
+        await _get_client()
         with pytest.raises(AuthenticationError):
             await _execute_request_with_retry(
                 "GET", url, None, None, {}, None
@@ -549,7 +548,7 @@ class TestRetryLogic:
             ]
         )
 
-        client = await _get_client()
+        await _get_client()
         result = await _execute_request_with_retry(
             "GET", url, None, None, {}, None
         )
@@ -570,7 +569,7 @@ class TestRetryLogic:
             ]
         )
 
-        client = await _get_client()
+        await _get_client()
         result = await _execute_request_with_retry(
             "POST", url, None, {"ids": ["123"]}, {}, None
         )
@@ -647,7 +646,7 @@ class TestSearchPapersTool:
     @pytest.mark.asyncio
     async def test_search_papers_success_markdown(self, reset_client):
         """search_papers should return markdown formatted results."""
-        from semantic_scholar_mcp.server import search_papers, PaperSearchInput
+        from semantic_scholar_mcp.server import PaperSearchInput, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(200, json={
@@ -672,7 +671,7 @@ class TestSearchPapersTool:
     @pytest.mark.asyncio
     async def test_search_papers_success_json(self, reset_client):
         """search_papers should return JSON when requested."""
-        from semantic_scholar_mcp.server import search_papers, PaperSearchInput, ResponseFormat
+        from semantic_scholar_mcp.server import PaperSearchInput, ResponseFormat, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(200, json={
@@ -692,7 +691,7 @@ class TestSearchPapersTool:
     @pytest.mark.asyncio
     async def test_search_papers_with_filters(self, reset_client):
         """search_papers should apply all filters."""
-        from semantic_scholar_mcp.server import search_papers, PaperSearchInput
+        from semantic_scholar_mcp.server import PaperSearchInput, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         route = respx.get(url).mock(return_value=Response(200, json={"total": 0, "data": []}))
@@ -718,7 +717,7 @@ class TestSearchPapersTool:
     @pytest.mark.asyncio
     async def test_search_papers_error_handling(self, reset_client):
         """search_papers should return error message on failure."""
-        from semantic_scholar_mcp.server import search_papers, PaperSearchInput
+        from semantic_scholar_mcp.server import PaperSearchInput, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(500))
@@ -745,7 +744,7 @@ class TestGetPaperDetailsTool:
     @pytest.mark.asyncio
     async def test_get_paper_details_success(self, reset_client):
         """get_paper_details should return paper info."""
-        from semantic_scholar_mcp.server import get_paper_details, PaperDetailsInput
+        from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
 
         paper_id = "a" * 40
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
@@ -767,7 +766,7 @@ class TestGetPaperDetailsTool:
     @pytest.mark.asyncio
     async def test_get_paper_details_with_citations(self, reset_client):
         """get_paper_details should include citations when requested."""
-        from semantic_scholar_mcp.server import get_paper_details, PaperDetailsInput
+        from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
 
         paper_id = "a" * 40
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
@@ -794,7 +793,7 @@ class TestGetPaperDetailsTool:
     @pytest.mark.asyncio
     async def test_get_paper_details_with_references(self, reset_client):
         """get_paper_details should include references when requested."""
-        from semantic_scholar_mcp.server import get_paper_details, PaperDetailsInput
+        from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
 
         paper_id = "a" * 40
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
@@ -808,7 +807,9 @@ class TestGetPaperDetailsTool:
             "influentialCitationCount": 10,
         }))
         respx.get(ref_url).mock(return_value=Response(200, json={
-            "data": [{"citedPaper": {"title": "Referenced Paper", "year": 2020, "citationCount": 500}}]
+            "data": [{"citedPaper": {
+                "title": "Referenced Paper", "year": 2020, "citationCount": 500,
+            }}]
         }))
 
         params = PaperDetailsInput(paper_id=paper_id, include_references=True)
@@ -821,7 +822,7 @@ class TestGetPaperDetailsTool:
     @pytest.mark.asyncio
     async def test_get_paper_details_invalid_id(self, reset_client):
         """get_paper_details should validate paper ID."""
-        from semantic_scholar_mcp.server import get_paper_details, PaperDetailsInput
+        from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
 
         params = PaperDetailsInput(paper_id="invalid-id")
         result = await get_paper_details(params)
@@ -846,7 +847,9 @@ class TestGetRecommendationsTool:
     async def test_get_recommendations_success(self, reset_client):
         """get_recommendations should return related papers."""
         from semantic_scholar_mcp.server import (
-            get_recommendations, PaperRecommendationsInput, RECOMMENDATIONS_BASE
+            RECOMMENDATIONS_BASE,
+            PaperRecommendationsInput,
+            get_recommendations,
         )
 
         paper_id = "a" * 40
@@ -871,7 +874,7 @@ class TestGetRecommendationsTool:
     @pytest.mark.asyncio
     async def test_get_recommendations_invalid_id(self, reset_client):
         """get_recommendations should validate paper ID."""
-        from semantic_scholar_mcp.server import get_recommendations, PaperRecommendationsInput
+        from semantic_scholar_mcp.server import PaperRecommendationsInput, get_recommendations
 
         params = PaperRecommendationsInput(paper_id="invalid-id")
         result = await get_recommendations(params)
@@ -895,7 +898,7 @@ class TestSearchAuthorsTool:
     @pytest.mark.asyncio
     async def test_search_authors_success(self, reset_client):
         """search_authors should return author info."""
-        from semantic_scholar_mcp.server import search_authors, AuthorSearchInput
+        from semantic_scholar_mcp.server import AuthorSearchInput, search_authors
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/search"
         respx.get(url).mock(return_value=Response(200, json={
@@ -932,7 +935,7 @@ class TestGetAuthorDetailsTool:
     @pytest.mark.asyncio
     async def test_get_author_details_success(self, reset_client):
         """get_author_details should return author profile."""
-        from semantic_scholar_mcp.server import get_author_details, AuthorDetailsInput
+        from semantic_scholar_mcp.server import AuthorDetailsInput, get_author_details
 
         author_id = "123"
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/{author_id}"
@@ -972,7 +975,7 @@ class TestBulkPapersTool:
     @pytest.mark.asyncio
     async def test_bulk_papers_success(self, reset_client):
         """get_bulk_papers should return multiple papers."""
-        from semantic_scholar_mcp.server import get_bulk_papers, BulkPaperInput
+        from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch"
         respx.post(url).mock(return_value=Response(200, json=[
@@ -992,7 +995,7 @@ class TestBulkPapersTool:
     @pytest.mark.asyncio
     async def test_bulk_papers_with_failures(self, reset_client):
         """get_bulk_papers should report papers not found."""
-        from semantic_scholar_mcp.server import get_bulk_papers, BulkPaperInput
+        from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch"
         respx.post(url).mock(return_value=Response(200, json=[
@@ -1013,7 +1016,7 @@ class TestBulkPapersTool:
     @pytest.mark.asyncio
     async def test_bulk_papers_invalid_ids(self, reset_client):
         """get_bulk_papers should validate all paper IDs."""
-        from semantic_scholar_mcp.server import get_bulk_papers, BulkPaperInput
+        from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         params = BulkPaperInput(paper_ids=["invalid-id-1", "invalid-id-2"])
         result = await get_bulk_papers(params)
@@ -1115,7 +1118,7 @@ class TestMakeRequest:
     @pytest.mark.asyncio
     async def test_make_request_custom_base_url(self, reset_client):
         """_make_request should use custom base URL when provided."""
-        from semantic_scholar_mcp.server import _make_request, RECOMMENDATIONS_BASE
+        from semantic_scholar_mcp.server import RECOMMENDATIONS_BASE, _make_request
 
         url = f"{RECOMMENDATIONS_BASE}/papers/forpaper/123"
         respx.get(url).mock(return_value=Response(200, json={"recommendedPapers": []}))
@@ -1206,3 +1209,28 @@ class TestFormatAuthorMarkdown:
         result = _format_author_markdown(author)
 
         assert "Affiliations" not in result
+
+
+# ===============================================================================
+# ENTRY POINT TESTS
+# ===============================================================================
+
+class TestEntryPoint:
+    """Test module entry point."""
+
+    def test_main_module_importable(self):
+        """__main__.py should be importable."""
+        import semantic_scholar_mcp.__main__  # noqa: F401
+
+    def test_main_function_exists(self):
+        """main() should be callable."""
+        from semantic_scholar_mcp import main
+
+        assert callable(main)
+
+    def test_version_consistency(self):
+        """__init__.py and server.py versions must match."""
+        import semantic_scholar_mcp
+        from semantic_scholar_mcp.server import __version__ as server_version
+
+        assert semantic_scholar_mcp.__version__ == server_version
