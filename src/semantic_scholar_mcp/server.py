@@ -22,7 +22,7 @@ Configuration:
 
 Author: Santiago Maniches
     - ORCID: https://orcid.org/0009-0005-6480-1987
-    - LinkedIn: https://www.linkedin.com/in/santiago-maniches/
+    - LinkedIn: https://www.linkedin.com/in/santiagomaniches/
 
 Organization: TOPOLOGICA LLC
     - Website: https://topologica.ai
@@ -43,10 +43,11 @@ import os
 import random
 import re
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -110,21 +111,21 @@ RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
 
 # Field sets for paper metadata (tiered for efficiency)
 # Lightweight: for search results, recommendations, bulk, and citation/reference sublists
-PAPER_SEARCH_FIELDS: List[str] = [
+PAPER_SEARCH_FIELDS: list[str] = [
     "paperId", "corpusId", "url", "title", "venue", "year",
     "citationCount", "influentialCitationCount", "isOpenAccess",
     "openAccessPdf", "fieldsOfStudy", "authors", "externalIds", "tldr"
 ]
 
 # Comprehensive: for single paper detail views only
-PAPER_DETAIL_FIELDS: List[str] = [
+PAPER_DETAIL_FIELDS: list[str] = [
     *PAPER_SEARCH_FIELDS,
     "abstract", "publicationVenue", "referenceCount",
     "s2FieldsOfStudy", "publicationTypes", "publicationDate",
     "journal", "citationStyles"
 ]
 
-AUTHOR_FIELDS: List[str] = [
+AUTHOR_FIELDS: list[str] = [
     "authorId", "externalIds", "url", "name", "aliases", "affiliations",
     "homepage", "paperCount", "citationCount", "hIndex"
 ]
@@ -195,26 +196,47 @@ class ResponseFormat(str, Enum):
 class PaperSearchInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     query: str = Field(..., description="Search query", min_length=1, max_length=500)
-    year: Optional[str] = Field(default=None, description="Year filter: '2024', '2020-2024', '2020-'")
-    fields_of_study: Optional[List[str]] = Field(default=None, description="Filter by fields: ['Computer Science', 'Biology']")
-    publication_types: Optional[List[str]] = Field(default=None, description="Filter: 'Review', 'JournalArticle'")
+    year: str | None = Field(
+        default=None, description="Year filter: '2024', '2020-2024', '2020-'"
+    )
+    fields_of_study: list[str] | None = Field(
+        default=None,
+        description="Filter by fields: ['Computer Science', 'Biology']",
+    )
+    publication_types: list[str] | None = Field(
+        default=None, description="Filter: 'Review', 'JournalArticle'"
+    )
     open_access_only: bool = Field(default=False, description="Only return open access papers")
-    min_citation_count: Optional[int] = Field(default=None, description="Minimum citations", ge=0)
+    min_citation_count: int | None = Field(default=None, description="Minimum citations", ge=0)
     limit: int = Field(default=10, description="Max results (1-100)", ge=1, le=100)
     offset: int = Field(default=0, description="Pagination offset", ge=0)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 class PaperDetailsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    paper_id: str = Field(..., description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx", min_length=1)
+    paper_id: str = Field(
+        ...,
+        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        min_length=1,
+    )
     include_citations: bool = Field(default=False, description="Include citing papers")
     include_references: bool = Field(default=False, description="Include referenced papers")
     citations_limit: int = Field(default=10, description="Max citations to return", ge=1, le=100)
     references_limit: int = Field(default=10, description="Max references to return", ge=1, le=100)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 class AuthorSearchInput(BaseModel):
@@ -222,8 +244,13 @@ class AuthorSearchInput(BaseModel):
     query: str = Field(..., description="Author name to search", min_length=1, max_length=200)
     limit: int = Field(default=10, description="Max results", ge=1, le=100)
     offset: int = Field(default=0, description="Pagination offset", ge=0)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 class AuthorDetailsInput(BaseModel):
@@ -231,23 +258,40 @@ class AuthorDetailsInput(BaseModel):
     author_id: str = Field(..., description="Semantic Scholar author ID", min_length=1)
     include_papers: bool = Field(default=True, description="Include publications")
     papers_limit: int = Field(default=20, description="Max papers to return", ge=1, le=100)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 class PaperRecommendationsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     paper_id: str = Field(..., description="Seed paper ID for recommendations", min_length=1)
     limit: int = Field(default=10, description="Max recommendations", ge=1, le=100)
-    response_format: ResponseFormat = Field(default=ResponseFormat.MARKDOWN, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 class BulkPaperInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    paper_ids: List[str] = Field(..., description="List of paper IDs (max 500)", min_length=1, max_length=500)
-    response_format: ResponseFormat = Field(default=ResponseFormat.JSON, description="Output format")
-    api_key: Optional[str] = Field(default=None, description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)")
+    paper_ids: list[str] = Field(
+        ..., description="List of paper IDs (max 500)", min_length=1, max_length=500
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.JSON, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -284,7 +328,7 @@ async def _get_client() -> httpx.AsyncClient:
     return _client
 
 
-def _get_headers(api_key: Optional[str] = None) -> Dict[str, str]:
+def _get_headers(api_key: str | None = None) -> dict[str, str]:
     """Build request headers. User-provided api_key takes priority over env var."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
@@ -296,10 +340,10 @@ def _get_headers(api_key: Optional[str] = None) -> Dict[str, str]:
 async def _make_request(
     method: str,
     endpoint: str,
-    params: Optional[Dict] = None,
-    json_body: Optional[Dict] = None,
-    api_key: Optional[str] = None,
-    base_url: Optional[str] = None,
+    params: dict | None = None,
+    json_body: dict | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
 ) -> dict[str, Any] | list:
     """Make HTTP request to Semantic Scholar API with rate limiting and retry."""
     global _last_request_time
@@ -324,10 +368,10 @@ async def _make_request(
 async def _execute_request_with_retry(
     method: str,
     url: str,
-    params: Optional[Dict],
-    json_body: Optional[Dict],
-    headers: Dict[str, str],
-    api_key: Optional[str],
+    params: dict | None,
+    json_body: dict | None,
+    headers: dict[str, str],
+    api_key: str | None,
 ) -> dict[str, Any] | list:
     """Execute HTTP request with exponential backoff retry for retriable errors."""
     client = await _get_client()
@@ -376,7 +420,7 @@ async def _execute_request_with_retry(
 
 def _handle_error(
     status: int,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     retry_after: float | None = None,
 ) -> None:
     """Handle API errors with contextual messages and typed exceptions."""
@@ -456,7 +500,7 @@ def _validate_paper_id(paper_id: str) -> None:
 # FORMATTING UTILITIES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _format_paper_markdown(paper: Dict[str, Any]) -> str:
+def _format_paper_markdown(paper: dict[str, Any]) -> str:
     lines = []
     title = paper.get("title", "Unknown Title")
     year = paper.get("year", "N/A")
@@ -491,13 +535,19 @@ def _format_paper_markdown(paper: Dict[str, Any]) -> str:
     
     abstract = paper.get("abstract")
     if abstract:
-        lines.append(f"**Abstract:** {abstract[:500]}..." if len(abstract) > 500 else f"**Abstract:** {abstract}")
+        if len(abstract) > 500:
+            lines.append(f"**Abstract:** {abstract[:500]}...")
+        else:
+            lines.append(f"**Abstract:** {abstract}")
     
     ext_ids = paper.get("externalIds") or {}
     ids = []
-    if ext_ids.get("DOI"): ids.append(f"DOI: {ext_ids['DOI']}")
-    if ext_ids.get("ArXiv"): ids.append(f"ArXiv: {ext_ids['ArXiv']}")
-    if ext_ids.get("PubMed"): ids.append(f"PMID: {ext_ids['PubMed']}")
+    if ext_ids.get("DOI"):
+        ids.append(f"DOI: {ext_ids['DOI']}")
+    if ext_ids.get("ArXiv"):
+        ids.append(f"ArXiv: {ext_ids['ArXiv']}")
+    if ext_ids.get("PubMed"):
+        ids.append(f"PMID: {ext_ids['PubMed']}")
     if ids:
         lines.append(f"**IDs:** {', '.join(ids)}")
     
@@ -508,14 +558,18 @@ def _format_paper_markdown(paper: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _format_author_markdown(author: Dict[str, Any]) -> str:
+def _format_author_markdown(author: dict[str, Any]) -> str:
     lines = [f"### {author.get('name', 'Unknown')}"]
     
     affiliations = author.get("affiliations") or []
     if affiliations:
         lines.append(f"**Affiliations:** {', '.join(affiliations[:3])}")
     
-    lines.append(f"**h-index:** {author.get('hIndex')} | **Papers:** {author.get('paperCount', 0)} | **Citations:** {author.get('citationCount', 0)}")
+    lines.append(
+        f"**h-index:** {author.get('hIndex')} | "
+        f"**Papers:** {author.get('paperCount', 0)} | "
+        f"**Citations:** {author.get('citationCount', 0)}"
+    )
     
     if author.get("homepage"):
         lines.append(f"**Homepage:** {author['homepage']}")
@@ -535,18 +589,33 @@ def _format_author_markdown(author: Dict[str, Any]) -> str:
     annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
 )
 async def search_papers(params: PaperSearchInput) -> str:
-    """Search for academic papers. Supports boolean operators (AND, OR, NOT), phrase search with quotes."""
+    """Search for academic papers.
+
+    Supports boolean operators (AND, OR, NOT), phrase search with quotes.
+    """
     logger.info(f"Searching: {params.query}")
 
-    api_params = {"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(PAPER_SEARCH_FIELDS)}
-    if params.year: api_params["year"] = params.year
-    if params.fields_of_study: api_params["fieldsOfStudy"] = ",".join(params.fields_of_study)
-    if params.publication_types: api_params["publicationTypes"] = ",".join(params.publication_types)
-    if params.open_access_only: api_params["openAccessPdf"] = ""
-    if params.min_citation_count: api_params["minCitationCount"] = params.min_citation_count
+    api_params = {
+        "query": params.query,
+        "offset": params.offset,
+        "limit": params.limit,
+        "fields": ",".join(PAPER_SEARCH_FIELDS),
+    }
+    if params.year:
+        api_params["year"] = params.year
+    if params.fields_of_study:
+        api_params["fieldsOfStudy"] = ",".join(params.fields_of_study)
+    if params.publication_types:
+        api_params["publicationTypes"] = ",".join(params.publication_types)
+    if params.open_access_only:
+        api_params["openAccessPdf"] = ""
+    if params.min_citation_count:
+        api_params["minCitationCount"] = params.min_citation_count
 
     try:
-        response = await _make_request("GET", "paper/search", params=api_params, api_key=params.api_key)
+        response = await _make_request(
+            "GET", "paper/search", params=api_params, api_key=params.api_key
+        )
         total = response.get("total", 0) if isinstance(response, dict) else 0
         papers = response.get("data", []) if isinstance(response, dict) else []
     except SemanticScholarError as e:
@@ -555,7 +624,11 @@ async def search_papers(params: PaperSearchInput) -> str:
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "papers": papers}, indent=2)
 
-    lines = [f"## Search Results: \"{params.query}\"", f"**Found:** {total} papers (showing {params.offset + 1}-{params.offset + len(papers)})", ""]
+    lines = [
+        f"## Search Results: \"{params.query}\"",
+        f"**Found:** {total} papers (showing {params.offset + 1}-{params.offset + len(papers)})",
+        "",
+    ]
     for paper in papers:
         lines.append(_format_paper_markdown(paper))
     if total > params.offset + len(papers):
@@ -573,16 +646,31 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 
     try:
         _validate_paper_id(params.paper_id)
-        paper = await _make_request("GET", f"paper/{params.paper_id}", params={"fields": ",".join(PAPER_DETAIL_FIELDS)}, api_key=params.api_key)
+        paper = await _make_request(
+            "GET",
+            f"paper/{params.paper_id}",
+            params={"fields": ",".join(PAPER_DETAIL_FIELDS)},
+            api_key=params.api_key,
+        )
         if not isinstance(paper, dict):
             return "**Error:** Unexpected response format"
-        result: Dict[str, Any] = {"paper": paper}
+        result: dict[str, Any] = {"paper": paper}
 
         if params.include_citations:
-            cit = await _make_request("GET", f"paper/{params.paper_id}/citations", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.citations_limit}, api_key=params.api_key)
+            cit = await _make_request(
+                "GET",
+                f"paper/{params.paper_id}/citations",
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.citations_limit},
+                api_key=params.api_key,
+            )
             result["citations"] = cit.get("data", []) if isinstance(cit, dict) else []
         if params.include_references:
-            ref = await _make_request("GET", f"paper/{params.paper_id}/references", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.references_limit}, api_key=params.api_key)
+            ref = await _make_request(
+                "GET",
+                f"paper/{params.paper_id}/references",
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.references_limit},
+                api_key=params.api_key,
+            )
             result["references"] = ref.get("data", []) if isinstance(ref, dict) else []
     except SemanticScholarError as e:
         return f"**Error:** {e}"
@@ -595,12 +683,20 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
         lines.extend(["---", f"### Citing Papers ({len(result['citations'])} shown)", ""])
         for c in result["citations"]:
             p = c.get("citingPaper", {})
-            if p: lines.append(f"- **{p.get('title', '?')}** ({p.get('year', '')}) - {p.get('citationCount', 0)} citations")
+            if p:
+                lines.append(
+                    f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
+                    f"- {p.get('citationCount', 0)} citations"
+                )
     if result.get("references"):
         lines.extend(["---", f"### References ({len(result['references'])} shown)", ""])
         for r in result["references"]:
             p = r.get("citedPaper", {})
-            if p: lines.append(f"- **{p.get('title', '?')}** ({p.get('year', '')}) - {p.get('citationCount', 0)} citations")
+            if p:
+                lines.append(
+                    f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
+                    f"- {p.get('citationCount', 0)} citations"
+                )
     return "\n".join(lines)
 
 
@@ -613,7 +709,17 @@ async def search_authors(params: AuthorSearchInput) -> str:
     logger.info(f"Searching authors: {params.query}")
 
     try:
-        response = await _make_request("GET", "author/search", params={"query": params.query, "offset": params.offset, "limit": params.limit, "fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
+        response = await _make_request(
+            "GET",
+            "author/search",
+            params={
+                "query": params.query,
+                "offset": params.offset,
+                "limit": params.limit,
+                "fields": ",".join(AUTHOR_FIELDS),
+            },
+            api_key=params.api_key,
+        )
         total = response.get("total", 0) if isinstance(response, dict) else 0
         authors = response.get("data", []) if isinstance(response, dict) else []
     except SemanticScholarError as e:
@@ -637,13 +743,23 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
     logger.info(f"Getting author: {params.author_id}")
 
     try:
-        author = await _make_request("GET", f"author/{params.author_id}", params={"fields": ",".join(AUTHOR_FIELDS)}, api_key=params.api_key)
+        author = await _make_request(
+            "GET",
+            f"author/{params.author_id}",
+            params={"fields": ",".join(AUTHOR_FIELDS)},
+            api_key=params.api_key,
+        )
         if not isinstance(author, dict):
             return "**Error:** Unexpected response format"
-        result: Dict[str, Any] = {"author": author}
+        result: dict[str, Any] = {"author": author}
 
         if params.include_papers:
-            papers = await _make_request("GET", f"author/{params.author_id}/papers", params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.papers_limit}, api_key=params.api_key)
+            papers = await _make_request(
+                "GET",
+                f"author/{params.author_id}/papers",
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.papers_limit},
+                api_key=params.api_key,
+            )
             result["papers"] = papers.get("data", []) if isinstance(papers, dict) else []
     except SemanticScholarError as e:
         return f"**Error:** {e}"
@@ -655,7 +771,10 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
     if result.get("papers"):
         lines.extend(["---", f"### Publications ({len(result['papers'])} shown)", ""])
         for p in result["papers"]:
-            lines.append(f"- **{p.get('title', '?')}** ({p.get('year', '')}) - {p.get('citationCount', 0)} citations")
+            lines.append(
+                f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
+                f"- {p.get('citationCount', 0)} citations"
+            )
     return "\n".join(lines)
 
 
@@ -683,7 +802,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"seed": params.paper_id, "recommendations": papers}, indent=2)
 
-    lines = [f"## Recommendations", f"**Seed:** {params.paper_id}", f"**Found:** {len(papers)}", ""]
+    lines = ["## Recommendations", f"**Seed:** {params.paper_id}", f"**Found:** {len(papers)}", ""]
     for paper in papers:
         lines.append(_format_paper_markdown(paper))
     return "\n".join(lines)
@@ -711,7 +830,13 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
         )
 
     try:
-        response = await _make_request("POST", "paper/batch", params={"fields": ",".join(PAPER_SEARCH_FIELDS)}, json_body={"ids": params.paper_ids}, api_key=params.api_key)
+        response = await _make_request(
+            "POST",
+            "paper/batch",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS)},
+            json_body={"ids": params.paper_ids},
+            api_key=params.api_key,
+        )
         papers = response if isinstance(response, list) else response.get("data", [])
     except SemanticScholarError as e:
         return f"**Error:** {e}"
@@ -734,7 +859,11 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
             result["not_found"] = failed_ids
         return json.dumps(result, indent=2)
 
-    lines = [f"## Bulk Retrieval", f"**Requested:** {len(params.paper_ids)} | **Retrieved:** {len(succeeded)}", ""]
+    lines = [
+        "## Bulk Retrieval",
+        f"**Requested:** {len(params.paper_ids)} | **Retrieved:** {len(succeeded)}",
+        "",
+    ]
     if failed_ids:
         display_ids = failed_ids[:20]
         lines.append(f"**Not found ({len(failed_ids)}):** {', '.join(display_ids)}")
@@ -752,7 +881,7 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
 )
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
-    status: Dict[str, Any] = {
+    status: dict[str, Any] = {
         "server": "semantic-scholar-mcp",
         "version": __version__,
         "api_key_configured": bool(SEMANTIC_SCHOLAR_API_KEY),
@@ -783,7 +912,10 @@ async def server_status() -> str:
 def main():
     """Run the MCP server."""
     if not SEMANTIC_SCHOLAR_API_KEY:
-        logger.warning("SEMANTIC_SCHOLAR_API_KEY not set. You can provide api_key per-request or use rate-limited public access (1 req/sec).")
+        logger.warning(
+            "SEMANTIC_SCHOLAR_API_KEY not set. "
+            "You can provide api_key per-request or use rate-limited public access (1 req/sec)."
+        )
     mcp.run()
 
 
