@@ -367,7 +367,7 @@ MIT License - see [LICENSE](LICENSE) file.
 **Santiago Maniches**
 - Founder & CEO, [TOPOLOGICA LLC](https://topologica.ai)
 - ORCID: [0009-0005-6480-1987](https://orcid.org/0009-0005-6480-1987)
-- LinkedIn: [santiago-maniches](https://www.linkedin.com/in/santiago-maniches/)
+- LinkedIn: [santiago-maniches](https://www.linkedin.com/in/santiagomaniches/)
 - Website: [topologica.ai](https://topologica.ai)
 
 ---
