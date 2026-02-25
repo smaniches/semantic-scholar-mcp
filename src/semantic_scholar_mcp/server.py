@@ -47,7 +47,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -340,11 +340,11 @@ def _get_headers(api_key: str | None = None) -> dict[str, str]:
 async def _make_request(
     method: str,
     endpoint: str,
-    params: dict | None = None,
-    json_body: dict | None = None,
+    params: dict[str, Any] | None = None,
+    json_body: dict[str, Any] | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
-) -> dict[str, Any] | list:
+) -> dict[str, Any] | list[Any]:
     """Make HTTP request to Semantic Scholar API with rate limiting and retry."""
     global _last_request_time
 
@@ -368,11 +368,11 @@ async def _make_request(
 async def _execute_request_with_retry(
     method: str,
     url: str,
-    params: dict | None,
-    json_body: dict | None,
+    params: dict[str, Any] | None,
+    json_body: dict[str, Any] | None,
     headers: dict[str, str],
     api_key: str | None,
-) -> dict[str, Any] | list:
+) -> dict[str, Any] | list[Any]:
     """Execute HTTP request with exponential backoff retry for retriable errors."""
     client = await _get_client()
 
@@ -383,7 +383,7 @@ async def _execute_request_with_retry(
             else:
                 resp = await client.post(url, params=params, json=json_body, headers=headers)
             resp.raise_for_status()
-            return resp.json()
+            return cast(dict[str, Any] | list[Any], resp.json())
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
             # Retriable: 429, 503 only
@@ -909,7 +909,7 @@ async def server_status() -> str:
 # ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def main():
+def main() -> None:
     """Run the MCP server."""
     if not SEMANTIC_SCHOLAR_API_KEY:
         logger.warning(
