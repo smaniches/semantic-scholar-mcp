@@ -58,12 +58,13 @@ jobs:
         pip install -e ".[dev]"
     - name: Test with coverage
       run: pytest --cov=src/semantic_scholar_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --tb=short -q
-    - name: Upload coverage
+    - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-      uses: actions/upload-artifact@v4
+      uses: codecov/codecov-action@v4
       with:
-        name: coverage-report
-        path: coverage.xml
+        files: coverage.xml
+        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   security:
     name: Security Scan
