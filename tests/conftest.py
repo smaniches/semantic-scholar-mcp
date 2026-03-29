@@ -37,11 +37,20 @@ def reset_client():
 
 @pytest.fixture
 def reset_rate_limit():
-    """Reset rate-limiting state before/after each test."""
+    """Reset rate-limiting state and semaphore before/after each test.
+
+    The asyncio.Semaphore is bound to an event loop on first use.
+    pytest-asyncio creates a new loop per test, so we must recreate the semaphore.
+    """
+    import asyncio
+
     old_time = server._last_request_time
+    old_semaphore = server._rate_semaphore
     server._last_request_time = 0.0
+    server._rate_semaphore = asyncio.Semaphore(1)
     yield
     server._last_request_time = old_time
+    server._rate_semaphore = old_semaphore
 
 
 @pytest.fixture
