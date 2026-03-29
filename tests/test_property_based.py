@@ -33,7 +33,8 @@ from semantic_scholar_mcp.server import (
 hex_40 = st.text(alphabet=string.hexdigits, min_size=40, max_size=40)
 
 # Valid DOI-prefixed IDs (use printable chars to match regex `.+` which excludes \r\n)
-doi_ids = st.from_regex(r"DOI:.+", fullmatch=True).filter(lambda s: len(s) <= 60)
+# DOI: use printable non-whitespace after prefix to avoid stripping edge cases
+doi_ids = st.from_regex(r"DOI:\S+", fullmatch=True).filter(lambda s: len(s) <= 60)
 
 # Valid ArXiv-prefixed IDs (ARXIV:NNNN.NNNNN format)
 arxiv_ids = st.tuples(
