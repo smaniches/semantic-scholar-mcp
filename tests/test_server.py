@@ -14,6 +14,7 @@ import httpx
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp.exceptions import ToolError
 
 from semantic_scholar_mcp.server import (
     SEMANTIC_SCHOLAR_API_BASE,
@@ -723,9 +724,8 @@ class TestSearchPapersTool:
         respx.get(url).mock(return_value=Response(500))
 
         params = PaperSearchInput(query="test")
-        result = await search_papers(params)
-
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await search_papers(params)
 
 
 class TestGetPaperDetailsTool:
@@ -859,9 +859,8 @@ class TestGetPaperDetailsTool:
         from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
 
         params = PaperDetailsInput(paper_id="invalid-id")
-        result = await get_paper_details(params)
-
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await get_paper_details(params)
 
 
 class TestGetRecommendationsTool:
@@ -919,9 +918,8 @@ class TestGetRecommendationsTool:
         from semantic_scholar_mcp.server import PaperRecommendationsInput, get_recommendations
 
         params = PaperRecommendationsInput(paper_id="invalid-id")
-        result = await get_recommendations(params)
-
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await get_recommendations(params)
 
 
 class TestSearchAuthorsTool:
@@ -1090,10 +1088,8 @@ class TestBulkPapersTool:
         from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         params = BulkPaperInput(paper_ids=["invalid-id-1", "invalid-id-2"])
-        result = await get_bulk_papers(params)
-
-        assert "Error" in result
-        assert "Invalid paper ID" in result
+        with pytest.raises(ToolError, match="Invalid paper ID"):
+            await get_bulk_papers(params)
 
 
 class TestServerStatusTool:

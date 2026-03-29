@@ -51,6 +51,7 @@ from typing import Any, cast
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -199,7 +200,8 @@ async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        # Close the shared HTTP client on shutdown
+        # Clear cache and close the shared HTTP client on shutdown
+        _cache_clear()
         if _client is not None and not _client.is_closed:
             await _client.aclose()
             _client = None
@@ -344,6 +346,43 @@ _MIN_REQUEST_INTERVAL_KEYED = 0.1  # seconds (keyed tier: 10 req/sec)
 # Retry configuration
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE = 1.0  # seconds
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TTL CACHE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# In-memory TTL cache for paper/author lookups within a session.
+# Avoids redundant API calls when the same entity is fetched multiple times.
+_CACHE_TTL = 300.0  # 5 minutes
+_CACHE_MAX_SIZE = 200  # Max entries (LRU eviction when full)
+
+_cache: dict[str, tuple[float, Any]] = {}
+
+
+def _cache_get(key: str) -> Any | None:
+    """Get a value from the TTL cache, or None if expired/missing."""
+    entry = _cache.get(key)
+    if entry is None:
+        return None
+    ts, value = entry
+    if time.monotonic() - ts > _CACHE_TTL:
+        del _cache[key]
+        return None
+    return value
+
+
+def _cache_set(key: str, value: Any) -> None:
+    """Store a value in the TTL cache with LRU eviction."""
+    # Evict oldest entries if cache is full
+    if len(_cache) >= _CACHE_MAX_SIZE and key not in _cache:
+        oldest_key = min(_cache, key=lambda k: _cache[k][0])
+        del _cache[oldest_key]
+    _cache[key] = (time.monotonic(), value)
+
+
+def _cache_clear() -> None:
+    """Clear the entire cache (used in lifespan shutdown)."""
+    _cache.clear()
 
 
 async def _get_client() -> httpx.AsyncClient:
@@ -655,7 +694,7 @@ async def search_papers(params: PaperSearchInput) -> str:
         total = response.get("total", 0) if isinstance(response, dict) else 0
         papers = response.get("data", []) if isinstance(response, dict) else []
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "papers": papers}, indent=2)
@@ -682,14 +721,22 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 
     try:
         _validate_paper_id(params.paper_id)
-        paper = await _make_request(
-            "GET",
-            f"paper/{params.paper_id}",
-            params={"fields": ",".join(PAPER_DETAIL_FIELDS)},
-            api_key=params.api_key,
-        )
+
+        # Check cache for paper details
+        cache_key = f"paper:{params.paper_id}"
+        paper = _cache_get(cache_key)
+        if paper is None:
+            paper = await _make_request(
+                "GET",
+                f"paper/{params.paper_id}",
+                params={"fields": ",".join(PAPER_DETAIL_FIELDS)},
+                api_key=params.api_key,
+            )
+            if isinstance(paper, dict):
+                _cache_set(cache_key, paper)
+
         if not isinstance(paper, dict):
-            return "**Error:** Unexpected response format"
+            raise ToolError("Unexpected response format from Semantic Scholar API")
         result: dict[str, Any] = {"paper": paper}
 
         if params.include_citations:
@@ -709,7 +756,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             )
             result["references"] = ref.get("data", []) if isinstance(ref, dict) else []
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps(result, indent=2)
@@ -759,7 +806,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
         total = response.get("total", 0) if isinstance(response, dict) else 0
         authors = response.get("data", []) if isinstance(response, dict) else []
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "authors": authors}, indent=2)
@@ -779,14 +826,21 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
     logger.info(f"Getting author: {params.author_id}")
 
     try:
-        author = await _make_request(
-            "GET",
-            f"author/{params.author_id}",
-            params={"fields": ",".join(AUTHOR_FIELDS)},
-            api_key=params.api_key,
-        )
+        # Check cache for author details
+        cache_key = f"author:{params.author_id}"
+        author = _cache_get(cache_key)
+        if author is None:
+            author = await _make_request(
+                "GET",
+                f"author/{params.author_id}",
+                params={"fields": ",".join(AUTHOR_FIELDS)},
+                api_key=params.api_key,
+            )
+            if isinstance(author, dict):
+                _cache_set(cache_key, author)
+
         if not isinstance(author, dict):
-            return "**Error:** Unexpected response format"
+            raise ToolError("Unexpected response format from Semantic Scholar API")
         result: dict[str, Any] = {"author": author}
 
         if params.include_papers:
@@ -798,7 +852,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
             )
             result["papers"] = papers.get("data", []) if isinstance(papers, dict) else []
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps(result, indent=2)
@@ -833,7 +887,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
         )
         papers = response.get("recommendedPapers", []) if isinstance(response, dict) else []
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"seed": params.paper_id, "recommendations": papers}, indent=2)
@@ -861,9 +915,10 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
             invalid_ids.append(paper_id)
 
     if invalid_ids:
-        return f"**Error:** Invalid paper ID format(s): {', '.join(invalid_ids[:10])}" + (
-            f" ... +{len(invalid_ids) - 10} more" if len(invalid_ids) > 10 else ""
-        )
+        msg = f"Invalid paper ID format(s): {', '.join(invalid_ids[:10])}"
+        if len(invalid_ids) > 10:
+            msg += f" ... +{len(invalid_ids) - 10} more"
+        raise ToolError(msg)
 
     try:
         response = await _make_request(
@@ -875,7 +930,7 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
         )
         papers = response if isinstance(response, list) else response.get("data", [])
     except SemanticScholarError as e:
-        return f"**Error:** {e}"
+        raise ToolError(str(e)) from e
 
     # Track and report failures (null entries for unfound papers)
     succeeded = [p for p in papers if p]

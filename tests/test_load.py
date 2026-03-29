@@ -13,6 +13,7 @@ import time
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp.exceptions import ToolError
 
 from semantic_scholar_mcp.server import (
     SEMANTIC_SCHOLAR_API_BASE,
@@ -144,7 +145,6 @@ class TestToolLevelLoad:
         assert len(results) == 3
         for result in results:
             assert "Test Paper" in result
-            assert "Error" not in result
 
 
 # ===============================================================================
@@ -174,12 +174,12 @@ class TestMixedLoadScenarios:
 
         queries = [f"query{i}" for i in range(4)]
         tasks = [asyncio.create_task(search_papers(PaperSearchInput(query=q))) for q in queries]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # All should return (some with errors, some with success)
+        # All should return (some with ToolError exceptions, some with success)
         assert len(results) == 4
-        successes = [r for r in results if "Error" not in r]
-        errors = [r for r in results if "Error" in r]
+        successes = [r for r in results if isinstance(r, str)]
+        errors = [r for r in results if isinstance(r, ToolError)]
         # At least some should succeed and some should fail
         assert len(successes) > 0 or len(errors) > 0  # All returned something
 
