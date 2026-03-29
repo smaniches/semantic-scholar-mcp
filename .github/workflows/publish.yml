@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/semantic-scholar-mcp
+      url: https://pypi.org/p/s2-mcp-server
     permissions:
       id-token: write  # Trusted publishing
 

@@ -18,7 +18,7 @@
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
-      "identifier": "semantic-scholar-mcp",
+      "identifier": "s2-mcp-server",
       "version": "1.0.0",
       "runtimeHint": "uvx",
       "transport": {

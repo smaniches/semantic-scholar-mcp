@@ -1,5 +1,5 @@
 [project]
-name = "semantic-scholar-mcp"
+name = "s2-mcp-server"
 version = "1.0.0"
 description = "MCP server for Semantic Scholar — 200M+ academic papers in Claude Desktop"
 readme = "README.md"

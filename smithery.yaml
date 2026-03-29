@@ -12,7 +12,7 @@ startCommand:
     |-
     (config) => ({
       command: "uvx",
-      args: ["semantic-scholar-mcp"],
+      args: ["s2-mcp-server"],
       env: {
         SEMANTIC_SCHOLAR_API_KEY: config.SEMANTIC_SCHOLAR_API_KEY || ""
       }

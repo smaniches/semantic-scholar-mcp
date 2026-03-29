@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
-[![PyPI version](https://img.shields.io/pypi/v/semantic-scholar-mcp)](https://pypi.org/project/semantic-scholar-mcp/)
+[![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
@@ -17,12 +17,12 @@
 ### Option 1: One-Line Install (Recommended)
 ```bash
 # No cloning needed — runs directly from PyPI
-uvx semantic-scholar-mcp
+uvx s2-mcp-server
 ```
 
 ### Option 2: Claude Code
 ```bash
-claude mcp add semantic-scholar -- uvx semantic-scholar-mcp
+claude mcp add semantic-scholar -- uvx s2-mcp-server
 ```
 
 ### Option 3: Claude Desktop (Windows)
@@ -34,7 +34,7 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json`:
   "mcpServers": {
     "semantic-scholar": {
       "command": "uvx",
-      "args": ["semantic-scholar-mcp"],
+      "args": ["s2-mcp-server"],
       "env": {
         "SEMANTIC_SCHOLAR_API_KEY": "your-key-here"
       }
@@ -52,7 +52,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "semantic-scholar": {
       "command": "uvx",
-      "args": ["semantic-scholar-mcp"],
+      "args": ["s2-mcp-server"],
       "env": {
         "SEMANTIC_SCHOLAR_API_KEY": "your-key-here"
       }
@@ -63,7 +63,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ### Option 5: pip / From Source
 ```bash
-pip install semantic-scholar-mcp
+pip install s2-mcp-server
 # or
 git clone https://github.com/smaniches/semantic-scholar-mcp.git
 cd semantic-scholar-mcp && pip install -e .
