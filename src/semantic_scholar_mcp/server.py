@@ -196,7 +196,7 @@ logger.propagate = False
 async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
     """Lifespan context manager for proper HTTP client cleanup on shutdown."""
     global _client
-    logger.info(f"Starting semantic-scholar-mcp v{__version__}")
+    logger.info("Starting semantic-scholar-mcp v%s", __version__)
     try:
         yield
     finally:
@@ -468,7 +468,7 @@ async def _execute_request_with_retry(
                 jitter = random.uniform(0, 0.5)
                 wait = min(retry_after + jitter, 30.0)
                 logger.warning(
-                    f"HTTP {status}. Retry {attempt + 1}/{MAX_RETRIES} after {wait:.1f}s"
+                    "HTTP %d. Retry %d/%d after %.1fs", status, attempt + 1, MAX_RETRIES, wait
                 )
                 await asyncio.sleep(wait)
                 continue
@@ -482,13 +482,12 @@ async def _execute_request_with_retry(
         except httpx.TimeoutException:
             if attempt < MAX_RETRIES:
                 wait = RETRY_BACKOFF_BASE * (2**attempt) + random.uniform(0, 0.5)
-                logger.warning(f"Timeout. Retry {attempt + 1}/{MAX_RETRIES} after {wait:.1f}s")
+                logger.warning("Timeout. Retry %d/%d after %.1fs", attempt + 1, MAX_RETRIES, wait)
                 await asyncio.sleep(wait)
                 continue
-            raise SemanticScholarError("Request timed out after all retries")
+            raise SemanticScholarError("Request timed out after all retries") from None
 
-    # This line should be unreachable — every path above either returns or raises
-    raise SemanticScholarError("Request failed: no response received")
+    raise SemanticScholarError("Request failed: no response received")  # pragma: no cover
 
 
 def _handle_error(
@@ -567,6 +566,13 @@ def _validate_paper_id(paper_id: str) -> None:
         "CorpusId:xxx, URL:xxx, ACL:xxx",
         status_code=400,
     )
+
+
+def _is_valid_paper_id(paper_id: str) -> bool:
+    """Check if a paper ID matches any accepted format (non-raising)."""
+    if not paper_id or not paper_id.strip():
+        return False
+    return any(p.match(paper_id.strip()) for p in _PAPER_ID_PATTERNS)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -668,7 +674,7 @@ async def search_papers(params: PaperSearchInput) -> str:
 
     Supports boolean operators (AND, OR, NOT), phrase search with quotes.
     """
-    logger.info(f"Searching: {params.query}")
+    logger.info("Searching: %s", params.query)
 
     api_params = {
         "query": params.query,
@@ -717,7 +723,7 @@ async def search_papers(params: PaperSearchInput) -> str:
 )
 async def get_paper_details(params: PaperDetailsInput) -> str:
     """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx"""
-    logger.info(f"Getting paper: {params.paper_id}")
+    logger.info("Getting paper: %s", params.paper_id)
 
     try:
         _validate_paper_id(params.paper_id)
@@ -789,7 +795,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 )
 async def search_authors(params: AuthorSearchInput) -> str:
     """Search for academic authors by name."""
-    logger.info(f"Searching authors: {params.query}")
+    logger.info("Searching authors: %s", params.query)
 
     try:
         response = await _make_request(
@@ -823,7 +829,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
 )
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
-    logger.info(f"Getting author: {params.author_id}")
+    logger.info("Getting author: %s", params.author_id)
 
     try:
         # Check cache for author details
@@ -874,7 +880,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
 )
 async def get_recommendations(params: PaperRecommendationsInput) -> str:
     """Get paper recommendations based on a seed paper."""
-    logger.info(f"Recommendations for: {params.paper_id}")
+    logger.info("Recommendations for: %s", params.paper_id)
 
     try:
         _validate_paper_id(params.paper_id)
@@ -904,15 +910,10 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
 )
 async def get_bulk_papers(params: BulkPaperInput) -> str:
     """Retrieve multiple papers in a single request (max 500)."""
-    logger.info(f"Bulk retrieval: {len(params.paper_ids)} papers")
+    logger.info("Bulk retrieval: %d papers", len(params.paper_ids))
 
     # Validate all paper IDs before making request
-    invalid_ids = []
-    for paper_id in params.paper_ids:
-        try:
-            _validate_paper_id(paper_id)
-        except ValidationError:
-            invalid_ids.append(paper_id)
+    invalid_ids = [pid for pid in params.paper_ids if not _is_valid_paper_id(pid)]
 
     if invalid_ids:
         msg = f"Invalid paper ID format(s): {', '.join(invalid_ids[:10])}"
@@ -938,7 +939,7 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
     failed_ids = [params.paper_ids[i] for i in failed_indices if i < len(params.paper_ids)]
 
     if failed_ids:
-        logger.warning(f"Bulk retrieval: {len(failed_ids)} papers not found: {failed_ids[:10]}")
+        logger.warning("Bulk retrieval: %d papers not found: %s", len(failed_ids), failed_ids[:10])
 
     if params.response_format == ResponseFormat.JSON:
         result = {
@@ -989,7 +990,7 @@ async def server_status() -> str:
     except SemanticScholarError as e:
         status["api_reachable"] = False
         status["error"] = str(e)
-    except Exception as e:
+    except (httpx.HTTPError, OSError, RuntimeError) as e:
         status["api_reachable"] = False
         status["error"] = str(e)
 
