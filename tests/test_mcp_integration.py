@@ -13,6 +13,7 @@ import json
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import TextContent
 
 from semantic_scholar_mcp.server import RECOMMENDATIONS_BASE, SEMANTIC_SCHOLAR_API_BASE, mcp
@@ -130,17 +131,13 @@ class TestSearchPapersIntegration:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_search_api_error_returns_error_text(self, reset_all):
-        """API errors should return error text, not crash."""
+    async def test_search_api_error_raises_tool_error(self, reset_all):
+        """API errors should raise ToolError."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(500))
 
-        result = await mcp.call_tool(
-            "semantic_scholar_search_papers", {"params": {"query": "test"}}
-        )
-
-        text = _text(result)
-        assert "Error" in text
+        with pytest.raises(ToolError):
+            await mcp.call_tool("semantic_scholar_search_papers", {"params": {"query": "test"}})
 
 
 class TestGetPaperIntegration:
@@ -175,13 +172,11 @@ class TestGetPaperIntegration:
     @respx.mock
     @pytest.mark.asyncio
     async def test_get_paper_invalid_id(self, reset_all):
-        """Invalid paper ID should return error text."""
-        result = await mcp.call_tool(
-            "semantic_scholar_get_paper", {"params": {"paper_id": "not-a-valid-id"}}
-        )
-
-        text = _text(result)
-        assert "Error" in text
+        """Invalid paper ID should raise ToolError."""
+        with pytest.raises(ToolError):
+            await mcp.call_tool(
+                "semantic_scholar_get_paper", {"params": {"paper_id": "not-a-valid-id"}}
+            )
 
 
 class TestGetRecommendationsIntegration:

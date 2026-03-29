@@ -10,6 +10,7 @@ import json
 import pytest
 import respx
 from httpx import Response
+from mcp.server.fastmcp.exceptions import ToolError
 
 from semantic_scholar_mcp.server import (
     RECOMMENDATIONS_BASE,
@@ -380,25 +381,25 @@ class TestToolErrorEdgeCases:
     @respx.mock
     @pytest.mark.asyncio
     async def test_get_paper_unexpected_response_type(self, reset_all):
-        """get_paper_details should handle non-dict response."""
+        """get_paper_details should raise ToolError on non-dict response."""
         paper_id = "a" * 40
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
         respx.get(url).mock(return_value=Response(200, json=[]))
 
         params = PaperDetailsInput(paper_id=paper_id)
-        result = await get_paper_details(params)
-        assert "Unexpected response" in result
+        with pytest.raises(ToolError, match="Unexpected response"):
+            await get_paper_details(params)
 
     @respx.mock
     @pytest.mark.asyncio
     async def test_get_author_unexpected_response_type(self, reset_all):
-        """get_author_details should handle non-dict response."""
+        """get_author_details should raise ToolError on non-dict response."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/123"
         respx.get(url).mock(return_value=Response(200, json=[]))
 
         params = AuthorDetailsInput(author_id="123", include_papers=False)
-        result = await get_author_details(params)
-        assert "Unexpected response" in result
+        with pytest.raises(ToolError, match="Unexpected response"):
+            await get_author_details(params)
 
     @respx.mock
     @pytest.mark.asyncio
@@ -408,8 +409,8 @@ class TestToolErrorEdgeCases:
         respx.get(url).mock(return_value=Response(403))
 
         params = PaperSearchInput(query="test")
-        result = await search_papers(params)
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await search_papers(params)
 
     @respx.mock
     @pytest.mark.asyncio
@@ -419,8 +420,8 @@ class TestToolErrorEdgeCases:
         respx.get(url).mock(return_value=Response(500))
 
         params = AuthorSearchInput(query="test")
-        result = await search_authors(params)
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await search_authors(params)
 
     @respx.mock
     @pytest.mark.asyncio
@@ -431,8 +432,8 @@ class TestToolErrorEdgeCases:
         respx.get(url).mock(return_value=Response(500))
 
         params = PaperRecommendationsInput(paper_id=paper_id)
-        result = await get_recommendations(params)
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await get_recommendations(params)
 
     @respx.mock
     @pytest.mark.asyncio
@@ -442,8 +443,8 @@ class TestToolErrorEdgeCases:
         respx.post(url).mock(return_value=Response(500))
 
         params = BulkPaperInput(paper_ids=["a" * 40])
-        result = await get_bulk_papers(params)
-        assert "Error" in result
+        with pytest.raises(ToolError):
+            await get_bulk_papers(params)
 
     @respx.mock
     @pytest.mark.asyncio

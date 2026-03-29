@@ -53,9 +53,17 @@ def reset_rate_limit():
     server._rate_semaphore = old_semaphore
 
 
+@pytest.fixture(autouse=True)
+def reset_cache():
+    """Clear the TTL cache before/after each test (autouse)."""
+    server._cache_clear()
+    yield
+    server._cache_clear()
+
+
 @pytest.fixture
-def reset_all(reset_client, reset_rate_limit):
-    """Reset both HTTP client and rate-limiting state."""
+def reset_all(reset_client, reset_rate_limit, reset_cache):
+    """Reset HTTP client, rate-limiting state, and cache."""
     yield
 
 
