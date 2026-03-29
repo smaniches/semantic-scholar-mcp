@@ -2,7 +2,7 @@
 Semantic Scholar MCP Server
 ===========================
 
-MCP (Model Context Protocol) server for accessing Semantic Scholar's 
+MCP (Model Context Protocol) server for accessing Semantic Scholar's
 academic paper database directly within Claude Desktop.
 
 Author: Santiago Maniches (ORCID: 0009-0005-6480-1987)

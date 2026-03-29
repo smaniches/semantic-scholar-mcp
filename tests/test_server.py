@@ -35,6 +35,7 @@ from semantic_scholar_mcp.server import (
 # VERSION TESTS
 # ===============================================================================
 
+
 class TestVersion:
     """Test version constant."""
 
@@ -53,6 +54,7 @@ class TestVersion:
 # ===============================================================================
 # ERROR HANDLING TESTS
 # ===============================================================================
+
 
 class TestHandleError:
     """Test _handle_error maps status codes to correct exception types."""
@@ -138,6 +140,7 @@ class TestHandleError:
 # ===============================================================================
 # FORMAT PAPER MARKDOWN TESTS
 # ===============================================================================
+
 
 class TestFormatPaperMarkdown:
     """Test _format_paper_markdown handles edge cases."""
@@ -292,6 +295,7 @@ class TestFormatPaperMarkdown:
 # PAPER ID VALIDATION TESTS
 # ===============================================================================
 
+
 class TestValidatePaperId:
     """Test _validate_paper_id regex patterns."""
 
@@ -392,6 +396,7 @@ class TestValidatePaperId:
 # RETRY LOGIC TESTS
 # ===============================================================================
 
+
 class TestRetryLogic:
     """Test retry behavior for transient errors."""
 
@@ -399,6 +404,7 @@ class TestRetryLogic:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -419,9 +425,7 @@ class TestRetryLogic:
         )
 
         await _get_client()
-        result = await _execute_request_with_retry(
-            "GET", url, {"query": "test"}, None, {}, None
-        )
+        result = await _execute_request_with_retry("GET", url, {"query": "test"}, None, {}, None)
 
         assert result == {"data": [{"paperId": "123"}]}
         assert route.call_count == 2
@@ -441,9 +445,7 @@ class TestRetryLogic:
         )
 
         await _get_client()
-        result = await _execute_request_with_retry(
-            "GET", url, None, None, {}, None
-        )
+        result = await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert result == {"data": []}
         assert route.call_count == 2
@@ -458,9 +460,7 @@ class TestRetryLogic:
 
         await _get_client()
         with pytest.raises(NotFoundError):
-            await _execute_request_with_retry(
-                "GET", url, None, None, {}, None
-            )
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         # Should only be called once - no retry for 404
         assert route.call_count == 1
@@ -476,9 +476,7 @@ class TestRetryLogic:
 
         await _get_client()
         with pytest.raises(ServerError):
-            await _execute_request_with_retry(
-                "GET", url, None, None, {}, None
-            )
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         # Should retry MAX_RETRIES times (3) + 1 initial = 4 calls
         assert route.call_count == 4
@@ -489,15 +487,11 @@ class TestRetryLogic:
         """Timeout should retry max times then raise."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
 
-        route = respx.get(url).mock(
-            side_effect=httpx.TimeoutException("Connection timed out")
-        )
+        route = respx.get(url).mock(side_effect=httpx.TimeoutException("Connection timed out"))
 
         await _get_client()
         with pytest.raises(SemanticScholarError) as exc_info:
-            await _execute_request_with_retry(
-                "GET", url, None, None, {}, None
-            )
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert "timed out" in str(exc_info.value)
         assert route.call_count == 4  # MAX_RETRIES + 1
@@ -512,9 +506,7 @@ class TestRetryLogic:
 
         await _get_client()
         with pytest.raises(ValidationError):
-            await _execute_request_with_retry(
-                "GET", url, None, None, {}, None
-            )
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert route.call_count == 1
 
@@ -528,9 +520,7 @@ class TestRetryLogic:
 
         await _get_client()
         with pytest.raises(AuthenticationError):
-            await _execute_request_with_retry(
-                "GET", url, None, None, {}, None
-            )
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert route.call_count == 1
 
@@ -549,9 +539,7 @@ class TestRetryLogic:
         )
 
         await _get_client()
-        result = await _execute_request_with_retry(
-            "GET", url, None, None, {}, None
-        )
+        result = await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert result == {"total": 0, "data": []}
         assert route.call_count == 2
@@ -570,9 +558,7 @@ class TestRetryLogic:
         )
 
         await _get_client()
-        result = await _execute_request_with_retry(
-            "POST", url, None, {"ids": ["123"]}, {}, None
-        )
+        result = await _execute_request_with_retry("POST", url, None, {"ids": ["123"]}, {}, None)
 
         assert result == [{"paperId": "123"}]
         assert route.call_count == 2
@@ -582,6 +568,7 @@ class TestRetryLogic:
 # CLIENT LIFECYCLE TESTS
 # ===============================================================================
 
+
 class TestClientLifecycle:
     """Test HTTP client lifecycle management."""
 
@@ -589,6 +576,7 @@ class TestClientLifecycle:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -598,6 +586,7 @@ class TestClientLifecycle:
     async def test_get_client_creates_client(self, reset_client):
         """_get_client should create client if none exists."""
         import semantic_scholar_mcp.server as server
+
         assert server._client is None
 
         client = await _get_client()
@@ -630,6 +619,7 @@ class TestClientLifecycle:
 # TOOL FUNCTION TESTS
 # ===============================================================================
 
+
 class TestSearchPapersTool:
     """Test search_papers tool function."""
 
@@ -637,6 +627,7 @@ class TestSearchPapersTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -649,16 +640,23 @@ class TestSearchPapersTool:
         from semantic_scholar_mcp.server import PaperSearchInput, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
-        respx.get(url).mock(return_value=Response(200, json={
-            "total": 1,
-            "data": [{
-                "paperId": "123",
-                "title": "Test Paper",
-                "year": 2024,
-                "citationCount": 10,
-                "influentialCitationCount": 2,
-            }]
-        }))
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "total": 1,
+                    "data": [
+                        {
+                            "paperId": "123",
+                            "title": "Test Paper",
+                            "year": 2024,
+                            "citationCount": 10,
+                            "influentialCitationCount": 2,
+                        }
+                    ],
+                },
+            )
+        )
 
         params = PaperSearchInput(query="test query")
         result = await search_papers(params)
@@ -674,15 +672,17 @@ class TestSearchPapersTool:
         from semantic_scholar_mcp.server import PaperSearchInput, ResponseFormat, search_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
-        respx.get(url).mock(return_value=Response(200, json={
-            "total": 1,
-            "data": [{"paperId": "123", "title": "Test"}]
-        }))
+        respx.get(url).mock(
+            return_value=Response(
+                200, json={"total": 1, "data": [{"paperId": "123", "title": "Test"}]}
+            )
+        )
 
         params = PaperSearchInput(query="test", response_format=ResponseFormat.JSON)
         result = await search_papers(params)
 
         import json
+
         parsed = json.loads(result)
         assert parsed["query"] == "test"
         assert parsed["total"] == 1
@@ -704,7 +704,7 @@ class TestSearchPapersTool:
             open_access_only=True,
             min_citation_count=100,
             limit=20,
-            offset=10
+            offset=10,
         )
         await search_papers(params)
 
@@ -735,6 +735,7 @@ class TestGetPaperDetailsTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -748,13 +749,18 @@ class TestGetPaperDetailsTool:
 
         paper_id = "a" * 40
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
-        respx.get(url).mock(return_value=Response(200, json={
-            "paperId": paper_id,
-            "title": "Test Paper",
-            "year": 2024,
-            "citationCount": 10,
-            "influentialCitationCount": 2,
-        }))
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "paperId": paper_id,
+                    "title": "Test Paper",
+                    "year": 2024,
+                    "citationCount": 10,
+                    "influentialCitationCount": 2,
+                },
+            )
+        )
 
         params = PaperDetailsInput(paper_id=paper_id)
         result = await get_paper_details(params)
@@ -772,16 +778,28 @@ class TestGetPaperDetailsTool:
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
         cit_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}/citations"
 
-        respx.get(base_url).mock(return_value=Response(200, json={
-            "paperId": paper_id,
-            "title": "Main Paper",
-            "year": 2024,
-            "citationCount": 100,
-            "influentialCitationCount": 10,
-        }))
-        respx.get(cit_url).mock(return_value=Response(200, json={
-            "data": [{"citingPaper": {"title": "Citing Paper", "year": 2024, "citationCount": 5}}]
-        }))
+        respx.get(base_url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "paperId": paper_id,
+                    "title": "Main Paper",
+                    "year": 2024,
+                    "citationCount": 100,
+                    "influentialCitationCount": 10,
+                },
+            )
+        )
+        respx.get(cit_url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": [
+                        {"citingPaper": {"title": "Citing Paper", "year": 2024, "citationCount": 5}}
+                    ]
+                },
+            )
+        )
 
         params = PaperDetailsInput(paper_id=paper_id, include_citations=True)
         result = await get_paper_details(params)
@@ -799,18 +817,34 @@ class TestGetPaperDetailsTool:
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
         ref_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}/references"
 
-        respx.get(base_url).mock(return_value=Response(200, json={
-            "paperId": paper_id,
-            "title": "Main Paper",
-            "year": 2024,
-            "citationCount": 100,
-            "influentialCitationCount": 10,
-        }))
-        respx.get(ref_url).mock(return_value=Response(200, json={
-            "data": [{"citedPaper": {
-                "title": "Referenced Paper", "year": 2020, "citationCount": 500,
-            }}]
-        }))
+        respx.get(base_url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "paperId": paper_id,
+                    "title": "Main Paper",
+                    "year": 2024,
+                    "citationCount": 100,
+                    "influentialCitationCount": 10,
+                },
+            )
+        )
+        respx.get(ref_url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": [
+                        {
+                            "citedPaper": {
+                                "title": "Referenced Paper",
+                                "year": 2020,
+                                "citationCount": 500,
+                            }
+                        }
+                    ]
+                },
+            )
+        )
 
         params = PaperDetailsInput(paper_id=paper_id, include_references=True)
         result = await get_paper_details(params)
@@ -837,6 +871,7 @@ class TestGetRecommendationsTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -854,15 +889,22 @@ class TestGetRecommendationsTool:
 
         paper_id = "a" * 40
         url = f"{RECOMMENDATIONS_BASE}/papers/forpaper/{paper_id}"
-        respx.get(url).mock(return_value=Response(200, json={
-            "recommendedPapers": [{
-                "paperId": "b" * 40,
-                "title": "Recommended Paper",
-                "year": 2024,
-                "citationCount": 50,
-                "influentialCitationCount": 5,
-            }]
-        }))
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "recommendedPapers": [
+                        {
+                            "paperId": "b" * 40,
+                            "title": "Recommended Paper",
+                            "year": 2024,
+                            "citationCount": 50,
+                            "influentialCitationCount": 5,
+                        }
+                    ]
+                },
+            )
+        )
 
         params = PaperRecommendationsInput(paper_id=paper_id)
         result = await get_recommendations(params)
@@ -889,6 +931,7 @@ class TestSearchAuthorsTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -901,16 +944,23 @@ class TestSearchAuthorsTool:
         from semantic_scholar_mcp.server import AuthorSearchInput, search_authors
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/search"
-        respx.get(url).mock(return_value=Response(200, json={
-            "total": 1,
-            "data": [{
-                "authorId": "123",
-                "name": "John Doe",
-                "hIndex": 50,
-                "paperCount": 100,
-                "citationCount": 5000,
-            }]
-        }))
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "total": 1,
+                    "data": [
+                        {
+                            "authorId": "123",
+                            "name": "John Doe",
+                            "hIndex": 50,
+                            "paperCount": 100,
+                            "citationCount": 5000,
+                        }
+                    ],
+                },
+            )
+        )
 
         params = AuthorSearchInput(query="John Doe")
         result = await search_authors(params)
@@ -926,6 +976,7 @@ class TestGetAuthorDetailsTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -941,16 +992,23 @@ class TestGetAuthorDetailsTool:
         base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/{author_id}"
         papers_url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/{author_id}/papers"
 
-        respx.get(base_url).mock(return_value=Response(200, json={
-            "authorId": author_id,
-            "name": "Jane Smith",
-            "hIndex": 45,
-            "paperCount": 80,
-            "citationCount": 4000,
-        }))
-        respx.get(papers_url).mock(return_value=Response(200, json={
-            "data": [{"title": "Author Paper", "year": 2024, "citationCount": 100}]
-        }))
+        respx.get(base_url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "authorId": author_id,
+                    "name": "Jane Smith",
+                    "hIndex": 45,
+                    "paperCount": 80,
+                    "citationCount": 4000,
+                },
+            )
+        )
+        respx.get(papers_url).mock(
+            return_value=Response(
+                200, json={"data": [{"title": "Author Paper", "year": 2024, "citationCount": 100}]}
+            )
+        )
 
         params = AuthorDetailsInput(author_id=author_id)
         result = await get_author_details(params)
@@ -966,6 +1024,7 @@ class TestBulkPapersTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -978,15 +1037,21 @@ class TestBulkPapersTool:
         from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch"
-        respx.post(url).mock(return_value=Response(200, json=[
-            {"paperId": "a" * 40, "title": "Paper 1", "citationCount": 10},
-            {"paperId": "b" * 40, "title": "Paper 2", "citationCount": 20},
-        ]))
+        respx.post(url).mock(
+            return_value=Response(
+                200,
+                json=[
+                    {"paperId": "a" * 40, "title": "Paper 1", "citationCount": 10},
+                    {"paperId": "b" * 40, "title": "Paper 2", "citationCount": 20},
+                ],
+            )
+        )
 
         params = BulkPaperInput(paper_ids=["a" * 40, "b" * 40])
         result = await get_bulk_papers(params)
 
         import json
+
         parsed = json.loads(result)
         assert parsed["requested"] == 2
         assert parsed["retrieved"] == 2
@@ -998,15 +1063,21 @@ class TestBulkPapersTool:
         from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch"
-        respx.post(url).mock(return_value=Response(200, json=[
-            {"paperId": "a" * 40, "title": "Paper 1", "citationCount": 10},
-            None,  # Paper not found
-        ]))
+        respx.post(url).mock(
+            return_value=Response(
+                200,
+                json=[
+                    {"paperId": "a" * 40, "title": "Paper 1", "citationCount": 10},
+                    None,  # Paper not found
+                ],
+            )
+        )
 
         params = BulkPaperInput(paper_ids=["a" * 40, "b" * 40])
         result = await get_bulk_papers(params)
 
         import json
+
         parsed = json.loads(result)
         assert parsed["requested"] == 2
         assert parsed["retrieved"] == 1
@@ -1032,6 +1103,7 @@ class TestServerStatusTool:
     def reset_client(self):
         """Reset the global HTTP client before each test."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         server._client = None
         yield
@@ -1049,6 +1121,7 @@ class TestServerStatusTool:
         result = await server_status()
 
         import json
+
         parsed = json.loads(result)
         assert parsed["server"] == "semantic-scholar-mcp"
         assert parsed["version"] == __version__
@@ -1066,6 +1139,7 @@ class TestServerStatusTool:
         result = await server_status()
 
         import json
+
         parsed = json.loads(result)
         assert parsed["api_reachable"] is False
         assert "error" in parsed
@@ -1075,6 +1149,7 @@ class TestServerStatusTool:
 # MAKE REQUEST TESTS
 # ===============================================================================
 
+
 class TestMakeRequest:
     """Test _make_request function."""
 
@@ -1082,6 +1157,7 @@ class TestMakeRequest:
     def reset_client(self):
         """Reset the global HTTP client and rate limit state."""
         import semantic_scholar_mcp.server as server
+
         old_client = server._client
         old_time = server._last_request_time
         server._client = None
@@ -1123,15 +1199,14 @@ class TestMakeRequest:
         url = f"{RECOMMENDATIONS_BASE}/papers/forpaper/123"
         respx.get(url).mock(return_value=Response(200, json={"recommendedPapers": []}))
 
-        result = await _make_request(
-            "GET", "papers/forpaper/123", base_url=RECOMMENDATIONS_BASE
-        )
+        result = await _make_request("GET", "papers/forpaper/123", base_url=RECOMMENDATIONS_BASE)
         assert result == {"recommendedPapers": []}
 
 
 # ===============================================================================
 # HEADER TESTS
 # ===============================================================================
+
 
 class TestGetHeaders:
     """Test _get_headers function."""
@@ -1157,6 +1232,7 @@ class TestGetHeaders:
 # ===============================================================================
 # AUTHOR MARKDOWN TESTS
 # ===============================================================================
+
 
 class TestFormatAuthorMarkdown:
     """Test _format_author_markdown function."""
@@ -1214,6 +1290,7 @@ class TestFormatAuthorMarkdown:
 # ===============================================================================
 # ENTRY POINT TESTS
 # ===============================================================================
+
 
 class TestEntryPoint:
     """Test module entry point."""
