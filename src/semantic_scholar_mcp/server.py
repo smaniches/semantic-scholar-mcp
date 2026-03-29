@@ -2,7 +2,7 @@
 Semantic Scholar MCP Server
 ===========================
 
-Production MCP server providing direct access to Semantic Scholar's 
+Production MCP server providing direct access to Semantic Scholar's
 database of 200M+ academic papers within Claude Desktop.
 
 Tools Provided:
@@ -65,8 +65,10 @@ __version__ = "1.0.0"
 # CUSTOM EXCEPTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class SemanticScholarError(Exception):
     """Base exception for Semantic Scholar MCP."""
+
     def __init__(self, message: str, status_code: int | None = None):
         self.status_code = status_code
         super().__init__(message)
@@ -74,11 +76,13 @@ class SemanticScholarError(Exception):
 
 class AuthenticationError(SemanticScholarError):
     """API key invalid or missing (401/403)."""
+
     pass
 
 
 class RateLimitError(SemanticScholarError):
     """Rate limit exceeded (429)."""
+
     def __init__(self, message: str, retry_after: float | None = None):
         self.retry_after = retry_after
         super().__init__(message, status_code=429)
@@ -86,17 +90,21 @@ class RateLimitError(SemanticScholarError):
 
 class NotFoundError(SemanticScholarError):
     """Paper/author not found (404)."""
+
     pass
 
 
 class ValidationError(SemanticScholarError):
     """Bad request — invalid parameters (400)."""
+
     pass
 
 
 class ServerError(SemanticScholarError):
     """Semantic Scholar server error (500/502/503)."""
+
     pass
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -112,27 +120,53 @@ RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
 # Field sets for paper metadata (tiered for efficiency)
 # Lightweight: for search results, recommendations, bulk, and citation/reference sublists
 PAPER_SEARCH_FIELDS: list[str] = [
-    "paperId", "corpusId", "url", "title", "venue", "year",
-    "citationCount", "influentialCitationCount", "isOpenAccess",
-    "openAccessPdf", "fieldsOfStudy", "authors", "externalIds", "tldr"
+    "paperId",
+    "corpusId",
+    "url",
+    "title",
+    "venue",
+    "year",
+    "citationCount",
+    "influentialCitationCount",
+    "isOpenAccess",
+    "openAccessPdf",
+    "fieldsOfStudy",
+    "authors",
+    "externalIds",
+    "tldr",
 ]
 
 # Comprehensive: for single paper detail views only
 PAPER_DETAIL_FIELDS: list[str] = [
     *PAPER_SEARCH_FIELDS,
-    "abstract", "publicationVenue", "referenceCount",
-    "s2FieldsOfStudy", "publicationTypes", "publicationDate",
-    "journal", "citationStyles"
+    "abstract",
+    "publicationVenue",
+    "referenceCount",
+    "s2FieldsOfStudy",
+    "publicationTypes",
+    "publicationDate",
+    "journal",
+    "citationStyles",
 ]
 
 AUTHOR_FIELDS: list[str] = [
-    "authorId", "externalIds", "url", "name", "aliases", "affiliations",
-    "homepage", "paperCount", "citationCount", "hIndex"
+    "authorId",
+    "externalIds",
+    "url",
+    "name",
+    "aliases",
+    "affiliations",
+    "homepage",
+    "paperCount",
+    "citationCount",
+    "hIndex",
 ]
+
 
 # Structured JSON logging
 class _StructuredFormatter(logging.Formatter):
     """JSON formatter for structured logging in production."""
+
     def format(self, record: logging.LogRecord) -> str:
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
@@ -155,6 +189,7 @@ logger.propagate = False
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP SERVER LIFECYCLE
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @asynccontextmanager
 async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
@@ -188,6 +223,7 @@ mcp = FastMCP(
 # PYDANTIC INPUT MODELS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class ResponseFormat(str, Enum):
     MARKDOWN = "markdown"
     JSON = "json"
@@ -196,9 +232,7 @@ class ResponseFormat(str, Enum):
 class PaperSearchInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     query: str = Field(..., description="Search query", min_length=1, max_length=500)
-    year: str | None = Field(
-        default=None, description="Year filter: '2024', '2020-2024', '2020-'"
-    )
+    year: str | None = Field(default=None, description="Year filter: '2024', '2020-2024', '2020-'")
     fields_of_study: list[str] | None = Field(
         default=None,
         description="Filter by fields: ['Computer Science', 'Biology']",
@@ -319,11 +353,9 @@ async def _get_client() -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             timeout=httpx.Timeout(30.0, connect=10.0),
             limits=httpx.Limits(
-                max_connections=10,
-                max_keepalive_connections=5,
-                keepalive_expiry=30
+                max_connections=10, max_keepalive_connections=5, keepalive_expiry=30
             ),
-            headers={"Accept": "application/json", "Content-Type": "application/json"}
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
     return _client
 
@@ -389,14 +421,16 @@ async def _execute_request_with_retry(
             # Retriable: 429, 503 only
             if status in (429, 503) and attempt < MAX_RETRIES:
                 if status == 429:
-                    retry_after = float(e.response.headers.get(
-                        "Retry-After", RETRY_BACKOFF_BASE * (2 ** attempt)
-                    ))
+                    retry_after = float(
+                        e.response.headers.get("Retry-After", RETRY_BACKOFF_BASE * (2**attempt))
+                    )
                 else:
-                    retry_after = RETRY_BACKOFF_BASE * (2 ** attempt)
+                    retry_after = RETRY_BACKOFF_BASE * (2**attempt)
                 jitter = random.uniform(0, 0.5)
                 wait = min(retry_after + jitter, 30.0)
-                logger.warning(f"HTTP {status}. Retry {attempt+1}/{MAX_RETRIES} after {wait:.1f}s")
+                logger.warning(
+                    f"HTTP {status}. Retry {attempt + 1}/{MAX_RETRIES} after {wait:.1f}s"
+                )
                 await asyncio.sleep(wait)
                 continue
             # Non-retriable or exhausted retries: raise appropriate exception
@@ -404,12 +438,12 @@ async def _execute_request_with_retry(
             _handle_error(
                 status,
                 api_key,
-                retry_after=float(retry_after_header) if retry_after_header else None
+                retry_after=float(retry_after_header) if retry_after_header else None,
             )
         except httpx.TimeoutException:
             if attempt < MAX_RETRIES:
-                wait = RETRY_BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 0.5)
-                logger.warning(f"Timeout. Retry {attempt+1}/{MAX_RETRIES} after {wait:.1f}s")
+                wait = RETRY_BACKOFF_BASE * (2**attempt) + random.uniform(0, 0.5)
+                logger.warning(f"Timeout. Retry {attempt + 1}/{MAX_RETRIES} after {wait:.1f}s")
                 await asyncio.sleep(wait)
                 continue
             raise SemanticScholarError("Request timed out after all retries")
@@ -455,12 +489,12 @@ def _handle_error(
 # Regex patterns for valid paper ID formats
 _PAPER_ID_PATTERNS = [
     re.compile(r"^[a-f0-9]{40}$", re.IGNORECASE),  # 40-char hex (S2 ID)
-    re.compile(r"^DOI:.+$", re.IGNORECASE),         # DOI:xxx
+    re.compile(r"^DOI:.+$", re.IGNORECASE),  # DOI:xxx
     re.compile(r"^ARXIV:\d+\.\d+.*$", re.IGNORECASE),  # ARXIV:2106.15928
-    re.compile(r"^PMID:\d+$", re.IGNORECASE),       # PMID:32908142
-    re.compile(r"^CorpusId:\d+$", re.IGNORECASE),   # CorpusId:215416146
-    re.compile(r"^URL:.+$", re.IGNORECASE),         # URL:xxx
-    re.compile(r"^ACL:.+$", re.IGNORECASE),         # ACL:P19-1285
+    re.compile(r"^PMID:\d+$", re.IGNORECASE),  # PMID:32908142
+    re.compile(r"^CorpusId:\d+$", re.IGNORECASE),  # CorpusId:215416146
+    re.compile(r"^URL:.+$", re.IGNORECASE),  # URL:xxx
+    re.compile(r"^ACL:.+$", re.IGNORECASE),  # ACL:P19-1285
 ]
 
 
@@ -492,7 +526,7 @@ def _validate_paper_id(paper_id: str) -> None:
         f"Invalid paper ID format: '{paper_id}'. "
         "Accepted formats: 40-char hex (S2 ID), DOI:xxx, ARXIV:xxx, PMID:xxx, "
         "CorpusId:xxx, URL:xxx, ACL:xxx",
-        status_code=400
+        status_code=400,
     )
 
 
@@ -500,27 +534,28 @@ def _validate_paper_id(paper_id: str) -> None:
 # FORMATTING UTILITIES
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def _format_paper_markdown(paper: dict[str, Any]) -> str:
     lines = []
     title = paper.get("title", "Unknown Title")
     year = paper.get("year", "N/A")
     lines.append(f"### {title} ({year})")
-    
+
     authors = paper.get("authors", [])
     if authors:
         names = [a.get("name", "?") for a in authors[:5]]
         if len(authors) > 5:
-            names.append(f"... +{len(authors)-5} more")
+            names.append(f"... +{len(authors) - 5} more")
         lines.append(f"**Authors:** {', '.join(names)}")
-    
+
     venue = paper.get("venue") or (paper.get("publicationVenue") or {}).get("name")
     if venue:
         lines.append(f"**Venue:** {venue}")
-    
+
     citations = paper.get("citationCount", 0)
     influential = paper.get("influentialCitationCount", 0)
     lines.append(f"**Citations:** {citations} ({influential} influential)")
-    
+
     pdf_info = paper.get("openAccessPdf") or {}
     if pdf_info.get("url"):
         lines.append(f"**Open Access:** [PDF]({pdf_info['url']})")
@@ -528,18 +563,18 @@ def _format_paper_markdown(paper: dict[str, Any]) -> str:
     fields = paper.get("fieldsOfStudy") or []
     if fields:
         lines.append(f"**Fields:** {', '.join(fields[:5])}")
-    
+
     tldr = paper.get("tldr") or {}
     if tldr.get("text"):
         lines.append(f"**TL;DR:** {tldr['text']}")
-    
+
     abstract = paper.get("abstract")
     if abstract:
         if len(abstract) > 500:
             lines.append(f"**Abstract:** {abstract[:500]}...")
         else:
             lines.append(f"**Abstract:** {abstract}")
-    
+
     ext_ids = paper.get("externalIds") or {}
     ids = []
     if ext_ids.get("DOI"):
@@ -550,32 +585,32 @@ def _format_paper_markdown(paper: dict[str, Any]) -> str:
         ids.append(f"PMID: {ext_ids['PubMed']}")
     if ids:
         lines.append(f"**IDs:** {', '.join(ids)}")
-    
+
     if paper.get("url"):
         lines.append(f"**Link:** [{paper.get('paperId')}]({paper['url']})")
-    
+
     lines.append("")
     return "\n".join(lines)
 
 
 def _format_author_markdown(author: dict[str, Any]) -> str:
     lines = [f"### {author.get('name', 'Unknown')}"]
-    
+
     affiliations = author.get("affiliations") or []
     if affiliations:
         lines.append(f"**Affiliations:** {', '.join(affiliations[:3])}")
-    
+
     lines.append(
         f"**h-index:** {author.get('hIndex')} | "
         f"**Papers:** {author.get('paperCount', 0)} | "
         f"**Citations:** {author.get('citationCount', 0)}"
     )
-    
+
     if author.get("homepage"):
         lines.append(f"**Homepage:** {author['homepage']}")
     if author.get("url"):
         lines.append(f"**Profile:** [{author.get('authorId')}]({author['url']})")
-    
+
     lines.append("")
     return "\n".join(lines)
 
@@ -583,6 +618,7 @@ def _format_author_markdown(author: dict[str, Any]) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @mcp.tool(
     name="semantic_scholar_search_papers",
@@ -625,7 +661,7 @@ async def search_papers(params: PaperSearchInput) -> str:
         return json.dumps({"query": params.query, "total": total, "papers": papers}, indent=2)
 
     lines = [
-        f"## Search Results: \"{params.query}\"",
+        f'## Search Results: "{params.query}"',
         f"**Found:** {total} papers (showing {params.offset + 1}-{params.offset + len(papers)})",
         "",
     ]
@@ -728,7 +764,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "authors": authors}, indent=2)
 
-    lines = [f"## Author Search: \"{params.query}\"", f"**Found:** {total} authors", ""]
+    lines = [f'## Author Search: "{params.query}"', f"**Found:** {total} authors", ""]
     for author in authors:
         lines.append(_format_author_markdown(author))
     return "\n".join(lines)
@@ -908,6 +944,7 @@ async def server_status() -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 # ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def main() -> None:
     """Run the MCP server."""
