@@ -1,0 +1,19 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      SEMANTIC_SCHOLAR_API_KEY:
+        type: string
+        description: "Semantic Scholar API key (optional, get free at https://www.semanticscholar.org/product/api)"
+        default: ""
+    required: []
+  commandFunction:
+    |-
+    (config) => ({
+      command: "uvx",
+      args: ["semantic-scholar-mcp"],
+      env: {
+        SEMANTIC_SCHOLAR_API_KEY: config.SEMANTIC_SCHOLAR_API_KEY || ""
+      }
+    })

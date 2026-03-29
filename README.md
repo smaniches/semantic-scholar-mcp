@@ -14,21 +14,62 @@
 
 ## Installation
 
-### Option 1: From Source
+### Option 1: One-Line Install (Recommended)
 ```bash
-git clone https://github.com/smaniches/semantic-scholar-mcp.git
-cd semantic-scholar-mcp
-pip install -e .
+# No cloning needed — runs directly from PyPI
+uvx semantic-scholar-mcp
 ```
 
 ### Option 2: Claude Code
 ```bash
-# First install the package:
-pip install -e .
-
-# Then register with Claude Code:
-claude mcp add semantic-scholar -- python -m semantic_scholar_mcp
+claude mcp add semantic-scholar -- uvx semantic-scholar-mcp
 ```
+
+### Option 3: Claude Desktop (Windows)
+
+Add to `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "semantic-scholar": {
+      "command": "uvx",
+      "args": ["semantic-scholar-mcp"],
+      "env": {
+        "SEMANTIC_SCHOLAR_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+### Option 4: Claude Desktop (macOS)
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "semantic-scholar": {
+      "command": "uvx",
+      "args": ["semantic-scholar-mcp"],
+      "env": {
+        "SEMANTIC_SCHOLAR_API_KEY": "your-key-here"
+      }
+    }
+  }
+}
+```
+
+### Option 5: pip / From Source
+```bash
+pip install semantic-scholar-mcp
+# or
+git clone https://github.com/smaniches/semantic-scholar-mcp.git
+cd semantic-scholar-mcp && pip install -e .
+```
+
+> **Note:** Get a free API key at [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api). Without a key, you get rate-limited public access (1 req/sec).
 
 ---
 
