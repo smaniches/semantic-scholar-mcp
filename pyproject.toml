@@ -1,6 +1,6 @@
 [project]
 name = "s2-mcp-server"
-version = "1.0.0"
+version = "1.0.1"
 description = "MCP server for Semantic Scholar — 200M+ academic papers in Claude Desktop"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -52,6 +52,7 @@ Changelog = "https://github.com/smaniches/semantic-scholar-mcp/blob/main/CHANGEL
 "Semantic Scholar API" = "https://www.semanticscholar.org/product/api"
 
 [project.scripts]
+s2-mcp-server = "semantic_scholar_mcp:main"
 semantic-scholar-mcp = "semantic_scholar_mcp:main"
 
 [build-system]
