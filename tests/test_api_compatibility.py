@@ -1,0 +1,214 @@
+"""
+Semantic Scholar API Compatibility Tests
+========================================
+Validates every field combination sent by the MCP server against
+the live S2 API. Catches field deprecations and endpoint changes
+before users hit errors.
+
+Run: pytest tests/test_api_compatibility.py -v
+Optional: Set SEMANTIC_SCHOLAR_API_KEY env var for auth tests.
+Rate limit: Tests include 1.5s delays between requests.
+"""
+import os
+import time
+
+import httpx
+import pytest
+
+BASE = "https://api.semanticscholar.org/graph/v1"
+RECO_BASE = "https://api.semanticscholar.org/recommendations/v1"
+
+# Known stable IDs (Attention Is All You Need, Ashish Vaswani)
+TEST_PAPER_ID = "649def34f8be52c8b66281af98ae884c09aef38b"
+TEST_AUTHOR_ID = "1681f16bd23a0340476d1cac8e2f0e34"
+API_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
+
+
+def _headers():
+    h = {"Accept": "application/json"}
+    if API_KEY:
+        h["Authorization"] = f"Bearer {API_KEY}"
+    return h
+
+
+def _rate_limit():
+    time.sleep(1.5)
+
+
+# -- Auth header format ---------------------------------------------------
+
+class TestAuthHeader:
+
+    @pytest.mark.skipif(not API_KEY, reason="No API key")
+    def test_bearer_accepted(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/search",
+            params={"query": "test", "limit": "1", "fields": "title"},
+            headers={"Authorization": f"Bearer {API_KEY}"},
+        )
+        assert r.status_code == 200, f"Bearer auth failed: {r.status_code}"
+
+    @pytest.mark.skipif(not API_KEY, reason="No API key")
+    def test_x_api_key_rejected(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/search",
+            params={"query": "test", "limit": "1", "fields": "title"},
+            headers={"x-api-key": API_KEY},
+        )
+        assert r.status_code == 403, "x-api-key should be rejected"
+
+
+# -- Author field compatibility -------------------------------------------
+
+class TestAuthorFields:
+
+    def test_author_search_accepts_fields(self):
+        from semantic_scholar_mcp.server import AUTHOR_FIELDS
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/author/search",
+            params={"query": "Einstein", "limit": "1",
+                    "fields": ",".join(AUTHOR_FIELDS)},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"author/search rejected fields: {r.text[:200]}"
+
+    def test_author_detail_accepts_fields(self):
+        from semantic_scholar_mcp.server import AUTHOR_FIELDS
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/author/{TEST_AUTHOR_ID}",
+            params={"fields": ",".join(AUTHOR_FIELDS)},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"author detail rejected fields: {r.text[:200]}"
+
+    def test_aliases_rejected(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/author/search",
+            params={"query": "test", "limit": "1", "fields": "authorId,aliases"},
+            headers=_headers(),
+        )
+        assert r.status_code == 400, f"aliases should be rejected, got {r.status_code}"
+
+
+# -- Paper field compatibility per endpoint --------------------------------
+
+class TestPaperFieldsByEndpoint:
+
+    def test_paper_search_supports_tldr(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/search",
+            params={"query": "test", "limit": "1",
+                    "fields": ",".join(PAPER_SEARCH_FIELDS)},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"paper/search rejected: {r.text[:200]}"
+
+    def test_citations_supports_tldr(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/{TEST_PAPER_ID}/citations",
+            params={"fields": "title,tldr", "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"citations should accept tldr: {r.text[:200]}"
+
+    def test_references_rejects_tldr(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/{TEST_PAPER_ID}/references",
+            params={"fields": "title,tldr", "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 400, f"references should reject tldr, got {r.status_code}"
+
+    def test_author_papers_rejects_tldr(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/author/{TEST_AUTHOR_ID}/papers",
+            params={"fields": "title,tldr", "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 400, f"author/papers should reject tldr, got {r.status_code}"
+
+    def test_recommendations_rejects_tldr(self):
+        _rate_limit()
+        r = httpx.get(
+            f"{RECO_BASE}/papers/forpaper/{TEST_PAPER_ID}",
+            params={"fields": "title,tldr", "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 400, f"recommendations should reject tldr, got {r.status_code}"
+
+
+# -- LITE fields work on restricted endpoints ------------------------------
+
+class TestLiteFieldsWork:
+
+    def test_recommendations_with_lite(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+        _rate_limit()
+        r = httpx.get(
+            f"{RECO_BASE}/papers/forpaper/{TEST_PAPER_ID}",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"recommendations LITE failed: {r.text[:200]}"
+
+    def test_author_papers_with_lite(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/author/{TEST_AUTHOR_ID}/papers",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"author/papers LITE failed: {r.text[:200]}"
+
+    def test_references_with_lite(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+        _rate_limit()
+        r = httpx.get(
+            f"{BASE}/paper/{TEST_PAPER_ID}/references",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"references LITE failed: {r.text[:200]}"
+
+
+# -- Internal consistency -------------------------------------------------
+
+class TestFieldListConsistency:
+
+    def test_lite_excludes_only_tldr(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS, PAPER_SEARCH_FIELDS_LITE
+        diff = set(PAPER_SEARCH_FIELDS) - set(PAPER_SEARCH_FIELDS_LITE)
+        assert diff == {"tldr"}, f"LITE should exclude only tldr, excludes: {diff}"
+
+    def test_no_aliases(self):
+        from semantic_scholar_mcp.server import AUTHOR_FIELDS
+        assert "aliases" not in AUTHOR_FIELDS
+
+    def test_bearer_header_format(self):
+        from semantic_scholar_mcp.server import _get_headers
+        h = _get_headers("test_key_123")
+        assert h["Authorization"] == "Bearer test_key_123"
+        assert "x-api-key" not in h
+
+    def test_no_auth_without_key(self):
+        from semantic_scholar_mcp.server import _get_headers
+        import semantic_scholar_mcp.server as srv
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = ""
+        try:
+            h = _get_headers(None)
+            assert "Authorization" not in h
+            assert "x-api-key" not in h
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original

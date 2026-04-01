@@ -59,7 +59,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # VERSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -137,6 +137,9 @@ PAPER_SEARCH_FIELDS: list[str] = [
     "tldr",
 ]
 
+# Sub-endpoints (recommendations, author/papers, references) don't support tldr
+PAPER_SEARCH_FIELDS_LITE: list[str] = [f for f in PAPER_SEARCH_FIELDS if f != "tldr"]
+
 # Comprehensive: for single paper detail views only
 PAPER_DETAIL_FIELDS: list[str] = [
     *PAPER_SEARCH_FIELDS,
@@ -155,7 +158,6 @@ AUTHOR_FIELDS: list[str] = [
     "externalIds",
     "url",
     "name",
-    "aliases",
     "affiliations",
     "homepage",
     "paperCount",
@@ -404,7 +406,7 @@ def _get_headers(api_key: str | None = None) -> dict[str, str]:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
     if effective_key:
-        headers["x-api-key"] = effective_key
+        headers["Authorization"] = f"Bearer {effective_key}"
     return headers
 
 
@@ -757,7 +759,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             ref = await _make_request(
                 "GET",
                 f"paper/{params.paper_id}/references",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.references_limit},
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.references_limit},
                 api_key=params.api_key,
             )
             result["references"] = ref.get("data", []) if isinstance(ref, dict) else []
@@ -853,7 +855,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
             papers = await _make_request(
                 "GET",
                 f"author/{params.author_id}/papers",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.papers_limit},
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.papers_limit},
                 api_key=params.api_key,
             )
             result["papers"] = papers.get("data", []) if isinstance(papers, dict) else []
@@ -887,7 +889,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
         response = await _make_request(
             "GET",
             f"papers/forpaper/{params.paper_id}",
-            params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.limit},
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.limit},
             api_key=params.api_key,
             base_url=RECOMMENDATIONS_BASE,
         )
