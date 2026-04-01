@@ -2,6 +2,18 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-04-01
+
+### Fixed
+- Auth: migrated from deprecated x-api-key to Authorization: Bearer
+- Removed unsupported aliases field from author queries
+- Filtered tldr from recommendations, author/papers, and references endpoints
+
+### Added
+- PAPER_SEARCH_FIELDS_LITE constant for sub-endpoints with restricted field support
+- Automated S2 API compatibility test suite (14 tests)
+- Weekly CI workflow to catch S2 API changes early
+
 ## [1.0.0] - 2026-02-23
 
 ### Changed
