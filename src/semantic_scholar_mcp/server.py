@@ -759,7 +759,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             ref = await _make_request(
                 "GET",
                 f"paper/{params.paper_id}/references",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.references_limit},
+                params={
+                    "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
+                    "limit": params.references_limit,
+                },
                 api_key=params.api_key,
             )
             result["references"] = ref.get("data", []) if isinstance(ref, dict) else []

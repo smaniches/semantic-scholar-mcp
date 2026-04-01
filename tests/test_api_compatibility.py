@@ -9,6 +9,7 @@ Run: pytest tests/test_api_compatibility.py -v
 Optional: Set SEMANTIC_SCHOLAR_API_KEY env var for auth tests.
 Rate limit: Tests include 1.5s delays between requests.
 """
+
 import os
 import time
 
@@ -20,7 +21,7 @@ RECO_BASE = "https://api.semanticscholar.org/recommendations/v1"
 
 # Known stable IDs (Attention Is All You Need, Ashish Vaswani)
 TEST_PAPER_ID = "649def34f8be52c8b66281af98ae884c09aef38b"
-TEST_AUTHOR_ID = "1681f16bd23a0340476d1cac8e2f0e34"
+TEST_AUTHOR_ID = "40348417"
 API_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 
 
@@ -37,8 +38,8 @@ def _rate_limit():
 
 # -- Auth header format ---------------------------------------------------
 
-class TestAuthHeader:
 
+class TestAuthHeader:
     @pytest.mark.skipif(not API_KEY, reason="No API key")
     def test_bearer_accepted(self):
         _rate_limit()
@@ -62,21 +63,22 @@ class TestAuthHeader:
 
 # -- Author field compatibility -------------------------------------------
 
-class TestAuthorFields:
 
+class TestAuthorFields:
     def test_author_search_accepts_fields(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
+
         _rate_limit()
         r = httpx.get(
             f"{BASE}/author/search",
-            params={"query": "Einstein", "limit": "1",
-                    "fields": ",".join(AUTHOR_FIELDS)},
+            params={"query": "Einstein", "limit": "1", "fields": ",".join(AUTHOR_FIELDS)},
             headers=_headers(),
         )
         assert r.status_code == 200, f"author/search rejected fields: {r.text[:200]}"
 
     def test_author_detail_accepts_fields(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
+
         _rate_limit()
         r = httpx.get(
             f"{BASE}/author/{TEST_AUTHOR_ID}",
@@ -97,15 +99,15 @@ class TestAuthorFields:
 
 # -- Paper field compatibility per endpoint --------------------------------
 
-class TestPaperFieldsByEndpoint:
 
+class TestPaperFieldsByEndpoint:
     def test_paper_search_supports_tldr(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS
+
         _rate_limit()
         r = httpx.get(
             f"{BASE}/paper/search",
-            params={"query": "test", "limit": "1",
-                    "fields": ",".join(PAPER_SEARCH_FIELDS)},
+            params={"query": "test", "limit": "1", "fields": ",".join(PAPER_SEARCH_FIELDS)},
             headers=_headers(),
         )
         assert r.status_code == 200, f"paper/search rejected: {r.text[:200]}"
@@ -149,10 +151,11 @@ class TestPaperFieldsByEndpoint:
 
 # -- LITE fields work on restricted endpoints ------------------------------
 
-class TestLiteFieldsWork:
 
+class TestLiteFieldsWork:
     def test_recommendations_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+
         _rate_limit()
         r = httpx.get(
             f"{RECO_BASE}/papers/forpaper/{TEST_PAPER_ID}",
@@ -163,6 +166,7 @@ class TestLiteFieldsWork:
 
     def test_author_papers_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+
         _rate_limit()
         r = httpx.get(
             f"{BASE}/author/{TEST_AUTHOR_ID}/papers",
@@ -173,6 +177,7 @@ class TestLiteFieldsWork:
 
     def test_references_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+
         _rate_limit()
         r = httpx.get(
             f"{BASE}/paper/{TEST_PAPER_ID}/references",
@@ -184,26 +189,30 @@ class TestLiteFieldsWork:
 
 # -- Internal consistency -------------------------------------------------
 
-class TestFieldListConsistency:
 
+class TestFieldListConsistency:
     def test_lite_excludes_only_tldr(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS, PAPER_SEARCH_FIELDS_LITE
+
         diff = set(PAPER_SEARCH_FIELDS) - set(PAPER_SEARCH_FIELDS_LITE)
         assert diff == {"tldr"}, f"LITE should exclude only tldr, excludes: {diff}"
 
     def test_no_aliases(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
+
         assert "aliases" not in AUTHOR_FIELDS
 
     def test_bearer_header_format(self):
         from semantic_scholar_mcp.server import _get_headers
+
         h = _get_headers("test_key_123")
         assert h["Authorization"] == "Bearer test_key_123"
         assert "x-api-key" not in h
 
     def test_no_auth_without_key(self):
-        from semantic_scholar_mcp.server import _get_headers
         import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp.server import _get_headers
+
         original = srv.SEMANTIC_SCHOLAR_API_KEY
         srv.SEMANTIC_SCHOLAR_API_KEY = ""
         try:
