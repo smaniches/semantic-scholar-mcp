@@ -1214,15 +1214,15 @@ class TestGetHeaders:
         headers = _get_headers(api_key=None)
         assert headers["Accept"] == "application/json"
         assert headers["Content-Type"] == "application/json"
-        # x-api-key should only be present if env var is set
-        # Don't check for x-api-key absence as env might have it
+        # Authorization should only be present if env var is set
+        # Don't check for Authorization absence as env might have it
 
     def test_headers_with_api_key(self):
-        """_get_headers should include API key when provided."""
+        """_get_headers should include Bearer auth when API key provided."""
         from semantic_scholar_mcp.server import _get_headers
 
         headers = _get_headers(api_key="test-api-key")
-        assert headers["x-api-key"] == "test-api-key"
+        assert headers["Authorization"] == "Bearer test-api-key"
 
 
 # ===============================================================================
