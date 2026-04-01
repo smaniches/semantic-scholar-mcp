@@ -6,7 +6,8 @@ the live S2 API. Catches field deprecations and endpoint changes
 before users hit errors.
 
 Run: pytest tests/test_api_compatibility.py -v
-Optional: Set SEMANTIC_SCHOLAR_API_KEY env var for auth tests.
+Requires: SEMANTIC_SCHOLAR_API_KEY env var for live API tests.
+Without API key, only internal consistency tests run.
 Rate limit: Tests include delays between requests and retry on 429.
 """
 
@@ -74,6 +75,7 @@ class TestAuthHeader:
 # -- Author field compatibility -------------------------------------------
 
 
+@pytest.mark.skipif(not API_KEY, reason="No API key — skipping live API tests")
 class TestAuthorFields:
     def test_author_search_accepts_fields(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
@@ -107,6 +109,7 @@ class TestAuthorFields:
 # -- Paper field compatibility per endpoint --------------------------------
 
 
+@pytest.mark.skipif(not API_KEY, reason="No API key — skipping live API tests")
 class TestPaperFieldsByEndpoint:
     def test_paper_search_supports_tldr(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS
@@ -154,6 +157,7 @@ class TestPaperFieldsByEndpoint:
 # -- LITE fields work on restricted endpoints ------------------------------
 
 
+@pytest.mark.skipif(not API_KEY, reason="No API key — skipping live API tests")
 class TestLiteFieldsWork:
     def test_recommendations_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
