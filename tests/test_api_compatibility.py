@@ -7,7 +7,7 @@ before users hit errors.
 
 Run: pytest tests/test_api_compatibility.py -v
 Optional: Set SEMANTIC_SCHOLAR_API_KEY env var for auth tests.
-Rate limit: Tests include 1.5s delays between requests.
+Rate limit: Tests include delays between requests and retry on 429.
 """
 
 import os
@@ -24,6 +24,9 @@ TEST_PAPER_ID = "649def34f8be52c8b66281af98ae884c09aef38b"
 TEST_AUTHOR_ID = "40348417"
 API_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY")
 
+# Rate limit: 1 req/sec without key, higher with key
+_DELAY = 1.0 if API_KEY else 3.0
+
 
 def _headers():
     h = {"Accept": "application/json"}
@@ -32,8 +35,14 @@ def _headers():
     return h
 
 
-def _rate_limit():
-    time.sleep(1.5)
+def _get(url: str, **kwargs) -> httpx.Response:
+    """GET with rate limiting and retry on 429."""
+    time.sleep(_DELAY)
+    r = httpx.get(url, **kwargs)
+    if r.status_code == 429:
+        time.sleep(10)
+        r = httpx.get(url, **kwargs)
+    return r
 
 
 # -- Auth header format ---------------------------------------------------
@@ -42,8 +51,7 @@ def _rate_limit():
 class TestAuthHeader:
     @pytest.mark.skipif(not API_KEY, reason="No API key")
     def test_bearer_accepted(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/search",
             params={"query": "test", "limit": "1", "fields": "title"},
             headers={"Authorization": f"Bearer {API_KEY}"},
@@ -52,8 +60,7 @@ class TestAuthHeader:
 
     @pytest.mark.skipif(not API_KEY, reason="No API key")
     def test_x_api_key_rejected(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/search",
             params={"query": "test", "limit": "1", "fields": "title"},
             headers={"x-api-key": API_KEY},
@@ -68,8 +75,7 @@ class TestAuthorFields:
     def test_author_search_accepts_fields(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/author/search",
             params={"query": "Einstein", "limit": "1", "fields": ",".join(AUTHOR_FIELDS)},
             headers=_headers(),
@@ -79,8 +85,7 @@ class TestAuthorFields:
     def test_author_detail_accepts_fields(self):
         from semantic_scholar_mcp.server import AUTHOR_FIELDS
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/author/{TEST_AUTHOR_ID}",
             params={"fields": ",".join(AUTHOR_FIELDS)},
             headers=_headers(),
@@ -88,8 +93,7 @@ class TestAuthorFields:
         assert r.status_code == 200, f"author detail rejected fields: {r.text[:200]}"
 
     def test_aliases_rejected(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/author/search",
             params={"query": "test", "limit": "1", "fields": "authorId,aliases"},
             headers=_headers(),
@@ -104,8 +108,7 @@ class TestPaperFieldsByEndpoint:
     def test_paper_search_supports_tldr(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/search",
             params={"query": "test", "limit": "1", "fields": ",".join(PAPER_SEARCH_FIELDS)},
             headers=_headers(),
@@ -113,8 +116,7 @@ class TestPaperFieldsByEndpoint:
         assert r.status_code == 200, f"paper/search rejected: {r.text[:200]}"
 
     def test_citations_supports_tldr(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/{TEST_PAPER_ID}/citations",
             params={"fields": "title,tldr", "limit": "1"},
             headers=_headers(),
@@ -122,8 +124,7 @@ class TestPaperFieldsByEndpoint:
         assert r.status_code == 200, f"citations should accept tldr: {r.text[:200]}"
 
     def test_references_rejects_tldr(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/{TEST_PAPER_ID}/references",
             params={"fields": "title,tldr", "limit": "1"},
             headers=_headers(),
@@ -131,8 +132,7 @@ class TestPaperFieldsByEndpoint:
         assert r.status_code == 400, f"references should reject tldr, got {r.status_code}"
 
     def test_author_papers_rejects_tldr(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/author/{TEST_AUTHOR_ID}/papers",
             params={"fields": "title,tldr", "limit": "1"},
             headers=_headers(),
@@ -140,8 +140,7 @@ class TestPaperFieldsByEndpoint:
         assert r.status_code == 400, f"author/papers should reject tldr, got {r.status_code}"
 
     def test_recommendations_rejects_tldr(self):
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{RECO_BASE}/papers/forpaper/{TEST_PAPER_ID}",
             params={"fields": "title,tldr", "limit": "1"},
             headers=_headers(),
@@ -156,8 +155,7 @@ class TestLiteFieldsWork:
     def test_recommendations_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{RECO_BASE}/papers/forpaper/{TEST_PAPER_ID}",
             params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
             headers=_headers(),
@@ -167,8 +165,7 @@ class TestLiteFieldsWork:
     def test_author_papers_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/author/{TEST_AUTHOR_ID}/papers",
             params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
             headers=_headers(),
@@ -178,8 +175,7 @@ class TestLiteFieldsWork:
     def test_references_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
 
-        _rate_limit()
-        r = httpx.get(
+        r = _get(
             f"{BASE}/paper/{TEST_PAPER_ID}/references",
             params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
             headers=_headers(),
