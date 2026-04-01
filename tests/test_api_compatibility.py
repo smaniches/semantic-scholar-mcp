@@ -37,11 +37,14 @@ def _headers():
 
 def _get(url: str, **kwargs) -> httpx.Response:
     """GET with rate limiting and retry on 429."""
-    time.sleep(_DELAY)
-    r = httpx.get(url, **kwargs)
-    if r.status_code == 429:
-        time.sleep(10)
+    for backoff in (0, 10, 20):
+        if backoff:
+            time.sleep(backoff)
+        else:
+            time.sleep(_DELAY)
         r = httpx.get(url, **kwargs)
+        if r.status_code != 429:
+            return r
     return r
 
 
