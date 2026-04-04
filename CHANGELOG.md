@@ -2,6 +2,15 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.0.3] - 2026-04-04
+
+### Fixed
+- Filter tldr from citations endpoint (missed in v1.0.2); use PAPER_SEARCH_FIELDS_LITE for all sub-endpoints
+- Fix incorrect test asserting citations accepts tldr
+
+### Changed
+- Version bump to 1.0.3
+
 ## [1.0.2] - 2026-04-01
 
 ### Fixed

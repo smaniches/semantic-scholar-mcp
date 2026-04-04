@@ -59,7 +59,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # VERSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -751,7 +751,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             cit = await _make_request(
                 "GET",
                 f"paper/{params.paper_id}/citations",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS), "limit": params.citations_limit},
+                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.citations_limit},
                 api_key=params.api_key,
             )
             result["citations"] = cit.get("data", []) if isinstance(cit, dict) else []
