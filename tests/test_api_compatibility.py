@@ -121,13 +121,13 @@ class TestPaperFieldsByEndpoint:
         )
         assert r.status_code == 200, f"paper/search rejected: {r.text[:200]}"
 
-    def test_citations_supports_tldr(self):
+    def test_citations_rejects_tldr(self):
         r = _get(
             f"{BASE}/paper/{TEST_PAPER_ID}/citations",
             params={"fields": "title,tldr", "limit": "1"},
             headers=_headers(),
         )
-        assert r.status_code == 200, f"citations should accept tldr: {r.text[:200]}"
+        assert r.status_code == 400, f"citations should reject tldr, got {r.status_code}"
 
     def test_references_rejects_tldr(self):
         r = _get(
@@ -178,6 +178,16 @@ class TestLiteFieldsWork:
             headers=_headers(),
         )
         assert r.status_code == 200, f"author/papers LITE failed: {r.text[:200]}"
+
+    def test_citations_with_lite(self):
+        from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
+
+        r = _get(
+            f"{BASE}/paper/{TEST_PAPER_ID}/citations",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": "1"},
+            headers=_headers(),
+        )
+        assert r.status_code == 200, f"citations LITE failed: {r.text[:200]}"
 
     def test_references_with_lite(self):
         from semantic_scholar_mcp.server import PAPER_SEARCH_FIELDS_LITE
