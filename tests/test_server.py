@@ -1288,6 +1288,180 @@ class TestFormatAuthorMarkdown:
 # ===============================================================================
 
 
+# ===============================================================================
+# COVERAGE GAP TESTS (v1.1.0)
+# ===============================================================================
+
+
+class TestPaperDetailFieldSelection:
+    """Verify get_paper_details uses PAPER_DETAIL_FIELDS for main fetch."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_main_fetch_uses_detail_fields(self, reset_client):
+        """Main paper fetch must use PAPER_DETAIL_FIELDS (includes abstract, publicationVenue)."""
+        from semantic_scholar_mcp.server import (
+            PAPER_DETAIL_FIELDS,
+            PAPER_SEARCH_FIELDS,
+            PaperDetailsInput,
+            get_paper_details,
+        )
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+
+        route = respx.get(url).mock(
+            return_value=Response(200, json={"paperId": paper_id, "title": "Test"})
+        )
+
+        params = PaperDetailsInput(paper_id=paper_id)
+        await get_paper_details(params)
+
+        # Inspect the fields param sent in the request
+        request = route.calls[0].request
+        fields_sent = str(request.url.params.get("fields", ""))
+        fields_list = fields_sent.split(",")
+
+        # PAPER_DETAIL_FIELDS has fields that PAPER_SEARCH_FIELDS does not
+        detail_only = set(PAPER_DETAIL_FIELDS) - set(PAPER_SEARCH_FIELDS)
+        assert detail_only, "PAPER_DETAIL_FIELDS should have extra fields beyond PAPER_SEARCH_FIELDS"
+
+        for field in detail_only:
+            assert field in fields_list, (
+                f"Main paper fetch missing '{field}' — "
+                f"using PAPER_SEARCH_FIELDS instead of PAPER_DETAIL_FIELDS?"
+            )
+
+
+class TestBulkPapersMarkdownFailures:
+    """Verify bulk papers markdown output reports unfound papers."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_markdown_includes_not_found(self, reset_client):
+        """Markdown output must include 'Not found' section for null entries."""
+        from semantic_scholar_mcp.server import BulkPaperInput, ResponseFormat, get_bulk_papers
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch"
+        respx.post(url).mock(
+            return_value=Response(
+                200,
+                json=[
+                    {"paperId": "a" * 40, "title": "Found Paper", "citationCount": 10},
+                    None,
+                ],
+            )
+        )
+
+        params = BulkPaperInput(
+            paper_ids=["a" * 40, "b" * 40],
+            response_format=ResponseFormat.MARKDOWN,
+        )
+        result = await get_bulk_papers(params)
+
+        assert "Not found" in result
+        assert "b" * 40 in result
+        assert "Requested:** 2" in result
+        assert "Retrieved:** 1" in result
+
+
+class TestRetryExhaustion429:
+    """Verify 429 retry exhaustion raises RateLimitError."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_429_retries_then_raises_rate_limit_error(self, reset_client):
+        """All retries return 429 — must raise RateLimitError after MAX_RETRIES."""
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+
+        route = respx.get(url).mock(
+            return_value=Response(429, headers={"Retry-After": "0.01"})
+        )
+
+        await _get_client()
+        with pytest.raises(RateLimitError) as exc_info:
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
+
+        assert exc_info.value.status_code == 429
+        assert route.call_count == 4  # 1 initial + 3 retries
+
+
+class TestBackoffTiming:
+    """Verify exponential backoff timing on retries."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_503_backoff_is_exponential(self, reset_client):
+        """503 retries should use exponential backoff: base*2^0, base*2^1, base*2^2."""
+        from unittest.mock import AsyncMock, patch
+
+        from semantic_scholar_mcp.server import RETRY_BACKOFF_BASE
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+
+        route = respx.get(url).mock(return_value=Response(503))
+
+        sleep_calls: list[float] = []
+        original_sleep = __import__("asyncio").sleep
+
+        async def capture_sleep(duration: float) -> None:
+            sleep_calls.append(duration)
+            # Don't actually wait — speed up the test
+            return None
+
+        await _get_client()
+        with patch("semantic_scholar_mcp.server.asyncio.sleep", side_effect=capture_sleep):
+            with pytest.raises(ServerError):
+                await _execute_request_with_retry("GET", url, None, None, {}, None)
+
+        assert route.call_count == 4  # 1 initial + 3 retries
+        assert len(sleep_calls) == 3  # 3 sleeps between retries
+
+        # Verify exponential progression: base*2^0 + jitter, base*2^1 + jitter, base*2^2 + jitter
+        # Jitter is uniform(0, 0.5), so each wait is in [base*2^n, base*2^n + 0.5]
+        for i, wait in enumerate(sleep_calls):
+            expected_base = RETRY_BACKOFF_BASE * (2**i)
+            assert expected_base <= wait <= expected_base + 0.5, (
+                f"Retry {i}: wait={wait:.3f}, expected [{expected_base}, {expected_base + 0.5}]"
+            )
+
+
 class TestEntryPoint:
     """Test module entry point."""
 
