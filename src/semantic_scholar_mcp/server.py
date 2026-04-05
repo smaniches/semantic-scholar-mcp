@@ -147,6 +147,12 @@ PAPER_SEARCH_FIELDS: list[str] = [
 # Sub-endpoints (recommendations, author/papers, references) don't support tldr
 PAPER_SEARCH_FIELDS_LITE: list[str] = [f for f in PAPER_SEARCH_FIELDS if f != "tldr"]
 
+# Bulk search doesn't support tldr, influentialCitationCount, or openAccessPdf
+PAPER_BULK_SEARCH_FIELDS: list[str] = [
+    f for f in PAPER_SEARCH_FIELDS
+    if f not in ("tldr", "influentialCitationCount", "openAccessPdf")
+]
+
 # Comprehensive: for single paper detail views only
 PAPER_DETAIL_FIELDS: list[str] = [
     *PAPER_SEARCH_FIELDS,
@@ -546,7 +552,7 @@ def _get_headers(api_key: str | None = None) -> dict[str, str]:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
     if effective_key:
-        headers["Authorization"] = f"Bearer {effective_key}"
+        headers["x-api-key"] = effective_key
     return headers
 
 
@@ -1147,7 +1153,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
     api_params: dict[str, Any] = {
         "query": params.query,
         "limit": params.limit,
-        "fields": ",".join(PAPER_SEARCH_FIELDS),
+        "fields": ",".join(PAPER_BULK_SEARCH_FIELDS),
     }
     if params.sort:
         api_params["sort"] = params.sort
