@@ -1462,6 +1462,258 @@ class TestBackoffTiming:
             )
 
 
+class TestBulkSearchTool:
+    """Test bulk_search tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_search_success_json(self, reset_client):
+        """bulk_search should return papers with total and token."""
+        from semantic_scholar_mcp.server import BulkSearchInput, ResponseFormat, bulk_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "total": 5000,
+                    "token": "abc123next",
+                    "data": [
+                        {"paperId": "a" * 40, "title": "Paper 1", "citationCount": 100},
+                    ],
+                },
+            )
+        )
+
+        params = BulkSearchInput(query="transformers", response_format=ResponseFormat.JSON)
+        result = await bulk_search(params)
+
+        import json
+
+        parsed = json.loads(result)
+        assert parsed["total"] == 5000
+        assert parsed["token"] == "abc123next"
+        assert len(parsed["papers"]) == 1
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_search_with_sort(self, reset_client):
+        """bulk_search should pass sort param to API."""
+        from semantic_scholar_mcp.server import BulkSearchInput, ResponseFormat, bulk_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
+        route = respx.get(url).mock(
+            return_value=Response(200, json={"total": 0, "data": []})
+        )
+
+        params = BulkSearchInput(
+            query="test", sort="citationCount:desc", response_format=ResponseFormat.JSON
+        )
+        await bulk_search(params)
+
+        request = route.calls[0].request
+        assert "citationCount:desc" in str(request.url.params.get("sort", ""))
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_search_markdown_with_token(self, reset_client):
+        """Markdown output should show continuation token."""
+        from semantic_scholar_mcp.server import BulkSearchInput, bulk_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "total": 100,
+                    "token": "page2token",
+                    "data": [{"paperId": "a" * 40, "title": "Test", "citationCount": 0}],
+                },
+            )
+        )
+
+        params = BulkSearchInput(query="test")
+        result = await bulk_search(params)
+
+        assert "Bulk Search" in result
+        assert "page2token" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_search_no_token_last_page(self, reset_client):
+        """JSON output should omit token when not present (last page)."""
+        from semantic_scholar_mcp.server import BulkSearchInput, ResponseFormat, bulk_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
+        respx.get(url).mock(
+            return_value=Response(200, json={"total": 1, "data": [{"paperId": "a" * 40}]})
+        )
+
+        params = BulkSearchInput(query="test", response_format=ResponseFormat.JSON)
+        result = await bulk_search(params)
+
+        import json
+
+        parsed = json.loads(result)
+        assert "token" not in parsed
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_search_error_handling(self, reset_client):
+        """bulk_search should convert API errors to ToolError."""
+        from semantic_scholar_mcp.server import BulkSearchInput, bulk_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
+        respx.get(url).mock(return_value=Response(500))
+
+        params = BulkSearchInput(query="test")
+        with pytest.raises(ToolError):
+            await bulk_search(params)
+
+
+class TestExportCitationTool:
+    """Test export_citation tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_export_bibtex_success(self, reset_client):
+        """export_citation should return raw BibTeX string."""
+        from semantic_scholar_mcp.server import CitationExportInput, export_citation
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+        bibtex = "@article{vaswani2017attention,\n  title={Attention Is All You Need}\n}"
+
+        respx.get(url).mock(
+            return_value=Response(
+                200, json={"title": "Attention Is All You Need", "citationStyles": {"bibtex": bibtex}}
+            )
+        )
+
+        params = CitationExportInput(paper_id=paper_id)
+        result = await export_citation(params)
+
+        assert result == bibtex
+        assert "@article" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_export_no_bibtex_available(self, reset_client):
+        """export_citation should raise ToolError when no BibTeX exists."""
+        from semantic_scholar_mcp.server import CitationExportInput, export_citation
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+        respx.get(url).mock(
+            return_value=Response(200, json={"title": "No Cite Paper", "citationStyles": {}})
+        )
+
+        params = CitationExportInput(paper_id=paper_id)
+        with pytest.raises(ToolError, match="No BibTeX"):
+            await export_citation(params)
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_export_unsupported_format(self, reset_client):
+        """export_citation should reject unsupported formats."""
+        from semantic_scholar_mcp.server import CitationExportInput, export_citation
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+        respx.get(url).mock(
+            return_value=Response(200, json={"title": "Test", "citationStyles": {"bibtex": "@a{}"}})
+        )
+
+        params = CitationExportInput(paper_id=paper_id, format="apa")
+        with pytest.raises(ToolError, match="Unsupported citation format"):
+            await export_citation(params)
+
+    def test_export_invalid_paper_id(self):
+        """export_citation should reject invalid paper IDs."""
+        from semantic_scholar_mcp.server import CitationExportInput
+
+        with pytest.raises(Exception):
+            CitationExportInput(paper_id="")
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_export_paper_not_found(self, reset_client):
+        """export_citation should raise ToolError for 404."""
+        from semantic_scholar_mcp.server import CitationExportInput, export_citation
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+        respx.get(url).mock(return_value=Response(404))
+
+        params = CitationExportInput(paper_id=paper_id)
+        with pytest.raises(ToolError):
+            await export_citation(params)
+
+
+class TestParallelSubRequests:
+    """Test that get_paper_details fires citations + references in parallel."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_both_citations_and_references(self, reset_client):
+        """Requesting both citations and references should return both."""
+        from semantic_scholar_mcp.server import PaperDetailsInput, get_paper_details
+
+        paper_id = "a" * 40
+        base_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
+        cit_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}/citations"
+        ref_url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}/references"
+
+        respx.get(base_url).mock(
+            return_value=Response(200, json={"paperId": paper_id, "title": "Main Paper"})
+        )
+        respx.get(cit_url).mock(
+            return_value=Response(
+                200, json={"data": [{"citingPaper": {"title": "Citer", "year": 2024}}]}
+            )
+        )
+        respx.get(ref_url).mock(
+            return_value=Response(
+                200, json={"data": [{"citedPaper": {"title": "Reference", "year": 2020}}]}
+            )
+        )
+
+        params = PaperDetailsInput(
+            paper_id=paper_id, include_citations=True, include_references=True
+        )
+        result = await get_paper_details(params)
+
+        assert "Citer" in result
+        assert "Reference" in result
+
+
 class TestEntryPoint:
     """Test module entry point."""
 

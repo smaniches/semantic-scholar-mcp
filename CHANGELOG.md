@@ -2,6 +2,16 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-04-05
+
+### Added
+- New tool: `semantic_scholar_bulk_search` — sorted search with cursor-based pagination for large result sets
+- New tool: `semantic_scholar_export_citation` — BibTeX citation export for any paper
+- Parallel fetching of citations and references in `get_paper_details` via `asyncio.gather`
+
+### Changed
+- Version bump to 1.1.0
+
 ## [1.0.3] - 2026-04-04
 
 ### Fixed
