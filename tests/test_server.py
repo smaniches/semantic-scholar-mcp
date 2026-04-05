@@ -1714,6 +1714,399 @@ class TestParallelSubRequests:
         assert "Reference" in result
 
 
+# ===============================================================================
+# v1.2.0 TESTS — NEW TOOLS + UX HARDENING
+# ===============================================================================
+
+
+class TestMatchPaperTool:
+    """Test match_paper tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_match_paper_success(self, reset_client):
+        from semantic_scholar_mcp.server import PaperMatchInput, match_paper
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/match"
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={"data": [{"paperId": "a" * 40, "title": "Attention Is All You Need", "matchScore": 133.2}]},
+            )
+        )
+
+        params = PaperMatchInput(query="Attention Is All You Need")
+        result = await match_paper(params)
+
+        assert "Attention Is All You Need" in result
+        assert "Match Score" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_match_paper_no_result(self, reset_client):
+        from semantic_scholar_mcp.server import PaperMatchInput, match_paper
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/match"
+        respx.get(url).mock(return_value=Response(200, json={"data": []}))
+
+        params = PaperMatchInput(query="nonexistent paper xyz123")
+        result = await match_paper(params)
+
+        assert "No matching paper" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_match_paper_error(self, reset_client):
+        from semantic_scholar_mcp.server import PaperMatchInput, match_paper
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/match"
+        respx.get(url).mock(return_value=Response(500))
+
+        params = PaperMatchInput(query="test")
+        with pytest.raises(ToolError):
+            await match_paper(params)
+
+
+class TestPaperAuthorsTool:
+    """Test get_paper_authors tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_paper_authors_success(self, reset_client):
+        from semantic_scholar_mcp.server import PaperAuthorsInput, get_paper_authors
+
+        paper_id = "a" * 40
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}/authors"
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={"data": [{"authorId": "123", "name": "Jane Doe", "hIndex": 45}]},
+            )
+        )
+
+        params = PaperAuthorsInput(paper_id=paper_id)
+        result = await get_paper_authors(params)
+
+        assert "Jane Doe" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_paper_authors_invalid_id(self, reset_client):
+        from semantic_scholar_mcp.server import PaperAuthorsInput, get_paper_authors
+
+        params = PaperAuthorsInput(paper_id="invalid")
+        with pytest.raises(ToolError):
+            await get_paper_authors(params)
+
+
+class TestAuthorBatchTool:
+    """Test get_author_batch tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_author_batch_success(self, reset_client):
+        from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch"
+        respx.post(url).mock(
+            return_value=Response(
+                200,
+                json=[
+                    {"authorId": "1", "name": "Author A", "hIndex": 30},
+                    {"authorId": "2", "name": "Author B", "hIndex": 50},
+                ],
+            )
+        )
+
+        params = AuthorBatchInput(author_ids=["1", "2"])
+        result = await get_author_batch(params)
+
+        import json
+
+        parsed = json.loads(result)
+        assert parsed["requested"] == 2
+        assert parsed["retrieved"] == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_author_batch_with_failures(self, reset_client):
+        from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch"
+        respx.post(url).mock(
+            return_value=Response(200, json=[{"authorId": "1", "name": "Author A"}, None])
+        )
+
+        params = AuthorBatchInput(author_ids=["1", "999"])
+        result = await get_author_batch(params)
+
+        import json
+
+        parsed = json.loads(result)
+        assert parsed["retrieved"] == 1
+        assert "not_found" in parsed
+
+
+class TestMultiRecommendTool:
+    """Test multi_recommend tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_multi_recommend_success(self, reset_client):
+        from semantic_scholar_mcp.server import MultiRecommendInput, multi_recommend
+
+        url = "https://api.semanticscholar.org/recommendations/v1/papers/"
+        respx.post(url).mock(
+            return_value=Response(
+                200,
+                json={"recommendedPapers": [{"paperId": "b" * 40, "title": "Recommended Paper"}]},
+            )
+        )
+
+        params = MultiRecommendInput(
+            positive_paper_ids=["a" * 40], negative_paper_ids=["c" * 40]
+        )
+        result = await multi_recommend(params)
+
+        assert "Recommended Paper" in result
+        assert "Multi-Paper" in result
+
+    def test_multi_recommend_invalid_ids(self):
+        from semantic_scholar_mcp.server import MultiRecommendInput, multi_recommend
+
+        params = MultiRecommendInput(positive_paper_ids=["invalid-id"])
+        with pytest.raises(ToolError, match="Invalid paper ID"):
+            import asyncio
+
+            asyncio.get_event_loop().run_until_complete(multi_recommend(params))
+
+
+class TestSnippetSearchTool:
+    """Test snippet_search tool function."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_snippet_search_success(self, reset_client):
+        from semantic_scholar_mcp.server import SnippetSearchInput, snippet_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/snippet/search"
+        respx.get(url).mock(
+            return_value=Response(
+                200,
+                json={
+                    "data": [
+                        {
+                            "paper": {"title": "Attention Paper"},
+                            "snippet": {
+                                "text": "The transformer uses self-attention mechanisms.",
+                                "snippetKind": "abstract",
+                                "section": "Introduction",
+                            },
+                        }
+                    ]
+                },
+            )
+        )
+
+        params = SnippetSearchInput(query="self-attention")
+        result = await snippet_search(params)
+
+        assert "Attention Paper" in result
+        assert "self-attention" in result
+        assert "Introduction" in result
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_snippet_search_error(self, reset_client):
+        from semantic_scholar_mcp.server import SnippetSearchInput, snippet_search
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/snippet/search"
+        respx.get(url).mock(return_value=Response(500))
+
+        params = SnippetSearchInput(query="test")
+        with pytest.raises(ToolError):
+            await snippet_search(params)
+
+
+class TestUXHardening:
+    """Test UX improvements for unauthenticated users."""
+
+    def test_429_message_without_key(self):
+        """429 without API key should suggest getting one."""
+        with pytest.raises(RateLimitError) as exc_info:
+            _handle_error(429, api_key=None, retry_after=None)
+        assert "semanticscholar.org/product/api" in str(exc_info.value)
+
+    def test_429_message_with_key(self):
+        """429 with API key should NOT show signup URL."""
+        with pytest.raises(RateLimitError) as exc_info:
+            _handle_error(429, api_key="my_key", retry_after=5.0)
+        assert "semanticscholar.org/product/api" not in str(exc_info.value)
+        assert "5.0s" in str(exc_info.value)
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_status_no_key_shows_tip(self):
+        """server_status without key should include tip."""
+        import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp.server import server_status
+
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = ""
+        # Need reset_client behavior
+        old_client = srv._client
+        srv._client = None
+        try:
+            url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+            respx.get(url).mock(return_value=Response(200, json={"data": []}))
+
+            result = await server_status()
+            import json
+
+            parsed = json.loads(result)
+            assert "tip" in parsed
+            assert "public (1 req/sec)" in parsed["rate_tier"]
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original
+            srv._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_status_with_key_shows_rate(self):
+        """server_status with key should show authenticated rate."""
+        import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp.server import server_status
+
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = "test_key"
+        old_client = srv._client
+        srv._client = None
+        try:
+            url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+            respx.get(url).mock(return_value=Response(200, json={"data": []}))
+
+            result = await server_status()
+            import json
+
+            parsed = json.loads(result)
+            assert "tip" not in parsed
+            assert "authenticated (10 req/sec)" in parsed["rate_tier"]
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original
+            srv._client = old_client
+
+
+class TestInputSanitization:
+    """Test paper ID injection prevention."""
+
+    def test_reject_null_byte(self):
+        from semantic_scholar_mcp.server import _validate_paper_id
+
+        with pytest.raises(ValidationError):
+            _validate_paper_id("abc\x00def")
+
+    def test_reject_path_traversal(self):
+        from semantic_scholar_mcp.server import _validate_paper_id
+
+        with pytest.raises(ValidationError):
+            _validate_paper_id("../../etc/passwd")
+
+    def test_reject_query_injection(self):
+        from semantic_scholar_mcp.server import _validate_paper_id
+
+        with pytest.raises(ValidationError):
+            _validate_paper_id("abc?x=1")
+
+    def test_reject_hash_injection(self):
+        from semantic_scholar_mcp.server import _validate_paper_id
+
+        with pytest.raises(ValidationError):
+            _validate_paper_id("abc#fragment")
+
+    def test_valid_ids_still_work(self):
+        from semantic_scholar_mcp.server import _validate_paper_id
+
+        # Should not raise
+        _validate_paper_id("a" * 40)
+        _validate_paper_id("DOI:10.1038/s41586-021-03819-2")
+        _validate_paper_id("ARXIV:2106.15928")
+
+
+class TestFromPoolParam:
+    """Test from_pool parameter on recommendations."""
+
+    @pytest.fixture
+    def reset_client(self):
+        import semantic_scholar_mcp.server as server
+
+        old_client = server._client
+        server._client = None
+        yield
+        server._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_from_pool_passed_to_api(self, reset_client):
+        from semantic_scholar_mcp.server import PaperRecommendationsInput, get_recommendations
+
+        paper_id = "a" * 40
+        url = "https://api.semanticscholar.org/recommendations/v1/papers/forpaper/" + paper_id
+        route = respx.get(url).mock(
+            return_value=Response(200, json={"recommendedPapers": []})
+        )
+
+        params = PaperRecommendationsInput(paper_id=paper_id, from_pool="all-cs")
+        await get_recommendations(params)
+
+        request = route.calls[0].request
+        assert request.url.params.get("from") == "all-cs"
+
+
 class TestEntryPoint:
     """Test module entry point."""
 

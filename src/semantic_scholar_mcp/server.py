@@ -14,6 +14,11 @@ Tools Provided:
     - semantic_scholar_bulk_papers: Batch retrieval (up to 500 papers)
     - semantic_scholar_bulk_search: Sorted search with cursor pagination
     - semantic_scholar_export_citation: BibTeX citation export
+    - semantic_scholar_match_paper: Find paper by exact title match
+    - semantic_scholar_paper_authors: Full author profiles for a paper
+    - semantic_scholar_author_batch: Batch author retrieval (up to 1000)
+    - semantic_scholar_multi_recommend: Multi-paper recommendations (pos + neg)
+    - semantic_scholar_snippet_search: Search within paper full text
     - semantic_scholar_status: Health check and API connectivity status
 
 Configuration:
@@ -61,7 +66,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # VERSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -310,6 +315,9 @@ class AuthorDetailsInput(BaseModel):
 class PaperRecommendationsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     paper_id: str = Field(..., description="Seed paper ID for recommendations", min_length=1)
+    from_pool: str = Field(
+        default="recent", description="Paper pool: 'recent' (default) or 'all-cs'"
+    )
     limit: int = Field(default=10, description="Max recommendations", ge=1, le=100)
     response_format: ResponseFormat = Field(
         default=ResponseFormat.MARKDOWN, description="Output format"
@@ -374,6 +382,89 @@ class CitationExportInput(BaseModel):
     format: str = Field(
         default="bibtex",
         description="Citation format (currently only 'bibtex' supported)",
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class PaperMatchInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    query: str = Field(..., description="Paper title to match", min_length=1, max_length=500)
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class PaperAuthorsInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    paper_id: str = Field(
+        ...,
+        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        min_length=1,
+    )
+    limit: int = Field(default=100, description="Max authors to return", ge=1, le=1000)
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class AuthorBatchInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    author_ids: list[str] = Field(
+        ..., description="List of author IDs (max 1000)", min_length=1, max_length=1000
+    )
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.JSON, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class MultiRecommendInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    positive_paper_ids: list[str] = Field(
+        ..., description="Papers to find similar results for", min_length=1, max_length=100
+    )
+    negative_paper_ids: list[str] = Field(
+        default_factory=list, description="Papers to dissimilar from", max_length=100
+    )
+    limit: int = Field(default=10, description="Max recommendations", ge=1, le=500)
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class SnippetSearchInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    query: str = Field(..., description="Search query for paper text", min_length=1, max_length=500)
+    paper_ids: list[str] | None = Field(
+        default=None, description="Limit search to specific papers", max_length=100
+    )
+    year: str | None = Field(default=None, description="Year filter: '2024', '2020-2024', '2020-'")
+    fields_of_study: list[str] | None = Field(
+        default=None,
+        description="Filter by fields: ['Computer Science', 'Biology']",
+    )
+    min_citation_count: int | None = Field(default=None, description="Minimum citations", ge=0)
+    limit: int = Field(default=10, description="Max results (1-100)", ge=1, le=100)
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
     )
     api_key: str | None = Field(
         default=None,
@@ -564,7 +655,14 @@ def _handle_error(
     if status == 404:
         raise NotFoundError("Not found. Check ID format.", status_code=404)
     if status == 429:
-        raise RateLimitError("Rate limited. Wait and retry.", retry_after=retry_after)
+        if api_key:
+            msg = f"Rate limited. Retry in {retry_after}s." if retry_after else "Rate limited."
+        else:
+            msg = (
+                "Rate limited. Get a free API key for faster access: "
+                "https://www.semanticscholar.org/product/api"
+            )
+        raise RateLimitError(msg, retry_after=retry_after)
     if status in (500, 502, 503):
         msg = "Service unavailable." if status == 503 else "Server error. Try later."
         raise ServerError(msg, status_code=status)
@@ -606,6 +704,10 @@ def _validate_paper_id(paper_id: str) -> None:
         raise ValidationError("Paper ID cannot be empty.", status_code=400)
 
     paper_id = paper_id.strip()
+
+    # Reject injection attempts
+    if any(c in paper_id for c in "\x00?#") or "../" in paper_id:
+        raise ValidationError("Paper ID contains invalid characters.", status_code=400)
 
     for pattern in _PAPER_ID_PATTERNS:
         if pattern.match(paper_id):
@@ -946,7 +1048,11 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
         response = await _make_request(
             "GET",
             f"papers/forpaper/{params.paper_id}",
-            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.limit},
+            params={
+                "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
+                "limit": params.limit,
+                "from": params.from_pool,
+            },
             api_key=params.api_key,
             base_url=RECOMMENDATIONS_BASE,
         )
@@ -1127,17 +1233,244 @@ async def export_citation(params: CitationExportInput) -> str:
 
 
 @mcp.tool(
+    name="semantic_scholar_match_paper",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def match_paper(params: PaperMatchInput) -> str:
+    """Find the single best paper matching a title string. Returns match score."""
+    logger.info("Matching paper: %s", params.query)
+
+    try:
+        response = await _make_request(
+            "GET",
+            "paper/search/match",
+            params={"query": params.query, "fields": ",".join(PAPER_SEARCH_FIELDS)},
+            api_key=params.api_key,
+        )
+        papers = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    if not papers:
+        return "No matching paper found."
+
+    paper = papers[0]
+    match_score = paper.get("matchScore", 0)
+
+    if params.response_format == ResponseFormat.JSON:
+        return json.dumps({"matchScore": match_score, "paper": paper}, indent=2)
+
+    lines = [
+        "## Paper Match",
+        f"**Match Score:** {match_score:.1f}",
+        "",
+        _format_paper_markdown(paper),
+    ]
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_paper_authors",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def get_paper_authors(params: PaperAuthorsInput) -> str:
+    """Get full author profiles for a paper's authors."""
+    logger.info("Getting authors for paper: %s", params.paper_id)
+
+    try:
+        _validate_paper_id(params.paper_id)
+        response = await _make_request(
+            "GET",
+            f"paper/{params.paper_id}/authors",
+            params={"fields": ",".join(AUTHOR_FIELDS), "limit": params.limit},
+            api_key=params.api_key,
+        )
+        authors = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    if params.response_format == ResponseFormat.JSON:
+        return json.dumps({"paper_id": params.paper_id, "authors": authors}, indent=2)
+
+    lines = [f"## Authors of {params.paper_id}", f"**Found:** {len(authors)} authors", ""]
+    for author in authors:
+        lines.append(_format_author_markdown(author))
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_author_batch",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def get_author_batch(params: AuthorBatchInput) -> str:
+    """Retrieve multiple authors in a single request (max 1000)."""
+    logger.info("Batch author retrieval: %d authors", len(params.author_ids))
+
+    try:
+        response = await _make_request(
+            "POST",
+            "author/batch",
+            params={"fields": ",".join(AUTHOR_FIELDS)},
+            json_body={"ids": params.author_ids},
+            api_key=params.api_key,
+        )
+        authors = response if isinstance(response, list) else response.get("data", [])
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    succeeded = [a for a in authors if a]
+    failed_indices = [i for i, a in enumerate(authors) if not a]
+    failed_ids = [params.author_ids[i] for i in failed_indices if i < len(params.author_ids)]
+
+    if params.response_format == ResponseFormat.JSON:
+        result: dict[str, Any] = {
+            "requested": len(params.author_ids),
+            "retrieved": len(succeeded),
+            "authors": succeeded,
+        }
+        if failed_ids:
+            result["not_found"] = failed_ids
+        return json.dumps(result, indent=2)
+
+    lines = [
+        "## Batch Author Retrieval",
+        f"**Requested:** {len(params.author_ids)} | **Retrieved:** {len(succeeded)}",
+        "",
+    ]
+    if failed_ids:
+        lines.append(f"**Not found ({len(failed_ids)}):** {', '.join(failed_ids[:20])}")
+        lines.append("")
+    for author in succeeded:
+        lines.append(_format_author_markdown(author))
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_multi_recommend",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def multi_recommend(params: MultiRecommendInput) -> str:
+    """Get recommendations using multiple positive and negative example papers."""
+    logger.info(
+        "Multi-recommend: %d positive, %d negative",
+        len(params.positive_paper_ids),
+        len(params.negative_paper_ids),
+    )
+
+    # Validate all paper IDs
+    all_ids = params.positive_paper_ids + params.negative_paper_ids
+    invalid_ids = [pid for pid in all_ids if not _is_valid_paper_id(pid)]
+    if invalid_ids:
+        raise ToolError(f"Invalid paper ID format(s): {', '.join(invalid_ids[:10])}")
+
+    try:
+        response = await _make_request(
+            "POST",
+            "papers/",
+            params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.limit},
+            json_body={
+                "positivePaperIds": params.positive_paper_ids,
+                "negativePaperIds": params.negative_paper_ids,
+            },
+            api_key=params.api_key,
+            base_url=RECOMMENDATIONS_BASE,
+        )
+        papers = response.get("recommendedPapers", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    if params.response_format == ResponseFormat.JSON:
+        return json.dumps(
+            {
+                "positive": params.positive_paper_ids,
+                "negative": params.negative_paper_ids,
+                "recommendations": papers,
+            },
+            indent=2,
+        )
+
+    lines = [
+        "## Multi-Paper Recommendations",
+        f"**Positive seeds:** {len(params.positive_paper_ids)}",
+        f"**Negative seeds:** {len(params.negative_paper_ids)}",
+        f"**Found:** {len(papers)}",
+        "",
+    ]
+    for paper in papers:
+        lines.append(_format_paper_markdown(paper))
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_snippet_search",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def snippet_search(params: SnippetSearchInput) -> str:
+    """Search within paper full text. Returns text snippets with context.
+
+    Note: This endpoint is heavily rate-limited without an API key.
+    """
+    logger.info("Snippet search: %s", params.query)
+
+    api_params: dict[str, Any] = {
+        "query": params.query,
+        "limit": params.limit,
+        "fields": "snippet.text,snippet.snippetKind,snippet.section",
+    }
+    if params.paper_ids:
+        api_params["paperIds"] = ",".join(params.paper_ids)
+    if params.year:
+        api_params["year"] = params.year
+    if params.fields_of_study:
+        api_params["fieldsOfStudy"] = ",".join(params.fields_of_study)
+    if params.min_citation_count:
+        api_params["minCitationCount"] = params.min_citation_count
+
+    try:
+        response = await _make_request(
+            "GET", "snippet/search", params=api_params, api_key=params.api_key
+        )
+        results = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    if params.response_format == ResponseFormat.JSON:
+        return json.dumps({"query": params.query, "results": results}, indent=2)
+
+    lines = [f'## Snippet Search: "{params.query}"', f"**Found:** {len(results)} snippets", ""]
+    for item in results:
+        paper = item.get("paper", {})
+        snippet = item.get("snippet", {})
+        title = paper.get("title", "Unknown")
+        section = snippet.get("section", "")
+        text = snippet.get("text", "")
+        lines.append(f"### {title}")
+        if section:
+            lines.append(f"**Section:** {section}")
+        lines.append(f"> {text}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+@mcp.tool(
     name="semantic_scholar_status",
     annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
 )
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
+    has_key = bool(SEMANTIC_SCHOLAR_API_KEY)
     status: dict[str, Any] = {
         "server": "semantic-scholar-mcp",
         "version": __version__,
-        "api_key_configured": bool(SEMANTIC_SCHOLAR_API_KEY),
+        "api_key_configured": has_key,
+        "rate_tier": "authenticated (10 req/sec)" if has_key else "public (1 req/sec)",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if not has_key:
+        status["tip"] = (
+            "Get a free API key for 10x speed: "
+            "https://www.semanticscholar.org/product/api"
+        )
     try:
         # Route health check through _make_request for retry/rate-limit protection
         await _make_request(

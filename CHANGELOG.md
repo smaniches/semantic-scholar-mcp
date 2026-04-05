@@ -2,6 +2,22 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-04-05
+
+### Added
+- New tool: `semantic_scholar_match_paper` — find paper by exact title match with match score
+- New tool: `semantic_scholar_paper_authors` — full author profiles for a paper's authors
+- New tool: `semantic_scholar_author_batch` — batch author retrieval (up to 1000)
+- New tool: `semantic_scholar_multi_recommend` — multi-paper recommendations with positive and negative examples
+- New tool: `semantic_scholar_snippet_search` — search within paper full text (requires API key)
+- `from_pool` parameter on recommendations: choose "recent" (default) or "all-cs" paper pool
+- Smart status output: rate tier info, API key setup tip for unauthenticated users
+- Input sanitization: reject null bytes, path traversal, and query injection in paper IDs
+- Friendly 429 error messages: API key signup URL for unauthenticated users
+
+### Changed
+- Version bump to 1.2.0 (14 tools, 100% S2 API coverage)
+
 ## [1.1.0] - 2026-04-05
 
 ### Added
