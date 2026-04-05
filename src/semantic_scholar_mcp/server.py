@@ -12,6 +12,8 @@ Tools Provided:
     - semantic_scholar_get_author: Author profiles and publications
     - semantic_scholar_recommendations: AI-powered related paper discovery
     - semantic_scholar_bulk_papers: Batch retrieval (up to 500 papers)
+    - semantic_scholar_bulk_search: Sorted search with cursor pagination
+    - semantic_scholar_export_citation: BibTeX citation export
     - semantic_scholar_status: Health check and API connectivity status
 
 Configuration:
@@ -59,7 +61,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # VERSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -325,6 +327,53 @@ class BulkPaperInput(BaseModel):
     )
     response_format: ResponseFormat = Field(
         default=ResponseFormat.JSON, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class BulkSearchInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    query: str = Field(..., description="Search query", min_length=1, max_length=500)
+    sort: str | None = Field(
+        default=None,
+        description="Sort order: 'citationCount:desc', 'publicationDate:asc', etc.",
+    )
+    token: str | None = Field(
+        default=None,
+        description="Continuation token from previous bulk search for pagination",
+    )
+    year: str | None = Field(default=None, description="Year filter: '2024', '2020-2024', '2020-'")
+    fields_of_study: list[str] | None = Field(
+        default=None,
+        description="Filter by fields: ['Computer Science', 'Biology']",
+    )
+    publication_types: list[str] | None = Field(
+        default=None, description="Filter: 'Review', 'JournalArticle'"
+    )
+    min_citation_count: int | None = Field(default=None, description="Minimum citations", ge=0)
+    limit: int = Field(default=100, description="Max results per page (1-1000)", ge=1, le=1000)
+    response_format: ResponseFormat = Field(
+        default=ResponseFormat.MARKDOWN, description="Output format"
+    )
+    api_key: str | None = Field(
+        default=None,
+        description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    )
+
+
+class CitationExportInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    paper_id: str = Field(
+        ...,
+        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        min_length=1,
+    )
+    format: str = Field(
+        default="bibtex",
+        description="Citation format (currently only 'bibtex' supported)",
     )
     api_key: str | None = Field(
         default=None,
@@ -747,16 +796,17 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             raise ToolError("Unexpected response format from Semantic Scholar API")
         result: dict[str, Any] = {"paper": paper}
 
+        # Fetch citations and references in parallel when both requested
+        sub_tasks: dict[str, Any] = {}
         if params.include_citations:
-            cit = await _make_request(
+            sub_tasks["citations"] = _make_request(
                 "GET",
                 f"paper/{params.paper_id}/citations",
                 params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.citations_limit},
                 api_key=params.api_key,
             )
-            result["citations"] = cit.get("data", []) if isinstance(cit, dict) else []
         if params.include_references:
-            ref = await _make_request(
+            sub_tasks["references"] = _make_request(
                 "GET",
                 f"paper/{params.paper_id}/references",
                 params={
@@ -765,7 +815,11 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                 },
                 api_key=params.api_key,
             )
-            result["references"] = ref.get("data", []) if isinstance(ref, dict) else []
+        if sub_tasks:
+            keys = list(sub_tasks.keys())
+            responses = await asyncio.gather(*sub_tasks.values())
+            for key, resp in zip(keys, responses):
+                result[key] = resp.get("data", []) if isinstance(resp, dict) else []
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -970,6 +1024,106 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
     for paper in succeeded:
         lines.append(_format_paper_markdown(paper))
     return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_bulk_search",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def bulk_search(params: BulkSearchInput) -> str:
+    """Search papers with sorting and cursor-based pagination for large result sets.
+
+    Unlike regular search, supports sorting (e.g., by citation count) and
+    returns a continuation token for paging through all results.
+    """
+    logger.info("Bulk searching: %s", params.query)
+
+    api_params: dict[str, Any] = {
+        "query": params.query,
+        "limit": params.limit,
+        "fields": ",".join(PAPER_SEARCH_FIELDS),
+    }
+    if params.sort:
+        api_params["sort"] = params.sort
+    if params.token:
+        api_params["token"] = params.token
+    if params.year:
+        api_params["year"] = params.year
+    if params.fields_of_study:
+        api_params["fieldsOfStudy"] = ",".join(params.fields_of_study)
+    if params.publication_types:
+        api_params["publicationTypes"] = ",".join(params.publication_types)
+    if params.min_citation_count:
+        api_params["minCitationCount"] = params.min_citation_count
+
+    try:
+        response = await _make_request(
+            "GET", "paper/search/bulk", params=api_params, api_key=params.api_key
+        )
+        total = response.get("total", 0) if isinstance(response, dict) else 0
+        token = response.get("token") if isinstance(response, dict) else None
+        papers = response.get("data", []) if isinstance(response, dict) else []
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
+
+    if params.response_format == ResponseFormat.JSON:
+        result: dict[str, Any] = {"query": params.query, "total": total, "papers": papers}
+        if token:
+            result["token"] = token
+        return json.dumps(result, indent=2)
+
+    lines = [
+        f'## Bulk Search: "{params.query}"',
+        f"**Found:** {total} papers (showing {len(papers)})",
+        "",
+    ]
+    for paper in papers:
+        lines.append(_format_paper_markdown(paper))
+    if token:
+        lines.append(f"*Next page token: `{token}`*")
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="semantic_scholar_export_citation",
+    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+)
+async def export_citation(params: CitationExportInput) -> str:
+    """Export a citation for a paper in BibTeX format."""
+    logger.info("Exporting citation for: %s", params.paper_id)
+
+    try:
+        _validate_paper_id(params.paper_id)
+
+        # Check cache first (paper detail fetch includes citationStyles)
+        cache_key = f"paper:{params.paper_id}"
+        paper = _cache_get(cache_key)
+        if paper is None:
+            paper = await _make_request(
+                "GET",
+                f"paper/{params.paper_id}",
+                params={"fields": "title,citationStyles"},
+                api_key=params.api_key,
+            )
+
+        if not isinstance(paper, dict):
+            raise ToolError("Unexpected response format from Semantic Scholar API")
+
+        citation_styles = paper.get("citationStyles") or {}
+        fmt = params.format.lower()
+
+        if fmt != "bibtex":
+            raise ToolError(f"Unsupported citation format: '{fmt}'. Supported: bibtex")
+
+        citation = citation_styles.get("bibtex")
+        if not citation:
+            title = paper.get("title", params.paper_id)
+            raise ToolError(f"No BibTeX citation available for '{title}'")
+
+        return citation
+
+    except SemanticScholarError as e:
+        raise ToolError(str(e)) from e
 
 
 @mcp.tool(
