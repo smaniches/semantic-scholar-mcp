@@ -1234,7 +1234,7 @@ async def export_citation(params: CitationExportInput) -> str:
             title = paper.get("title", params.paper_id)
             raise ToolError(f"No BibTeX citation available for '{title}'")
 
-        return citation
+        return str(citation)
 
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
