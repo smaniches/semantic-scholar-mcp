@@ -1403,9 +1403,7 @@ class TestRetryExhaustion429:
         """All retries return 429 — must raise RateLimitError after MAX_RETRIES."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
 
-        route = respx.get(url).mock(
-            return_value=Response(429, headers={"Retry-After": "0.01"})
-        )
+        route = respx.get(url).mock(return_value=Response(429, headers={"Retry-After": "0.01"}))
 
         await _get_client()
         with pytest.raises(RateLimitError) as exc_info:
@@ -1512,9 +1510,7 @@ class TestBulkSearchTool:
         from semantic_scholar_mcp.server import BulkSearchInput, ResponseFormat, bulk_search
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
-        route = respx.get(url).mock(
-            return_value=Response(200, json={"total": 0, "data": []})
-        )
+        route = respx.get(url).mock(return_value=Response(200, json={"total": 0, "data": []}))
 
         params = BulkSearchInput(
             query="test", sort="citationCount:desc", response_format=ResponseFormat.JSON
@@ -1912,9 +1908,7 @@ class TestMultiRecommendTool:
             )
         )
 
-        params = MultiRecommendInput(
-            positive_paper_ids=["a" * 40], negative_paper_ids=["c" * 40]
-        )
+        params = MultiRecommendInput(positive_paper_ids=["a" * 40], negative_paper_ids=["c" * 40])
         result = await multi_recommend(params)
 
         assert "Recommended Paper" in result
@@ -2109,9 +2103,7 @@ class TestFromPoolParam:
 
         paper_id = "a" * 40
         url = "https://api.semanticscholar.org/recommendations/v1/papers/forpaper/" + paper_id
-        route = respx.get(url).mock(
-            return_value=Response(200, json={"recommendedPapers": []})
-        )
+        route = respx.get(url).mock(return_value=Response(200, json={"recommendedPapers": []}))
 
         params = PaperRecommendationsInput(paper_id=paper_id, from_pool="all-cs")
         await get_recommendations(params)

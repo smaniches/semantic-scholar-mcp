@@ -149,8 +149,7 @@ PAPER_SEARCH_FIELDS_LITE: list[str] = [f for f in PAPER_SEARCH_FIELDS if f != "t
 
 # Bulk search doesn't support tldr, influentialCitationCount, or openAccessPdf
 PAPER_BULK_SEARCH_FIELDS: list[str] = [
-    f for f in PAPER_SEARCH_FIELDS
-    if f not in ("tldr", "influentialCitationCount", "openAccessPdf")
+    f for f in PAPER_SEARCH_FIELDS if f not in ("tldr", "influentialCitationCount", "openAccessPdf")
 ]
 
 # Comprehensive: for single paper detail views only
@@ -1477,8 +1476,7 @@ async def server_status() -> str:
     }
     if not has_key:
         status["tip"] = (
-            "Get a free API key for 10x speed: "
-            "https://www.semanticscholar.org/product/api"
+            "Get a free API key for 10x speed: https://www.semanticscholar.org/product/api"
         )
     try:
         # Route health check through _make_request for retry/rate-limit protection
