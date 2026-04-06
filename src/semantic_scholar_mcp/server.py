@@ -147,6 +147,11 @@ PAPER_SEARCH_FIELDS: list[str] = [
 # Sub-endpoints (recommendations, author/papers, references) don't support tldr
 PAPER_SEARCH_FIELDS_LITE: list[str] = [f for f in PAPER_SEARCH_FIELDS if f != "tldr"]
 
+# Bulk search doesn't support tldr, influentialCitationCount, or openAccessPdf
+PAPER_BULK_SEARCH_FIELDS: list[str] = [
+    f for f in PAPER_SEARCH_FIELDS if f not in ("tldr", "influentialCitationCount", "openAccessPdf")
+]
+
 # Comprehensive: for single paper detail views only
 PAPER_DETAIL_FIELDS: list[str] = [
     *PAPER_SEARCH_FIELDS,
@@ -546,7 +551,7 @@ def _get_headers(api_key: str | None = None) -> dict[str, str]:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
     effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
     if effective_key:
-        headers["Authorization"] = f"Bearer {effective_key}"
+        headers["x-api-key"] = effective_key
     return headers
 
 
@@ -904,7 +909,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             sub_tasks["citations"] = _make_request(
                 "GET",
                 f"paper/{params.paper_id}/citations",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.citations_limit},
+                params={
+                    "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
+                    "limit": params.citations_limit,
+                },
                 api_key=params.api_key,
             )
         if params.include_references:
@@ -1147,7 +1155,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
     api_params: dict[str, Any] = {
         "query": params.query,
         "limit": params.limit,
-        "fields": ",".join(PAPER_SEARCH_FIELDS),
+        "fields": ",".join(PAPER_BULK_SEARCH_FIELDS),
     }
     if params.sort:
         api_params["sort"] = params.sort
@@ -1226,7 +1234,7 @@ async def export_citation(params: CitationExportInput) -> str:
             title = paper.get("title", params.paper_id)
             raise ToolError(f"No BibTeX citation available for '{title}'")
 
-        return citation
+        return str(citation)
 
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
@@ -1468,8 +1476,7 @@ async def server_status() -> str:
     }
     if not has_key:
         status["tip"] = (
-            "Get a free API key for 10x speed: "
-            "https://www.semanticscholar.org/product/api"
+            "Get a free API key for 10x speed: https://www.semanticscholar.org/product/api"
         )
     try:
         # Route health check through _make_request for retry/rate-limit protection

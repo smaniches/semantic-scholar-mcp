@@ -1218,11 +1218,11 @@ class TestGetHeaders:
         # Don't check for Authorization absence as env might have it
 
     def test_headers_with_api_key(self):
-        """_get_headers should include Bearer auth when API key provided."""
+        """_get_headers should include x-api-key header when API key provided."""
         from semantic_scholar_mcp.server import _get_headers
 
         headers = _get_headers(api_key="test-api-key")
-        assert headers["Authorization"] == "Bearer test-api-key"
+        assert headers["x-api-key"] == "test-api-key"
 
 
 # ===============================================================================
@@ -1333,7 +1333,9 @@ class TestPaperDetailFieldSelection:
 
         # PAPER_DETAIL_FIELDS has fields that PAPER_SEARCH_FIELDS does not
         detail_only = set(PAPER_DETAIL_FIELDS) - set(PAPER_SEARCH_FIELDS)
-        assert detail_only, "PAPER_DETAIL_FIELDS should have extra fields beyond PAPER_SEARCH_FIELDS"
+        assert detail_only, (
+            "PAPER_DETAIL_FIELDS should have extra fields beyond PAPER_SEARCH_FIELDS"
+        )
 
         for field in detail_only:
             assert field in fields_list, (
@@ -1401,9 +1403,7 @@ class TestRetryExhaustion429:
         """All retries return 429 — must raise RateLimitError after MAX_RETRIES."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
 
-        route = respx.get(url).mock(
-            return_value=Response(429, headers={"Retry-After": "0.01"})
-        )
+        route = respx.get(url).mock(return_value=Response(429, headers={"Retry-After": "0.01"}))
 
         await _get_client()
         with pytest.raises(RateLimitError) as exc_info:
@@ -1429,7 +1429,7 @@ class TestBackoffTiming:
     @pytest.mark.asyncio
     async def test_503_backoff_is_exponential(self, reset_client):
         """503 retries should use exponential backoff: base*2^0, base*2^1, base*2^2."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         from semantic_scholar_mcp.server import RETRY_BACKOFF_BASE
 
@@ -1438,7 +1438,6 @@ class TestBackoffTiming:
         route = respx.get(url).mock(return_value=Response(503))
 
         sleep_calls: list[float] = []
-        original_sleep = __import__("asyncio").sleep
 
         async def capture_sleep(duration: float) -> None:
             sleep_calls.append(duration)
@@ -1511,9 +1510,7 @@ class TestBulkSearchTool:
         from semantic_scholar_mcp.server import BulkSearchInput, ResponseFormat, bulk_search
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search/bulk"
-        route = respx.get(url).mock(
-            return_value=Response(200, json={"total": 0, "data": []})
-        )
+        route = respx.get(url).mock(return_value=Response(200, json={"total": 0, "data": []}))
 
         params = BulkSearchInput(
             query="test", sort="citationCount:desc", response_format=ResponseFormat.JSON
@@ -1604,7 +1601,11 @@ class TestExportCitationTool:
 
         respx.get(url).mock(
             return_value=Response(
-                200, json={"title": "Attention Is All You Need", "citationStyles": {"bibtex": bibtex}}
+                200,
+                json={
+                    "title": "Attention Is All You Need",
+                    "citationStyles": {"bibtex": bibtex},
+                },
             )
         )
 
@@ -1740,7 +1741,15 @@ class TestMatchPaperTool:
         respx.get(url).mock(
             return_value=Response(
                 200,
-                json={"data": [{"paperId": "a" * 40, "title": "Attention Is All You Need", "matchScore": 133.2}]},
+                json={
+                    "data": [
+                        {
+                            "paperId": "a" * 40,
+                            "title": "Attention Is All You Need",
+                            "matchScore": 133.2,
+                        }
+                    ]
+                },
             )
         )
 
@@ -1899,9 +1908,7 @@ class TestMultiRecommendTool:
             )
         )
 
-        params = MultiRecommendInput(
-            positive_paper_ids=["a" * 40], negative_paper_ids=["c" * 40]
-        )
+        params = MultiRecommendInput(positive_paper_ids=["a" * 40], negative_paper_ids=["c" * 40])
         result = await multi_recommend(params)
 
         assert "Recommended Paper" in result
@@ -2096,9 +2103,7 @@ class TestFromPoolParam:
 
         paper_id = "a" * 40
         url = "https://api.semanticscholar.org/recommendations/v1/papers/forpaper/" + paper_id
-        route = respx.get(url).mock(
-            return_value=Response(200, json={"recommendedPapers": []})
-        )
+        route = respx.get(url).mock(return_value=Response(200, json={"recommendedPapers": []}))
 
         params = PaperRecommendationsInput(paper_id=paper_id, from_pool="all-cs")
         await get_recommendations(params)

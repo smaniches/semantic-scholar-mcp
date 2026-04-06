@@ -32,7 +32,7 @@ _DELAY = 1.0 if API_KEY else 3.0
 def _headers():
     h = {"Accept": "application/json"}
     if API_KEY:
-        h["Authorization"] = f"Bearer {API_KEY}"
+        h["x-api-key"] = API_KEY
     return h
 
 
@@ -54,13 +54,13 @@ def _get(url: str, **kwargs) -> httpx.Response:
 
 class TestAuthHeader:
     @pytest.mark.skipif(not API_KEY, reason="No API key")
-    def test_bearer_accepted(self):
+    def test_api_key_accepted(self):
         r = _get(
             f"{BASE}/paper/search",
             params={"query": "test", "limit": "1", "fields": "title"},
-            headers={"Authorization": f"Bearer {API_KEY}"},
+            headers={"x-api-key": API_KEY},
         )
-        assert r.status_code == 200, f"Bearer auth failed: {r.status_code}"
+        assert r.status_code == 200, f"x-api-key auth failed: {r.status_code}"
 
     @pytest.mark.skipif(not API_KEY, reason="No API key")
     def test_x_api_key_rejected(self):
@@ -215,12 +215,12 @@ class TestFieldListConsistency:
 
         assert "aliases" not in AUTHOR_FIELDS
 
-    def test_bearer_header_format(self):
+    def test_api_key_header_format(self):
         from semantic_scholar_mcp.server import _get_headers
 
         h = _get_headers("test_key_123")
-        assert h["Authorization"] == "Bearer test_key_123"
-        assert "x-api-key" not in h
+        assert h["x-api-key"] == "test_key_123"
+        assert "Authorization" not in h
 
     def test_no_auth_without_key(self):
         import semantic_scholar_mcp.server as srv
