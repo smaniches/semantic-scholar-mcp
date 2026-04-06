@@ -2,6 +2,16 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.2.1](https://github.com/smaniches/semantic-scholar-mcp/compare/v1.2.0...v1.2.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* bulk_search 400 error and snippet_search API key not forwarded ([bcd3a5f](https://github.com/smaniches/semantic-scholar-mcp/commit/bcd3a5f1dce9dd615548f679781c8320f0f98be9))
+* resolve mypy no-any-return error in export_citation ([35d4574](https://github.com/smaniches/semantic-scholar-mcp/commit/35d4574e7991e896a5c6f0bf882f69fcd94ee492))
+* resolve pre-existing lint errors (E501, F401, F841) ([855e1d1](https://github.com/smaniches/semantic-scholar-mcp/commit/855e1d132c6e92e668a656f9442f0ff9b9e2bacd))
+* update tool registration tests to expect all 14 tools ([32f8f55](https://github.com/smaniches/semantic-scholar-mcp/commit/32f8f55aa571a96a674cab2a458165e20dadfd2b))
+
 ## [1.2.0] - 2026-04-05
 
 ### Added
