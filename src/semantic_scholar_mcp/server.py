@@ -910,7 +910,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             sub_tasks["citations"] = _make_request(
                 "GET",
                 f"paper/{params.paper_id}/citations",
-                params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.citations_limit},
+                params={
+                    "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
+                    "limit": params.citations_limit,
+                },
                 api_key=params.api_key,
             )
         if params.include_references:

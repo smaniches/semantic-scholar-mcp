@@ -1333,7 +1333,9 @@ class TestPaperDetailFieldSelection:
 
         # PAPER_DETAIL_FIELDS has fields that PAPER_SEARCH_FIELDS does not
         detail_only = set(PAPER_DETAIL_FIELDS) - set(PAPER_SEARCH_FIELDS)
-        assert detail_only, "PAPER_DETAIL_FIELDS should have extra fields beyond PAPER_SEARCH_FIELDS"
+        assert detail_only, (
+            "PAPER_DETAIL_FIELDS should have extra fields beyond PAPER_SEARCH_FIELDS"
+        )
 
         for field in detail_only:
             assert field in fields_list, (
@@ -1429,7 +1431,7 @@ class TestBackoffTiming:
     @pytest.mark.asyncio
     async def test_503_backoff_is_exponential(self, reset_client):
         """503 retries should use exponential backoff: base*2^0, base*2^1, base*2^2."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         from semantic_scholar_mcp.server import RETRY_BACKOFF_BASE
 
@@ -1438,7 +1440,6 @@ class TestBackoffTiming:
         route = respx.get(url).mock(return_value=Response(503))
 
         sleep_calls: list[float] = []
-        original_sleep = __import__("asyncio").sleep
 
         async def capture_sleep(duration: float) -> None:
             sleep_calls.append(duration)
@@ -1604,7 +1605,11 @@ class TestExportCitationTool:
 
         respx.get(url).mock(
             return_value=Response(
-                200, json={"title": "Attention Is All You Need", "citationStyles": {"bibtex": bibtex}}
+                200,
+                json={
+                    "title": "Attention Is All You Need",
+                    "citationStyles": {"bibtex": bibtex},
+                },
             )
         )
 
@@ -1740,7 +1745,15 @@ class TestMatchPaperTool:
         respx.get(url).mock(
             return_value=Response(
                 200,
-                json={"data": [{"paperId": "a" * 40, "title": "Attention Is All You Need", "matchScore": 133.2}]},
+                json={
+                    "data": [
+                        {
+                            "paperId": "a" * 40,
+                            "title": "Attention Is All You Need",
+                            "matchScore": 133.2,
+                        }
+                    ]
+                },
             )
         )
 
