@@ -37,7 +37,7 @@ class TestToolDiscovery:
     """Test that all tools are properly registered and discoverable."""
 
     def test_all_tools_registered(self):
-        """All 7 tools should be registered on the FastMCP instance."""
+        """All 14 tools should be registered on the FastMCP instance."""
         tool_names = set(mcp._tool_manager._tools.keys())
 
         expected = {
@@ -47,13 +47,20 @@ class TestToolDiscovery:
             "semantic_scholar_get_author",
             "semantic_scholar_recommendations",
             "semantic_scholar_bulk_papers",
+            "semantic_scholar_bulk_search",
+            "semantic_scholar_export_citation",
+            "semantic_scholar_match_paper",
+            "semantic_scholar_paper_authors",
+            "semantic_scholar_author_batch",
+            "semantic_scholar_multi_recommend",
+            "semantic_scholar_snippet_search",
             "semantic_scholar_status",
         }
         assert expected == tool_names
 
     def test_tool_count(self):
-        """Should have exactly 7 tools."""
-        assert len(mcp._tool_manager._tools) == 7
+        """Should have exactly 14 tools."""
+        assert len(mcp._tool_manager._tools) == 14
 
     def test_server_name(self):
         """Server should have the correct name."""
