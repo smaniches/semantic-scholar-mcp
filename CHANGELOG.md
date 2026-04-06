@@ -2,6 +2,18 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-04-06
+
+### Fixed
+- `bulk_search`: HTTP 400 caused by requesting unsupported fields (tldr, influentialCitationCount, openAccessPdf); added PAPER_BULK_SEARCH_FIELDS
+- `snippet_search`: API key not forwarded; reverted auth header from Authorization: Bearer back to x-api-key (the Bearer migration in v1.0.2 broke the snippet endpoint)
+- mypy no-any-return error in export_citation
+- Pre-existing ruff lint (E501, F401, F841) and format issues
+- Tool registration tests updated from 7 to 14 tools
+
+### Changed
+- Version bump to 1.2.1
+
 ## [1.2.0] - 2026-04-05
 
 ### Added
