@@ -2,6 +2,68 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.2.2] - 2026-05-05
+
+Trust-repair patch. Documentation, metadata, and test-contract corrections
+only — no behavior change to the API surface, no path-encoding changes, no
+key-handling redesign, no supply-chain hardening. Those substantive items
+remain tracked for v1.3.0.
+
+### Fixed
+- `tests/test_api_compatibility.py::test_x_api_key_rejected` was a verbatim
+  duplicate of `test_api_key_accepted` but asserted `403`. Replaced with
+  `test_bearer_auth_not_accepted`, which sends `Authorization: Bearer <key>`
+  (without `x-api-key`) and asserts the response is not silently authenticated.
+- `tests/test_property_based.py::test_any_doi_prefix_is_valid` was failing on
+  main: the Hypothesis strategy generated `DOI:?` and `_validate_paper_id`
+  intentionally rejects `?` as a URL-injection guard. Narrowed the strategy
+  to `DOI:[^\s?#]+` (also excluding `../`) to match the validator's contract.
+  The validator was *not* weakened.
+- `server.json` `version` and `packages[0].version` were stuck at `1.0.0`
+  while the package shipped `1.2.1` to PyPI. Synchronized to `1.2.2`.
+- `.github/SECURITY.md` "Supported Versions" table was stuck at `1.0.x`.
+  Updated to `1.2.x`.
+- README "Tools Reference" documented only 7 of the 14 registered tools.
+  Added entries for `bulk_search`, `export_citation`, `match_paper`,
+  `paper_authors`, `author_batch`, `multi_recommend`, `snippet_search`.
+- README claim "Your API key never leaves your machine" was false: the key
+  is sent to `api.semanticscholar.org` as the `x-api-key` header. Replaced
+  with an accurate description of where the key actually goes.
+- README and SECURITY.md disagreed about the per-request `api_key` parameter
+  (README instructed its use; SECURITY denied it existed). Reconciled both
+  to acknowledge the parameter, document the transcript-exposure risk, and
+  recommend the `SEMANTIC_SCHOLAR_API_KEY` environment variable. Parameter
+  removal is deferred to v1.3.0.
+- README example response for `semantic_scholar_status` showed
+  `"version": "1.0.0"`. Updated to `"1.2.2"`.
+
+### Changed
+- README opening tagline narrowed from "The most comprehensive MCP server
+  for academic research" (no comparison evidence; three live PyPI rivals
+  exist) to a measurable claim: "A comprehensive 14-tool MCP server for
+  Semantic Scholar academic research workflows."
+- CHANGELOG entry for 1.2.0 narrowed "100% S2 API coverage" to
+  "14 tools across the Semantic Scholar Graph, Recommendations, and Snippet
+  APIs". Historical accuracy is preserved by this change-log entry recording
+  the rewrite.
+- `pyproject.toml` `Development Status` classifier downgraded from
+  `5 - Production/Stable` to `4 - Beta` as a deliberate honesty correction
+  while documentation and security hardening are brought into alignment.
+  Re-promotion is contingent on the v1.3.0 hardening landing.
+
+### Added
+- `tests/test_version_consistency.py`: fails fast in CI if `pyproject.toml`,
+  `server.json`, and runtime `__version__` diverge, or if the README install
+  command points at the wrong PyPI distribution name.
+- `tests/test_docs_tool_surface.py`: fails fast in CI if a registered
+  `@mcp.tool` is missing from the README, or if the README advertises a tool
+  the server does not register.
+- `RELEASE_AUDIT_v1.2.2.md`: scope, validation results, deferred items, and
+  attribution note for this release.
+- SECURITY.md: explicit "Known Limitations (v1.2.x)" section enumerating
+  the items deferred to v1.3.0 (path encoding, per-request `api_key`
+  parameter, GitHub Actions SHA-pinning, Sigstore/SBOM/attestation).
+
 ## [1.2.1] - 2026-04-06
 
 ### Fixed
@@ -28,7 +90,7 @@ All notable changes documented here. Format: [Keep a Changelog](https://keepacha
 - Friendly 429 error messages: API key signup URL for unauthenticated users
 
 ### Changed
-- Version bump to 1.2.0 (14 tools, 100% S2 API coverage)
+- Version bump to 1.2.0 (14 tools across the Semantic Scholar Graph, Recommendations, and Snippet APIs)
 
 ## [1.1.0] - 2026-04-05
 

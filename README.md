@@ -8,7 +8,7 @@
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**The most comprehensive MCP server for academic research.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) within Claude Desktop.
+**A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) within Claude Desktop.
 
 ---
 
@@ -90,6 +90,12 @@ You can provide your API key in two ways:
      "api_key": "your-api-key-here"
    }
    ```
+
+   > **Caution:** per-request `api_key` values are part of the tool-call
+   > arguments and may be visible in MCP transcripts, client logs, and the
+   > LLM's tool-call history depending on the client. For production use,
+   > prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable. Removal of
+   > the per-request parameter is tracked for v1.3.0.
 
 Get a free API key at: https://www.semanticscholar.org/product/api
 
@@ -317,7 +323,196 @@ Retrieve these papers: DOI:10.1038/nature12373, ARXIV:2106.15928, PMID:32908142
 
 ---
 
-### 7. `semantic_scholar_status`
+### 7. `semantic_scholar_bulk_search`
+
+Search papers with sorting and cursor-based pagination for large result sets.
+Unlike `search_papers`, supports a `sort` order and returns a `token` for
+paging through all results.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | Search query |
+| `sort` | string | No | Sort order, e.g. `"citationCount:desc"`, `"publicationDate:asc"` |
+| `token` | string | No | Continuation token from a previous bulk_search response |
+| `year` | string | No | Year filter: `"2024"`, `"2020-2024"`, `"2020-"` |
+| `fields_of_study` | string[] | No | Filter by fields: `["Computer Science"]` |
+| `publication_types` | string[] | No | Filter by type: `["Review", "JournalArticle"]` |
+| `min_citation_count` | integer | No | Minimum citation count |
+| `limit` | integer | No | Max results per page 1-1000 (default: 100) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "query": "graph neural networks",
+  "sort": "citationCount:desc",
+  "year": "2020-2024",
+  "limit": 100
+}
+```
+
+**Returns:** total result count, the page of papers, and a `token` for the
+next page (when more results exist).
+
+---
+
+### 8. `semantic_scholar_export_citation`
+
+Export a citation for a paper in BibTeX format.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `paper_id` | string | Yes | Paper ID in any supported format |
+| `format` | string | No | Citation format (currently only `"bibtex"`) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "paper_id": "DOI:10.1038/s41586-021-03819-2",
+  "format": "bibtex"
+}
+```
+
+**Returns:** the BibTeX string for the requested paper.
+
+---
+
+### 9. `semantic_scholar_match_paper`
+
+Find the single best paper matching a title string. Returns a numeric
+`matchScore` alongside the matched paper.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | Paper title to match (1-500 chars) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "query": "Attention Is All You Need"
+}
+```
+
+**Returns:** the best-matching paper plus its `matchScore`, or "No matching
+paper found." if no match.
+
+---
+
+### 10. `semantic_scholar_paper_authors`
+
+Get full author profiles for a paper's authors (richer than the abbreviated
+author list returned by `get_paper`).
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `paper_id` | string | Yes | Paper ID in any supported format |
+| `limit` | integer | No | Max authors to return 1-1000 (default: 100) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "paper_id": "ARXIV:1706.03762",
+  "limit": 25
+}
+```
+
+**Returns:** the list of full author records for the paper.
+
+---
+
+### 11. `semantic_scholar_author_batch`
+
+Retrieve multiple authors in a single request (max 1000).
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `author_ids` | string[] | Yes | List of author IDs (1-1000) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: json) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "author_ids": ["1741101", "40348417", "144749327"]
+}
+```
+
+**Returns:** counts of `requested` / `retrieved`, the retrieved author
+records, and a `not_found` list of IDs the API did not return.
+
+---
+
+### 12. `semantic_scholar_multi_recommend`
+
+Get recommendations using multiple positive (and optional negative) example
+papers.
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `positive_paper_ids` | string[] | Yes | Papers to find similar results for (1-100) |
+| `negative_paper_ids` | string[] | No | Papers to dissimilate from (0-100) |
+| `limit` | integer | No | Max recommendations 1-500 (default: 10) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "positive_paper_ids": ["ARXIV:1706.03762", "ARXIV:1810.04805"],
+  "negative_paper_ids": ["DOI:10.1038/nature14539"],
+  "limit": 20
+}
+```
+
+**Returns:** the recommended papers plus an echo of the positive/negative
+seeds used.
+
+---
+
+### 13. `semantic_scholar_snippet_search`
+
+Search within paper full text and return text snippets with surrounding
+context. **Heavily rate-limited without an API key.**
+
+**Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | Search query for paper text (1-500 chars) |
+| `paper_ids` | string[] | No | Limit search to specific papers (max 100) |
+| `year` | string | No | Year filter: `"2024"`, `"2020-2024"`, `"2020-"` |
+| `fields_of_study` | string[] | No | Filter by fields: `["Computer Science"]` |
+| `min_citation_count` | integer | No | Minimum citation count |
+| `limit` | integer | No | Max results 1-100 (default: 10) |
+| `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
+| `api_key` | string | No | Override environment API key |
+
+**JSON Example:**
+```json
+{
+  "query": "scaling laws for language models",
+  "year": "2022-2024",
+  "limit": 20
+}
+```
+
+**Returns:** matching snippets, each with the source paper title, section,
+and a short text excerpt.
+
+---
+
+### 14. `semantic_scholar_status`
 
 Check server health and API connectivity status.
 
@@ -332,9 +527,9 @@ Check Semantic Scholar API status
 ```json
 {
   "server": "semantic-scholar-mcp",
-  "version": "1.0.0",
+  "version": "1.2.2",
   "api_key_configured": true,
-  "timestamp": "2025-01-15T12:00:00.000000+00:00",
+  "timestamp": "2026-04-06T12:00:00.000000+00:00",
   "api_reachable": true
 }
 ```
@@ -368,7 +563,13 @@ The server automatically handles rate limiting with:
         | Local process           | Local machine            | 200M+ papers
 ```
 
-**Your API key never leaves your machine.** The MCP server runs locally.
+**Where your API key goes.** The MCP server runs locally on your machine and
+does not store your API key on disk. When the server makes authenticated
+requests, the key is sent **only** to `api.semanticscholar.org` over HTTPS as
+the `x-api-key` header that the Semantic Scholar API requires. No telemetry
+is sent to any third party. See the per-request `api_key` caution above for
+how transcript exposure can occur when the parameter is used per-request
+instead of via the environment variable.
 
 ---
 
@@ -396,7 +597,12 @@ mypy src/
 
 ## Security
 
-API keys are never stored in code — environment variables only. See [SECURITY.md](.github/SECURITY.md) for vulnerability reporting. All API communication uses HTTPS.
+API keys are never persisted to disk by the server. Prefer the
+`SEMANTIC_SCHOLAR_API_KEY` environment variable over the per-request `api_key`
+tool parameter (see [SECURITY.md](.github/SECURITY.md) for details on the
+transcript-exposure risk). All API communication uses HTTPS to
+`api.semanticscholar.org`. See [SECURITY.md](.github/SECURITY.md) for
+vulnerability reporting and the v1.2.x known-limitations list.
 
 ---
 

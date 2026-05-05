@@ -1,6 +1,6 @@
 [project]
 name = "s2-mcp-server"
-version = "1.2.1"
+version = "1.2.2"
 description = "MCP server for Semantic Scholar — 200M+ academic papers in Claude Desktop"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,7 +13,7 @@ maintainers = [
 ]
 keywords = ["mcp", "model-context-protocol", "semantic-scholar", "academic-research", "claude", "python", "llm", "research-tools"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",

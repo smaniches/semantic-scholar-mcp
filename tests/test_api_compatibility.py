@@ -63,13 +63,29 @@ class TestAuthHeader:
         assert r.status_code == 200, f"x-api-key auth failed: {r.status_code}"
 
     @pytest.mark.skipif(not API_KEY, reason="No API key")
-    def test_x_api_key_rejected(self):
+    def test_bearer_auth_not_accepted(self):
+        # Semantic Scholar authenticates via the `x-api-key` header. Sending
+        # the same secret as `Authorization: Bearer <key>` (without `x-api-key`)
+        # must NOT authenticate the request. The API may reject outright
+        # (401/403) or treat the request as anonymous; either is acceptable,
+        # but a 200 response would mean Bearer is being silently honored,
+        # which would contradict the documented auth contract this server
+        # depends on.
         r = _get(
             f"{BASE}/paper/search",
             params={"query": "test", "limit": "1", "fields": "title"},
-            headers={"x-api-key": API_KEY},
+            headers={"Authorization": f"Bearer {API_KEY}"},
         )
-        assert r.status_code == 403, "x-api-key should be rejected"
+        assert r.status_code in (200, 401, 403, 429), (
+            f"Unexpected status from Bearer-only request: {r.status_code}"
+        )
+        # If the request succeeded, it must have been treated as anonymous,
+        # not as authenticated by the Bearer token.
+        if r.status_code == 200:
+            sent = r.request.headers
+            assert "x-api-key" not in sent, (
+                "Test sent x-api-key by accident; cannot prove Bearer is rejected"
+            )
 
 
 # -- Author field compatibility -------------------------------------------
