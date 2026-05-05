@@ -40,7 +40,7 @@ hex_40 = st.text(alphabet=string.hexdigits, min_size=40, max_size=40)
 # subset the validator considers safe. Weakening the validator to satisfy the
 # test would be the wrong direction.
 doi_ids = (
-    st.from_regex(r"DOI:[^\s?#]+", fullmatch=True)
+    st.from_regex(r"DOI:[^\s?#\x00]+", fullmatch=True)
     .filter(lambda s: len(s) <= 60)
     .filter(lambda s: "../" not in s)
 )
