@@ -32,9 +32,18 @@ from semantic_scholar_mcp.server import (
 # Valid 40-char hex strings
 hex_40 = st.text(alphabet=string.hexdigits, min_size=40, max_size=40)
 
-# Valid DOI-prefixed IDs (use printable chars to match regex `.+` which excludes \r\n)
-# DOI: use printable non-whitespace after prefix to avoid stripping edge cases
-doi_ids = st.from_regex(r"DOI:\S+", fullmatch=True).filter(lambda s: len(s) <= 60)
+# Valid DOI-prefixed IDs.
+# `_validate_paper_id` intentionally rejects characters that have meaning in URL
+# paths/queries (`?`, `#`) and the path-traversal sequence `../`, since paper
+# IDs are interpolated into request URLs. The regex pattern `DOI:.+` matches
+# any non-newline character, so we must narrow the property generator to the
+# subset the validator considers safe. Weakening the validator to satisfy the
+# test would be the wrong direction.
+doi_ids = (
+    st.from_regex(r"DOI:[^\s?#\x00]+", fullmatch=True)
+    .filter(lambda s: len(s) <= 60)
+    .filter(lambda s: "../" not in s)
+)
 
 # Valid ArXiv-prefixed IDs (ARXIV:NNNN.NNNNN format)
 arxiv_ids = st.tuples(

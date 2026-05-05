@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| 1.2.x   | :white_check_mark: |
+| < 1.2   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -23,15 +23,46 @@ Expected response time: 48 hours.
 
 ## Security Best Practices for Users
 
-- **Never** commit API keys to version control
-- Use environment variables for `SEMANTIC_SCHOLAR_API_KEY`
-- Keep this package updated to the latest version
-- Review [CHANGELOG.md](../CHANGELOG.md) for security-related patches
+- **Never** commit API keys to version control.
+- Prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable over the
+  per-request `api_key` tool parameter (see API Key Handling below).
+- Keep this package updated to the latest version.
+- Review [CHANGELOG.md](../CHANGELOG.md) for security-related patches.
+
+## API Key Handling
+
+The server accepts the Semantic Scholar API key in two places:
+
+1. **`SEMANTIC_SCHOLAR_API_KEY` environment variable** (recommended). The key
+   stays in the local process environment and is never serialized into tool
+   arguments or transcripts.
+2. **Per-request `api_key` tool parameter** (advertised, see README). Because
+   tool-call arguments are typically captured by MCP clients and may be
+   surfaced in LLM tool-call history, **using `api_key` per-request can
+   expose the key in client logs and transcripts**. Use the environment
+   variable in any non-trivial deployment. Removal of the per-request
+   parameter is tracked for v1.3.0.
+
+In both cases the key is sent only to `api.semanticscholar.org` over HTTPS,
+as the `x-api-key` header, and is never written to disk by this server.
 
 ## Security Features
 
-- No API keys stored in code — environment variables only
-- Input validation on all tool parameters
-- Semantic Scholar API rate limits respected automatically
-- HTTPS-only API communication
-- Minimal dependency footprint to reduce attack surface
+- API keys are never persisted to disk by the server.
+- Input validation on all tool parameters; paper-ID format whitelist rejects
+  null bytes, `?`, `#`, and `../`.
+- Semantic Scholar API rate limits respected automatically; exponential
+  backoff with jitter on `429` and `503`.
+- HTTPS-only API communication.
+- Minimal direct dependency footprint (`mcp`, `httpx`, `pydantic`).
+
+## Known Limitations (v1.2.x)
+
+- Paper IDs are interpolated into request URL paths without
+  `urllib.parse.quote`. The validator rejects the most common
+  injection-relevant characters, but full URL-encoding is tracked for v1.3.0.
+- The per-request `api_key` parameter has the transcript-exposure risk
+  described above.
+- GitHub Actions are tag-pinned, not SHA-pinned. SHA-pinning, Sigstore
+  signing, build-provenance attestation, and CycloneDX SBOM generation are
+  tracked for v1.3.0.
