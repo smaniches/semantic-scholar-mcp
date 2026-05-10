@@ -3,10 +3,12 @@
 [![CI](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
 [![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
+[![Docker](https://img.shields.io/badge/ghcr.io-semantic--scholar--mcp-blue?logo=docker)](https://ghcr.io/smaniches/semantic-scholar-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Smithery](https://smithery.ai/badge/@smaniches/semantic-scholar-mcp)](https://smithery.ai/server/@smaniches/semantic-scholar-mcp)
 
 **A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) within Claude Desktop.
 
@@ -67,6 +69,12 @@ pip install s2-mcp-server
 # or
 git clone https://github.com/smaniches/semantic-scholar-mcp.git
 cd semantic-scholar-mcp && pip install -e .
+```
+
+### Option 6: Docker
+```bash
+docker pull ghcr.io/smaniches/semantic-scholar-mcp:latest
+docker run -e SEMANTIC_SCHOLAR_API_KEY=your-key ghcr.io/smaniches/semantic-scholar-mcp
 ```
 
 > **Note:** Get a free API key at [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api). Without a key, you get rate-limited public access (1 req/sec).
