@@ -38,6 +38,9 @@ updates:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Docker base image
   - package-ecosystem: "docker"
