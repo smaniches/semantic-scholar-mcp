@@ -2,6 +2,23 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.0](https://github.com/smaniches/semantic-scholar-mcp/compare/v1.2.2...v1.3.0) (2026-05-11)
+
+
+### Features
+
+* add Docker support and registry badges ([#14](https://github.com/smaniches/semantic-scholar-mcp/issues/14)) ([5f11d8b](https://github.com/smaniches/semantic-scholar-mcp/commit/5f11d8bec0b4196e0f9d3819a35e7eef7cef5389))
+
+
+### Dependencies
+
+* bump python from 3.12-slim to 3.14-slim ([#38](https://github.com/smaniches/semantic-scholar-mcp/issues/38)) ([909175c](https://github.com/smaniches/semantic-scholar-mcp/commit/909175c2708b0bc69112c93ac3b427731168f50c))
+
+
+### Documentation
+
+* add Zenodo DOI badge ([#30](https://github.com/smaniches/semantic-scholar-mcp/issues/30)) ([65e3938](https://github.com/smaniches/semantic-scholar-mcp/commit/65e3938729169cf5a5caf2f7b4ba2ad7b74352a6))
+
 ## [1.2.2] - 2026-05-05
 
 Trust-repair patch. Documentation, metadata, and test-contract corrections
