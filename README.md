@@ -3,7 +3,7 @@
 [![CI](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
 [![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
-[![Zenodo DOI](https://zenodo.org/badge/doi/10.5281/zenodo.19324159.svg)](https://doi.org/10.5281/zenodo.19324159)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20045126-3C5A99?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.20045126)
 [![Docker](https://img.shields.io/badge/ghcr.io-semantic--scholar--mcp-blue?logo=docker)](https://ghcr.io/smaniches/semantic-scholar-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +11,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Smithery](https://smithery.ai/badge/@smaniches/semantic-scholar-mcp)](https://smithery.ai/server/@smaniches/semantic-scholar-mcp)
 
-**A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) within Claude Desktop.
+**A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
 
 ---
 
@@ -612,6 +612,13 @@ tool parameter (see [SECURITY.md](.github/SECURITY.md) for details on the
 transcript-exposure risk). All API communication uses HTTPS to
 `api.semanticscholar.org`. See [SECURITY.md](.github/SECURITY.md) for
 vulnerability reporting and the v1.2.x known-limitations list.
+
+---
+
+## Related MCP servers by the same author
+
+- [`alphafold-sovereign-mcp`](https://github.com/smaniches/alphafold-sovereign-mcp) — Model Context Protocol server for AlphaFold DB and 13 other biomedical data sources, with a local SQLite knowledge graph (`pip install --pre alphafold-sovereign-mcp`).
+- [`uniprot-mcp`](https://github.com/smaniches/uniprot-mcp) — Model Context Protocol server for UniProt Swiss-Prot and TrEMBL (`pip install uniprot-mcp-server`).
 
 ---
 
