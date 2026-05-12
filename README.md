@@ -11,7 +11,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Smithery](https://smithery.ai/badge/@smaniches/semantic-scholar-mcp)](https://smithery.ai/server/@smaniches/semantic-scholar-mcp)
 
-**A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
+**A comprehensive 14-tool MCP server for Semantic Scholar academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
 
 ---
 
