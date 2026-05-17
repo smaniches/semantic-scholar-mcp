@@ -59,3 +59,48 @@ def test_readme_install_command_uses_pypi_distribution_name() -> None:
         "README must not direct users to the conflicting PyPI package "
         "`semantic-scholar-mcp` (held by a different author)"
     )
+
+
+def test_citation_cff_version_matches_runtime() -> None:
+    text = _read("CITATION.cff")
+    match = re.search(r"^version:\s*([^\s#]+)", text, re.MULTILINE)
+    assert match is not None, "CITATION.cff has no top-level version field"
+    assert match.group(1) == __version__, (
+        f"CITATION.cff version {match.group(1)!r} != runtime {__version__!r}"
+    )
+
+
+def test_zenodo_json_version_matches_runtime() -> None:
+    data = json.loads(_read(".zenodo.json"))
+    assert data["version"] == __version__, (
+        f".zenodo.json version {data['version']!r} != runtime {__version__!r}"
+    )
+
+
+def test_release_please_tracks_every_versioned_file() -> None:
+    """Defense-in-depth: every file the version-consistency suite checks must
+    be tracked by release-please. If you add a new version-bearing file, add
+    it here AND to release-please-config.json. This keeps releases automatic
+    instead of relying on humans to remember to bump N files in lockstep.
+    """
+    config = json.loads(_read("release-please-config.json"))
+    extras = config["packages"]["."]["extra-files"]
+
+    string_paths: set[str] = {e for e in extras if isinstance(e, str)}
+    json_paths: set[tuple[str, str]] = {
+        (e["path"], e["jsonpath"])
+        for e in extras
+        if isinstance(e, dict) and e.get("type") == "json"
+    }
+
+    # Files updated via the `# x-release-please-version` annotation
+    assert "src/semantic_scholar_mcp/server.py" in string_paths
+    assert "CITATION.cff" in string_paths
+
+    # Files updated via JSON path replacement
+    assert ("server.json", "$.version") in json_paths
+    assert ("server.json", "$.packages[0].version") in json_paths
+    assert (".zenodo.json", "$.version") in json_paths
+
+    # The pyproject.toml path is implicit (release-type: python handles it)
+    assert config["release-type"] == "python"
