@@ -63,7 +63,7 @@ def test_readme_install_command_uses_pypi_distribution_name() -> None:
 
 def test_citation_cff_version_matches_runtime() -> None:
     text = _read("CITATION.cff")
-    match = re.search(r"^version:\s*([^\s#]+)", text, re.MULTILINE)
+    match = re.search(r"^version:\s*['\"]?([^'\"\s#]+)", text, re.MULTILINE)
     assert match is not None, "CITATION.cff has no top-level version field"
     assert match.group(1) == __version__, (
         f"CITATION.cff version {match.group(1)!r} != runtime {__version__!r}"
