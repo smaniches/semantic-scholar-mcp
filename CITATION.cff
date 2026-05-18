@@ -15,8 +15,8 @@ authors:
     email: santiago@topologica.ai
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.20045126
-    description: "Zenodo concept DOI (all-versions)"
+    value: 10.5281/zenodo.19324159
+    description: "Zenodo concept DOI (all-versions, resolves to latest)"
 repository-code: "https://github.com/smaniches/semantic-scholar-mcp"
 url: "https://github.com/smaniches/semantic-scholar-mcp"
 license: MIT
