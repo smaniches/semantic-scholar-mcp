@@ -161,7 +161,8 @@ You can provide your API key in two ways:
    > arguments and may be visible in MCP transcripts, client logs, and the
    > LLM's tool-call history depending on the client. For production use,
    > prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable. Removal of
-   > the per-request parameter is tracked for v1.3.0.
+   > the per-request parameter is planned for a follow-up release; see
+   > [.github/SECURITY.md](.github/SECURITY.md) for the tracked list.
 
 Get a free API key at: https://www.semanticscholar.org/product/api
 

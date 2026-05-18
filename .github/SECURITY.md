@@ -41,7 +41,7 @@ The server accepts the Semantic Scholar API key in two places:
    surfaced in LLM tool-call history, **using `api_key` per-request can
    expose the key in client logs and transcripts**. Use the environment
    variable in any non-trivial deployment. Removal of the per-request
-   parameter is tracked for v1.3.0.
+   parameter is planned for a follow-up release (see [Known Limitations](#known-limitations)).
 
 In both cases the key is sent only to `api.semanticscholar.org` over HTTPS,
 as the `x-api-key` header, and is never written to disk by this server.
@@ -56,13 +56,21 @@ as the `x-api-key` header, and is never written to disk by this server.
 - HTTPS-only API communication.
 - Minimal direct dependency footprint (`mcp`, `httpx`, `pydantic`).
 
-## Known Limitations (v1.2.x)
+## Known Limitations
 
-- Paper IDs are interpolated into request URL paths without
-  `urllib.parse.quote`. The validator rejects the most common
-  injection-relevant characters, but full URL-encoding is tracked for v1.3.0.
-- The per-request `api_key` parameter has the transcript-exposure risk
-  described above.
-- GitHub Actions are tag-pinned, not SHA-pinned. SHA-pinning, Sigstore
-  signing, build-provenance attestation, and CycloneDX SBOM generation are
-  tracked for v1.3.0.
+The following are known gaps tracked for a follow-up release. They are not
+defects in the current code — they are explicit boundaries on what this
+project's security posture provides today.
+
+- **Paper IDs are interpolated into request URL paths without
+  `urllib.parse.quote`.** The validator rejects the most common
+  injection-relevant characters (`NUL`, `?`, `#`, `../`), so the current
+  surface is constrained; full URL-encoding is the next iteration.
+- **The per-request `api_key` parameter carries the transcript-exposure
+  risk** described above. Environment-variable use is the recommended path
+  today; parameter removal is planned.
+- **GitHub Actions are tag-pinned, not SHA-pinned.** Major versions are
+  guarded by Dependabot grouping rules and the `update-types: [minor,
+  patch]` restriction so unreviewed major bumps cannot land. SHA-pinning,
+  Sigstore signing, build-provenance attestations, and CycloneDX SBOM
+  generation are the next iteration of supply-chain hardening.
