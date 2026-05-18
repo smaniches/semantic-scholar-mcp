@@ -3,7 +3,7 @@
 [![CI](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
 [![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20045126-3C5A99?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.20045126)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19324159-3C5A99?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.19324159)
 [![Docker](https://img.shields.io/badge/ghcr.io-semantic--scholar--mcp-blue?logo=docker)](https://ghcr.io/smaniches/semantic-scholar-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
