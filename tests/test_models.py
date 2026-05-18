@@ -260,3 +260,58 @@ class TestBulkPaperInput:
     def test_single_id(self):
         m = BulkPaperInput(paper_ids=["DOI:10.1234/test"])
         assert len(m.paper_ids) == 1
+
+
+# ===============================================================================
+# FORMATTER NULL-SAFETY (gemini-code-assist feedback on #45)
+# ===============================================================================
+
+
+class TestFormatterNullSafety:
+    """Per RFC: S2 returns explicit `null` for unknown numeric/string fields.
+
+    `.get(key, default)` only fires when the key is missing. These tests pin
+    the coalesce-with-`or` behavior so a null `title`/`year`/`paperCount`/
+    `citationCount` never renders as the literal string ``None``.
+    """
+
+    def test_paper_with_null_title_year(self):
+        from semantic_scholar_mcp.formatters import format_paper_markdown
+
+        result = format_paper_markdown({"title": None, "year": None, "paperId": "abc"})
+        assert "None" not in result.splitlines()[0]
+        assert "Unknown Title" in result
+        assert "N/A" in result
+
+    def test_paper_with_missing_title_year(self):
+        from semantic_scholar_mcp.formatters import format_paper_markdown
+
+        result = format_paper_markdown({"paperId": "abc"})
+        assert "Unknown Title" in result
+        assert "N/A" in result
+
+    def test_author_with_null_counts_renders_zero(self):
+        from semantic_scholar_mcp.formatters import format_author_markdown
+
+        result = format_author_markdown({"name": "Jane", "paperCount": None, "citationCount": None})
+        assert "**Papers:** 0" in result
+        assert "**Citations:** 0" in result
+
+    def test_author_with_explicit_zero_hindex_renders_zero(self):
+        """0 h-index is meaningful (early-career); must not collapse to N/A."""
+        from semantic_scholar_mcp.formatters import format_author_markdown
+
+        result = format_author_markdown({"name": "New Grad", "hIndex": 0})
+        assert "**h-index:** 0" in result
+
+    def test_author_with_null_hindex_renders_na(self):
+        from semantic_scholar_mcp.formatters import format_author_markdown
+
+        result = format_author_markdown({"name": "No H-Index", "hIndex": None})
+        assert "**h-index:** N/A" in result
+
+    def test_author_with_null_name(self):
+        from semantic_scholar_mcp.formatters import format_author_markdown
+
+        result = format_author_markdown({"name": None, "authorId": "x"})
+        assert "### Unknown" in result

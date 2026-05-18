@@ -94,7 +94,6 @@ def test_release_please_tracks_every_versioned_file() -> None:
     }
 
     # Files updated via the `# x-release-please-version` annotation
-    assert "src/semantic_scholar_mcp/server.py" in string_paths
     assert "CITATION.cff" in string_paths
 
     # Files updated via JSON path replacement
@@ -102,5 +101,8 @@ def test_release_please_tracks_every_versioned_file() -> None:
     assert ("server.json", "$.packages[0].version") in json_paths
     assert (".zenodo.json", "$.version") in json_paths
 
-    # The pyproject.toml path is implicit (release-type: python handles it)
+    # pyproject.toml is implicit (release-type: python handles it). The runtime
+    # __version__ is derived from importlib.metadata.version("s2-mcp-server"),
+    # which reads pyproject.toml — so bumping pyproject is sufficient for the
+    # runtime constant; server.py no longer carries a hardcoded version string.
     assert config["release-type"] == "python"

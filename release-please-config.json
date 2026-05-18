@@ -6,7 +6,6 @@
       "package-name": "semantic-scholar-mcp",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        "src/semantic_scholar_mcp/server.py",
         "CITATION.cff",
         {
           "type": "json",

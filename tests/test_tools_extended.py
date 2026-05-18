@@ -300,11 +300,18 @@ class TestAuthorFormattingEdgeCases:
         assert "Profile" not in result
 
     def test_author_none_h_index(self):
-        """Author with None hIndex should still format."""
+        """Author with null hIndex renders as N/A, not the literal 'None'.
+
+        S2 returns explicit ``null`` for incomplete author records; rendering
+        that as the string ``"None"`` reads as a Python repr leaking into the
+        UI. ``N/A`` is unambiguous. 0 h-index is still rendered as 0 because
+        it's a meaningful early-career value, not a missing one.
+        """
         author = {"name": "Test", "hIndex": None}
         result = _format_author_markdown(author)
         assert "h-index" in result
-        assert "None" in result  # Shows None value
+        assert "**h-index:** N/A" in result
+        assert "None" not in result
 
 
 # ===============================================================================
