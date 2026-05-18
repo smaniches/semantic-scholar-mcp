@@ -37,6 +37,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        # When dispatched with an inputs.tag, check out that tag so the
+        # build reflects the released code. Otherwise default to the ref
+        # the workflow was triggered on (main on push, tag on release).
+        ref: ${{ inputs.tag || github.ref }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
@@ -49,6 +54,21 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # Pre-extract version from the input tag if present. GitHub's
+    # workflow_dispatch UI only lets you pick a *branch* for the "Use
+    # workflow from" field, so dispatches from main with a tag input would
+    # otherwise see github.ref = refs/heads/main and produce no semver
+    # Docker tags. This step computes the version directly from the input
+    # so type=raw can apply it below.
+    - name: Extract version from input tag
+      id: ver
+      if: ${{ inputs.tag != '' }}
+      run: |
+        version=$(echo "${{ inputs.tag }}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/^v//')
+        minor=$(echo "$version" | cut -d. -f1-2)
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "minor=$minor" >> "$GITHUB_OUTPUT"
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v6
@@ -57,10 +77,14 @@ jobs:
         # release-please-managed tags carry a component prefix
         # (e.g. ``semantic-scholar-mcp-v1.3.0``), so ``type=semver`` — which
         # expects bare ``v1.3.0`` — won't match. ``type=match`` with a
-        # capturing regex extracts the version from anywhere in the tag.
+        # capturing regex extracts the version when the workflow is triggered
+        # by a tag ref (release: published). ``type=raw`` applies the version
+        # computed from ``inputs.tag`` when dispatched from a branch.
         tags: |
           type=match,pattern=v(\d+\.\d+\.\d+),group=1
           type=match,pattern=v(\d+\.\d+),group=1
+          type=raw,value=${{ steps.ver.outputs.version }},enable=${{ steps.ver.outputs.version != '' }}
+          type=raw,value=${{ steps.ver.outputs.minor }},enable=${{ steps.ver.outputs.minor != '' }}
           type=sha,prefix=
           type=raw,value=latest,enable={{is_default_branch}}
 
