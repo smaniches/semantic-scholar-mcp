@@ -17,6 +17,9 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.19324159
     description: "Zenodo concept DOI (all-versions, resolves to latest)"
+  - type: doi
+    value: 10.5281/zenodo.20270474
+    description: "Zenodo version DOI for v1.3.0 (immutable, cite for reproducibility)"
 repository-code: "https://github.com/smaniches/semantic-scholar-mcp"
 url: "https://github.com/smaniches/semantic-scholar-mcp"
 license: MIT
