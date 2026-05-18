@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Semantic Scholar MCP Server"
+abstract: >-
+  A Model Context Protocol server providing programmatic access to the
+  Semantic Scholar academic graph (200M+ papers, 14 tools: search,
+  citation graph traversal, author profiles, recommendations, bulk
+  retrieval, BibTeX export, snippet search) from any MCP client.
+type: software
+authors:
+  - family-names: Maniches
+    given-names: Santiago
+    orcid: "https://orcid.org/0009-0005-6480-1987"
+    affiliation: "TOPOLOGICA LLC"
+    email: santiago@topologica.ai
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20045126
+    description: "Zenodo concept DOI (all-versions)"
+repository-code: "https://github.com/smaniches/semantic-scholar-mcp"
+url: "https://github.com/smaniches/semantic-scholar-mcp"
+license: MIT
+version: 1.2.2  # x-release-please-version
+date-released: "2026-05-05"
+keywords:
+  - mcp
+  - model-context-protocol
+  - semantic-scholar
+  - academic-research
+  - citation-graph
+  - bibliometrics
+  - large-language-models

@@ -1,0 +1,46 @@
+{
+  "title": "Semantic Scholar MCP Server",
+  "description": "A Model Context Protocol (MCP) server providing programmatic access to the Semantic Scholar academic graph (200M+ papers) — paper search, citation graph traversal, author profiles, recommendations, bulk retrieval, BibTeX export, and snippet search. 14 tools, MIT-licensed, distributed on PyPI as s2-mcp-server, on GitHub Container Registry, and in the Smithery MCP registry.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "version": "1.2.2",
+  "creators": [
+    {
+      "name": "Maniches, Santiago",
+      "orcid": "0009-0005-6480-1987",
+      "affiliation": "TOPOLOGICA LLC"
+    }
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "semantic-scholar",
+    "academic-research",
+    "citation-graph",
+    "bibliometrics",
+    "scientometrics",
+    "literature-review",
+    "large-language-models",
+    "research-tools"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/smaniches/semantic-scholar-mcp",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://pypi.org/project/s2-mcp-server/",
+      "relation": "isIdenticalTo",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://api.semanticscholar.org/",
+      "relation": "isDerivedFrom",
+      "scheme": "url"
+    }
+  ],
+  "communities": [],
+  "language": "eng"
+}
