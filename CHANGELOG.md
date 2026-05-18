@@ -2,6 +2,77 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.2.2...semantic-scholar-mcp-v1.3.0) (2026-05-18)
+
+
+### Features
+
+* add Docker support and registry badges ([#14](https://github.com/smaniches/semantic-scholar-mcp/issues/14)) ([5f11d8b](https://github.com/smaniches/semantic-scholar-mcp/commit/5f11d8bec0b4196e0f9d3819a35e7eef7cef5389))
+* add structured error responses (isError=True) and TTL cache ([9dea864](https://github.com/smaniches/semantic-scholar-mcp/commit/9dea864b5f48819a04d32da05a6169c7c35a8860))
+* add structured error responses (isError=True) and TTL cache ([b6f4000](https://github.com/smaniches/semantic-scholar-mcp/commit/b6f4000f38140059e3d2de31b0a2bce843de747a))
+* bulk search, citation export, parallel sub-requests (v1.1.0) ([513f622](https://github.com/smaniches/semantic-scholar-mcp/commit/513f6220fa6b3ee7370125a3d1db387fe0ef144e))
+* full S2 API coverage, 5 new tools, UX hardening (v1.2.0) ([95a175f](https://github.com/smaniches/semantic-scholar-mcp/commit/95a175f35647ad3f9a8bba90ac09ff68d622cd08))
+* user-provided API key support ([981188f](https://github.com/smaniches/semantic-scholar-mcp/commit/981188f8cb6943d21df71614328fcc85062d2a51))
+
+
+### Bug Fixes
+
+* add 429 retry and increase rate limit delay for CI ([da2e5c5](https://github.com/smaniches/semantic-scholar-mcp/commit/da2e5c51ff5630eb287edb31952afdfaaace6312))
+* add missing type annotations to resolve mypy CI failures ([28ccb0a](https://github.com/smaniches/semantic-scholar-mcp/commit/28ccb0a722e1938526e63809d1cb8b0804758c75))
+* add s2-mcp-server entry point so uvx s2-mcp-server works ([f06e1a3](https://github.com/smaniches/semantic-scholar-mcp/commit/f06e1a3481b6b79c42d148a191572f4972218364))
+* Bearer auth, remove unsupported S2 API fields, add API compat tests ([d37161c](https://github.com/smaniches/semantic-scholar-mcp/commit/d37161c0e8d09537b00b21620f4cba87bd710ed9))
+* bulk_search 400 error and snippet_search API key not forwarded ([bcd3a5f](https://github.com/smaniches/semantic-scholar-mcp/commit/bcd3a5f1dce9dd615548f679781c8320f0f98be9))
+* filter tldr from citations endpoint (v1.0.3) ([67d98b0](https://github.com/smaniches/semantic-scholar-mcp/commit/67d98b0a37c44955e1da52e2e613ebc2d25f2a2a))
+* lint errors and invalid author test ID ([e6b32ba](https://github.com/smaniches/semantic-scholar-mcp/commit/e6b32ba0fabc63261a584e1735af6f7eceab0ea4))
+* prevent api-compat CI rate limiting with sequential jobs and retries ([39ee596](https://github.com/smaniches/semantic-scholar-mcp/commit/39ee59674488240a0f3c5f751b1de8749f324afc))
+* production hardening — single version source, CI coverage+Windows, examples, entry point tests ([5f60fb8](https://github.com/smaniches/semantic-scholar-mcp/commit/5f60fb895af5b2226f75ee1c2931fe8623c32a38))
+* rename PyPI package to s2-mcp-server ([f7797bd](https://github.com/smaniches/semantic-scholar-mcp/commit/f7797bd1baf7afbf836ef95a8eb602080372ff7a))
+* resolve mypy no-any-return error in export_citation ([35d4574](https://github.com/smaniches/semantic-scholar-mcp/commit/35d4574e7991e896a5c6f0bf882f69fcd94ee492))
+* resolve pre-existing lint errors (E501, F401, F841) ([855e1d1](https://github.com/smaniches/semantic-scholar-mcp/commit/855e1d132c6e92e668a656f9442f0ff9b9e2bacd))
+* skip live API tests without SEMANTIC_SCHOLAR_API_KEY ([aae53a8](https://github.com/smaniches/semantic-scholar-mcp/commit/aae53a898534a9f8cc70a586176233287bf47dd4))
+* update existing test to expect Bearer auth instead of x-api-key ([50086a0](https://github.com/smaniches/semantic-scholar-mcp/commit/50086a0536dbac9e5b3b44231ffc76e60ee2baa8))
+* update repo references from topologica-ai to smaniches ([d47fa45](https://github.com/smaniches/semantic-scholar-mcp/commit/d47fa45cbb08c7337ae7b323c4c7f2530a90f0d3))
+* update repo references from topologica-ai to smaniches ([89dbba1](https://github.com/smaniches/semantic-scholar-mcp/commit/89dbba126cf60596a98df29b94e9dc4aae0a8172))
+* update tool registration tests to expect all 14 tools ([32f8f55](https://github.com/smaniches/semantic-scholar-mcp/commit/32f8f55aa571a96a674cab2a458165e20dadfd2b))
+
+
+### Dependencies
+
+* bump python from 3.12-slim to 3.14-slim ([#38](https://github.com/smaniches/semantic-scholar-mcp/issues/38)) ([909175c](https://github.com/smaniches/semantic-scholar-mcp/commit/909175c2708b0bc69112c93ac3b427731168f50c))
+
+
+### Documentation
+
+* add Zenodo DOI badge ([#30](https://github.com/smaniches/semantic-scholar-mcp/issues/30)) ([65e3938](https://github.com/smaniches/semantic-scholar-mcp/commit/65e3938729169cf5a5caf2f7b4ba2ad7b74352a6))
+* audience-neutral framing, shields.io DOI badge, related-MCP cross-promo ([#43](https://github.com/smaniches/semantic-scholar-mcp/issues/43)) ([cf86365](https://github.com/smaniches/semantic-scholar-mcp/commit/cf86365fad450a66d27f3c47c417855bb3f4bb09))
+* remove stale "tracked for v1.3.0" promises before 1.3.0 ships ([#46](https://github.com/smaniches/semantic-scholar-mcp/issues/46)) ([19740be](https://github.com/smaniches/semantic-scholar-mcp/commit/19740be088c3151c5bfd266dc110b1e13fe1c090))
+
+
+### CI/CD
+
+* add release automation, Dependabot, Codecov, and PyPI publishing ([8c2254e](https://github.com/smaniches/semantic-scholar-mcp/commit/8c2254e4d96aea0142c6125cba0aaf38d70711e5))
+* add release automation, Dependabot, Codecov, and PyPI publishing ([cc4dcdf](https://github.com/smaniches/semantic-scholar-mcp/commit/cc4dcdf3d8a165df2bf852afb509fa7d6594d365))
+* bump docker/build-push-action from 6 to 7 ([#40](https://github.com/smaniches/semantic-scholar-mcp/issues/40)) ([06cfe61](https://github.com/smaniches/semantic-scholar-mcp/commit/06cfe612964514d5cc6b97591accdfcd1d8ce7a5))
+* bump docker/login-action from 3 to 4 ([#39](https://github.com/smaniches/semantic-scholar-mcp/issues/39)) ([94d7f0f](https://github.com/smaniches/semantic-scholar-mcp/commit/94d7f0f149a63c1d0754ce5c0a964eabffa63d73))
+* bump GitHub Actions versions ([#36](https://github.com/smaniches/semantic-scholar-mcp/issues/36)) ([86ca546](https://github.com/smaniches/semantic-scholar-mcp/commit/86ca546e3414deca964d79fe91403eccbfa54b2f))
+* harden dependabot config (group actions, group pip by type, add docker) ([#37](https://github.com/smaniches/semantic-scholar-mcp/issues/37)) ([1adc671](https://github.com/smaniches/semantic-scholar-mcp/commit/1adc671682b774461173b7e7d8e7ad629309691c))
+* make releases self-consistent forever (CITATION.cff, .zenodo.json, full release-please coverage) ([#44](https://github.com/smaniches/semantic-scholar-mcp/issues/44)) ([281d1c6](https://github.com/smaniches/semantic-scholar-mcp/commit/281d1c607f6394da024e506455c3f69d99c4f263))
+* migrate release-please to v5 manifest mode ([#41](https://github.com/smaniches/semantic-scholar-mcp/issues/41)) ([65c201c](https://github.com/smaniches/semantic-scholar-mcp/commit/65c201cae667f6eab663b4fdf72f798966bb70ab))
+
+
+### Testing
+
+* close coverage gaps for retry, bulk, detail fields, backoff timing ([46cfec5](https://github.com/smaniches/semantic-scholar-mcp/commit/46cfec5fdcd6cd594de7ab9687e9d459f58b29c3))
+
+
+### Refactoring
+
+* modularize server.py, single-source __version__, add architecture diagram ([#45](https://github.com/smaniches/semantic-scholar-mcp/issues/45)) ([860a202](https://github.com/smaniches/semantic-scholar-mcp/commit/860a202b426f8dfaa08c7ac7520ec5cd42ddf042))
+* production hardening with 10 best practices ([f955bff](https://github.com/smaniches/semantic-scholar-mcp/commit/f955bff2c5728e1ef03a87077558476c655ead99))
+* server lifecycle, validation, and comprehensive tests ([a3ebaf3](https://github.com/smaniches/semantic-scholar-mcp/commit/a3ebaf31f8440b89e230a57cf87bf817241ba817))
+* zero technical debt, Smithery registry, and installation docs ([787d905](https://github.com/smaniches/semantic-scholar-mcp/commit/787d905ad0f51cf2d675444744a44f9055f49ce4))
+* zero technical debt, Smithery registry, and installation docs ([7a26e9e](https://github.com/smaniches/semantic-scholar-mcp/commit/7a26e9e2dcd71a695226977ad1daad2b8871a9ea))
+
 ## [1.2.2] - 2026-05-05
 
 Trust-repair patch. Documentation, metadata, and test-contract corrections
