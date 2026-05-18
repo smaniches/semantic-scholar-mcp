@@ -23,6 +23,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        # Build from the exact tag when dispatched with inputs.tag, so the
+        # published wheel reflects the released code rather than main HEAD.
+        ref: ${{ inputs.tag || github.ref }}
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
