@@ -41,7 +41,7 @@ The server accepts the Semantic Scholar API key in two places:
    surfaced in LLM tool-call history, **using `api_key` per-request can
    expose the key in client logs and transcripts**. Use the environment
    variable in any non-trivial deployment. Removal of the per-request
-   parameter is planned for a follow-up release (see *Known Limitations*).
+   parameter is planned for a follow-up release (see [Known Limitations](#known-limitations)).
 
 In both cases the key is sent only to `api.semanticscholar.org` over HTTPS,
 as the `x-api-key` header, and is never written to disk by this server.
@@ -64,7 +64,7 @@ project's security posture provides today.
 
 - **Paper IDs are interpolated into request URL paths without
   `urllib.parse.quote`.** The validator rejects the most common
-  injection-relevant characters (NUL, `?`, `#`, `../`), so the current
+  injection-relevant characters (`NUL`, `?`, `#`, `../`), so the current
   surface is constrained; full URL-encoding is the next iteration.
 - **The per-request `api_key` parameter carries the transcript-exposure
   risk** described above. Environment-variable use is the recommended path
