@@ -36,7 +36,7 @@ class TestLifespan:
     @pytest.mark.asyncio
     async def test_lifespan_creates_and_closes_client(self, reset_client):
         """Lifespan should allow client usage and close on shutdown."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
         async with _lifespan(mcp):
             # During lifespan, client should be usable
@@ -48,14 +48,14 @@ class TestLifespan:
 
         # After lifespan exits, client should be closed
         assert client_ref.is_closed
-        assert server._client is None
+        assert _ssm_client_mod._client is None
 
     @pytest.mark.asyncio
     async def test_lifespan_no_client_created(self, reset_client):
         """Lifespan should not fail if no client was created."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        server._client = None
+        _ssm_client_mod._client = None
         async with _lifespan(mcp):
             pass  # Don't create any client
         # Should not raise
@@ -82,7 +82,7 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_rate_limiting_enforces_interval(self, reset_all):
         """Requests should be spaced by at least _MIN_REQUEST_INTERVAL."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(200, json={"data": []}))
@@ -95,7 +95,7 @@ class TestRateLimiting:
 
         # Should have waited at least the minimum interval (1.0s for no API key)
         # Use a small tolerance for timing
-        assert elapsed >= server._MIN_REQUEST_INTERVAL * 0.8
+        assert elapsed >= _ssm_client_mod._MIN_REQUEST_INTERVAL * 0.8
 
     @respx.mock
     @pytest.mark.asyncio

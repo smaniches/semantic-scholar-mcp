@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-import semantic_scholar_mcp.server as server
+from semantic_scholar_mcp import cache, client
 
 
 @pytest.fixture
@@ -17,22 +17,22 @@ def reset_client():
 
     Ensures test isolation by restoring original client state.
     """
-    old_client = server._client
-    server._client = None
+    old_client = client._client
+    client._client = None
     yield
     # Close any client created during test
-    if server._client is not None and not server._client.is_closed:
+    if client._client is not None and not client._client.is_closed:
         import asyncio
 
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                loop.create_task(server._client.aclose())
+                loop.create_task(client._client.aclose())
             else:
-                loop.run_until_complete(server._client.aclose())
+                loop.run_until_complete(client._client.aclose())
         except RuntimeError:
             pass
-    server._client = old_client
+    client._client = old_client
 
 
 @pytest.fixture
@@ -44,21 +44,21 @@ def reset_rate_limit():
     """
     import asyncio
 
-    old_time = server._last_request_time
-    old_semaphore = server._rate_semaphore
-    server._last_request_time = 0.0
-    server._rate_semaphore = asyncio.Semaphore(1)
+    old_time = client._last_request_time
+    old_semaphore = client._rate_semaphore
+    client._last_request_time = 0.0
+    client._rate_semaphore = asyncio.Semaphore(1)
     yield
-    server._last_request_time = old_time
-    server._rate_semaphore = old_semaphore
+    client._last_request_time = old_time
+    client._rate_semaphore = old_semaphore
 
 
 @pytest.fixture(autouse=True)
 def reset_cache():
     """Clear the TTL cache before/after each test (autouse)."""
-    server._cache_clear()
+    cache.cache_clear()
     yield
-    server._cache_clear()
+    cache.cache_clear()
 
 
 @pytest.fixture

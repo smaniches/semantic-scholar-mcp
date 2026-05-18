@@ -404,12 +404,12 @@ class TestRetryLogic:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -576,25 +576,25 @@ class TestClientLifecycle:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @pytest.mark.asyncio
     async def test_get_client_creates_client(self, reset_client):
         """_get_client should create client if none exists."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        assert server._client is None
+        assert _ssm_client_mod._client is None
 
         client = await _get_client()
 
         assert client is not None
         assert not client.is_closed
-        assert server._client is client
+        assert _ssm_client_mod._client is client
 
     @pytest.mark.asyncio
     async def test_get_client_returns_existing(self, reset_client):
@@ -627,12 +627,12 @@ class TestSearchPapersTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -734,12 +734,12 @@ class TestGetPaperDetailsTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -869,12 +869,12 @@ class TestGetRecommendationsTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -928,12 +928,12 @@ class TestSearchAuthorsTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -973,12 +973,12 @@ class TestGetAuthorDetailsTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1021,12 +1021,12 @@ class TestBulkPapersTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1098,12 +1098,12 @@ class TestServerStatusTool:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client before each test."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1152,15 +1152,15 @@ class TestMakeRequest:
     @pytest.fixture
     def reset_client(self):
         """Reset the global HTTP client and rate limit state."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        old_time = server._last_request_time
-        server._client = None
-        server._last_request_time = 0.0
+        old_client = _ssm_client_mod._client
+        old_time = _ssm_client_mod._last_request_time
+        _ssm_client_mod._client = None
+        _ssm_client_mod._last_request_time = 0.0
         yield
-        server._client = old_client
-        server._last_request_time = old_time
+        _ssm_client_mod._client = old_client
+        _ssm_client_mod._last_request_time = old_time
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1298,12 +1298,12 @@ class TestPaperDetailFieldSelection:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1349,12 +1349,12 @@ class TestBulkPapersMarkdownFailures:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1390,12 +1390,12 @@ class TestRetryExhaustion429:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1418,12 +1418,12 @@ class TestBackoffTiming:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1466,12 +1466,12 @@ class TestBulkSearchTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1582,12 +1582,12 @@ class TestExportCitationTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1674,12 +1674,12 @@ class TestParallelSubRequests:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1725,12 +1725,12 @@ class TestMatchPaperTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1790,12 +1790,12 @@ class TestPaperAuthorsTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1831,12 +1831,12 @@ class TestAuthorBatchTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1888,12 +1888,12 @@ class TestMultiRecommendTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1929,12 +1929,12 @@ class TestSnippetSearchTool:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
@@ -2001,13 +2001,14 @@ class TestUXHardening:
     async def test_status_no_key_shows_tip(self):
         """server_status without key should include tip."""
         import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp import client as _ssm_client_mod
         from semantic_scholar_mcp.server import server_status
 
         original = srv.SEMANTIC_SCHOLAR_API_KEY
         srv.SEMANTIC_SCHOLAR_API_KEY = ""
         # Need reset_client behavior
-        old_client = srv._client
-        srv._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         try:
             url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
             respx.get(url).mock(return_value=Response(200, json={"data": []}))
@@ -2020,19 +2021,20 @@ class TestUXHardening:
             assert "public (1 req/sec)" in parsed["rate_tier"]
         finally:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
-            srv._client = old_client
+            _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio
     async def test_status_with_key_shows_rate(self):
         """server_status with key should show authenticated rate."""
         import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp import client as _ssm_client_mod
         from semantic_scholar_mcp.server import server_status
 
         original = srv.SEMANTIC_SCHOLAR_API_KEY
         srv.SEMANTIC_SCHOLAR_API_KEY = "test_key"
-        old_client = srv._client
-        srv._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         try:
             url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
             respx.get(url).mock(return_value=Response(200, json={"data": []}))
@@ -2045,7 +2047,7 @@ class TestUXHardening:
             assert "authenticated (10 req/sec)" in parsed["rate_tier"]
         finally:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
-            srv._client = old_client
+            _ssm_client_mod._client = old_client
 
 
 class TestInputSanitization:
@@ -2089,12 +2091,12 @@ class TestFromPoolParam:
 
     @pytest.fixture
     def reset_client(self):
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
-        old_client = server._client
-        server._client = None
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
         yield
-        server._client = old_client
+        _ssm_client_mod._client = old_client
 
     @respx.mock
     @pytest.mark.asyncio

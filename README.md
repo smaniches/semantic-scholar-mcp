@@ -82,6 +82,63 @@ docker run -e SEMANTIC_SCHOLAR_API_KEY=your-key ghcr.io/smaniches/semantic-schol
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart LR
+  Client["MCP client<br/>(Claude Desktop, Claude Code,<br/>Cursor, Cline, Continue, …)"]
+  subgraph Server ["s2-mcp-server (this package)"]
+    direction TB
+    FastMCP["FastMCP runtime<br/>(stdio transport, lifespan)"]
+    Tools["14 @mcp.tool functions<br/>(server.py)"]
+    Models["Pydantic input models<br/>+ field sets (models.py)"]
+    Validators["Paper-ID validator<br/>(validators.py)"]
+    Cache["TTL cache<br/>(cache.py)"]
+    Fmt["Markdown formatters<br/>(formatters.py)"]
+    HTTP["httpx client<br/>+ rate limit + retry/backoff<br/>(client.py)"]
+    Errors["Typed exceptions<br/>(errors.py)"]
+    Log["Structured JSON logger<br/>(logging_config.py)"]
+  end
+  S2Graph["Semantic Scholar<br/>Graph API"]
+  S2Recs["Semantic Scholar<br/>Recommendations API"]
+
+  Client <-- "stdio (JSON-RPC)" --> FastMCP
+  FastMCP --> Tools
+  Tools --> Models
+  Tools --> Validators
+  Tools --> Cache
+  Tools --> HTTP
+  Tools --> Fmt
+  HTTP --> Errors
+  HTTP --> Log
+  HTTP -- "GET / POST<br/>x-api-key" --> S2Graph
+  HTTP -- "GET / POST<br/>x-api-key" --> S2Recs
+```
+
+**Module responsibilities** (`src/semantic_scholar_mcp/`):
+
+| Module | Responsibility |
+| --- | --- |
+| `server.py` | FastMCP instance, 14 `@mcp.tool` registrations, lifespan, `main()` entry. Re-exports the helper surface for back-compat. |
+| `client.py` | Shared `httpx.AsyncClient` singleton, per-tier rate limiter (1 req/s public, 10 req/s keyed), retry loop with exponential backoff + jitter on 429/503/timeout, HTTP→typed-exception mapping. |
+| `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the four tiered field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`, `AUTHOR_FIELDS`). |
+| `validators.py` | Pre-flight paper-ID validation. Rejects NUL bytes, `?`, `#`, path traversal; accepts the seven canonical ID formats. |
+| `cache.py` | In-memory TTL cache (5 min, 200 entries, oldest-first eviction) for paper/author lookups within a session. |
+| `formatters.py` | Markdown renderers for paper and author dicts, tuned for chat-surface readability. |
+| `errors.py` | `SemanticScholarError` hierarchy: `AuthenticationError`, `RateLimitError`, `NotFoundError`, `ValidationError`, `ServerError`. |
+| `logging_config.py` | One-JSON-per-line `StructuredFormatter` on stderr; safe to ship through any log aggregator. |
+
+**Design choices worth knowing**
+
+- **Single `httpx.AsyncClient` per process.** Created lazily, closed in the FastMCP lifespan teardown. Amortizes connection setup; respects keep-alive limits.
+- **Rate limit is enforced at the client, not the API.** A semaphore + last-request timestamp ensures we never exceed the per-tier interval even when the MCP host issues tool calls in parallel.
+- **Retry is bounded and jittered.** Up to `MAX_RETRIES = 3`, base 1 s, capped at 30 s. Honors `Retry-After` when present.
+- **Errors are typed.** Status codes map onto a small exception hierarchy so callers can branch on `AuthenticationError` vs `RateLimitError` vs `NotFoundError` instead of parsing strings.
+- **Input validation is pre-flight.** Paper IDs are checked before any outbound request; bad IDs never hit the wire.
+- **Version is single-source.** `__version__` is derived from `importlib.metadata.version("s2-mcp-server")`, so bumping `pyproject.toml` is sufficient; release-please bumps the manifest, `server.json` (×2 paths), `CITATION.cff`, and `.zenodo.json` in lockstep on every release.
+
+---
+
 ## Configuration
 
 ### API Key Options

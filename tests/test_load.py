@@ -60,7 +60,7 @@ class TestBurstLoad:
     @pytest.mark.asyncio
     async def test_burst_maintains_rate_limit(self, reset_all):
         """Burst requests should be spaced by rate limit interval."""
-        import semantic_scholar_mcp.server as server
+        from semantic_scholar_mcp import client as _ssm_client_mod
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         timestamps: list[float] = []
@@ -82,7 +82,7 @@ class TestBurstLoad:
 
         # Check that requests were properly spaced
         total_elapsed = timestamps[-1] - timestamps[0]
-        expected_min = server._MIN_REQUEST_INTERVAL * 1.5  # 2 gaps for 3 requests
+        expected_min = _ssm_client_mod._MIN_REQUEST_INTERVAL * 1.5  # 2 gaps for 3 requests
         assert total_elapsed >= expected_min * 0.7  # tolerance for timing
 
     @respx.mock
