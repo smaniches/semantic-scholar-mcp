@@ -11,9 +11,11 @@ at 30 s, honoring the ``Retry-After`` header when present.
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import os
 import random
 import time
+from email.utils import parsedate_to_datetime
 from typing import Any, cast
 
 import httpx
@@ -59,6 +61,9 @@ async def get_client() -> httpx.AsyncClient:
                 max_connections=10, max_keepalive_connections=5, keepalive_expiry=30
             ),
             headers={"Accept": "application/json", "Content-Type": "application/json"},
+            # Follow 3xx so an endpoint move or HTTP→HTTPS upgrade doesn't
+            # surface as a phantom error from raise_for_status().
+            follow_redirects=True,
         )
     return _client
 
@@ -111,6 +116,31 @@ async def make_request(
         return await _execute_request_with_retry(method, url, params, json_body, headers, api_key)
 
 
+def _parse_retry_after(header_value: str | None, default: float) -> float:
+    """Parse a ``Retry-After`` header per RFC 9110 (delay-seconds OR HTTP-date).
+
+    Falls back to ``default`` for missing, malformed, or past-dated values —
+    so a CDN that emits a date string can never crash the retry loop.
+    """
+    if not header_value:
+        return default
+    try:
+        return float(header_value)
+    except ValueError:
+        pass
+    try:
+        target = parsedate_to_datetime(header_value)
+    except (TypeError, ValueError):
+        return default
+    if target is None:
+        return default
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc) if target.tzinfo else datetime.utcnow()
+    delta = (target - now).total_seconds()
+    return max(delta, 0.0)
+
+
 async def _execute_request_with_retry(
     method: str,
     url: str,
@@ -119,8 +149,16 @@ async def _execute_request_with_retry(
     headers: dict[str, str],
     api_key: str | None,
 ) -> dict[str, Any] | list[Any]:
-    """Execute one request with exponential-backoff retry for 429/503/timeout."""
+    """Execute one request with exponential-backoff retry for transient errors.
+
+    Retries: 429, 503, and any transport-level :class:`httpx.RequestError`
+    (timeouts, connect/read errors, DNS hiccups, remote-protocol errors).
+    Non-retriable status codes raise a typed exception via :func:`handle_error`.
+    """
     client = await get_client()
+
+    def backoff(n: int) -> float:
+        return float(RETRY_BACKOFF_BASE * (2**n) + random.uniform(0, 0.5))
 
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -129,38 +167,63 @@ async def _execute_request_with_retry(
             else:
                 resp = await client.post(url, params=params, json=json_body, headers=headers)
             resp.raise_for_status()
-            return cast(dict[str, Any] | list[Any], resp.json())
+            try:
+                return cast(dict[str, Any] | list[Any], resp.json())
+            except _json.JSONDecodeError as e:
+                # 2xx but the body isn't JSON: corporate-proxy HTML page, an
+                # unexpected 204 No Content, or an API regression. Surface a
+                # typed error rather than crashing the tool execution.
+                preview = (resp.text or "")[:120].replace("\n", " ")
+                raise SemanticScholarError(
+                    f"API returned non-JSON response (Content-Type: "
+                    f"{resp.headers.get('Content-Type', 'unknown')}). Body preview: {preview!r}"
+                ) from e
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            # Retriable: 429, 503.
             if status in (429, 503) and attempt < MAX_RETRIES:
-                if status == 429:
-                    retry_after = float(
-                        e.response.headers.get("Retry-After", RETRY_BACKOFF_BASE * (2**attempt))
-                    )
-                else:
-                    retry_after = RETRY_BACKOFF_BASE * (2**attempt)
-                jitter = random.uniform(0, 0.5)
-                wait = min(retry_after + jitter, 30.0)
+                default = RETRY_BACKOFF_BASE * (2**attempt)
+                retry_after = (
+                    _parse_retry_after(e.response.headers.get("Retry-After"), default)
+                    if status == 429
+                    else default
+                )
+                wait = min(retry_after + random.uniform(0, 0.5), 30.0)
                 logger.warning(
                     "HTTP %d. Retry %d/%d after %.1fs", status, attempt + 1, MAX_RETRIES, wait
                 )
                 await asyncio.sleep(wait)
                 continue
             # Non-retriable or exhausted: raise typed exception.
-            retry_after_header = e.response.headers.get("Retry-After")
             handle_error(
                 status,
                 api_key,
-                retry_after=float(retry_after_header) if retry_after_header else None,
+                retry_after=_parse_retry_after(e.response.headers.get("Retry-After"), 0.0) or None,
             )
         except httpx.TimeoutException:
             if attempt < MAX_RETRIES:
-                wait = RETRY_BACKOFF_BASE * (2**attempt) + random.uniform(0, 0.5)
+                wait = backoff(attempt)
                 logger.warning("Timeout. Retry %d/%d after %.1fs", attempt + 1, MAX_RETRIES, wait)
                 await asyncio.sleep(wait)
                 continue
             raise SemanticScholarError("Request timed out after all retries") from None
+        except httpx.RequestError as e:
+            # Transport-level transient errors: ConnectError, ReadError,
+            # RemoteProtocolError, etc. (TimeoutException is a sibling and is
+            # already handled above.) Retry with backoff before giving up.
+            if attempt < MAX_RETRIES:
+                wait = backoff(attempt)
+                logger.warning(
+                    "Network error %s. Retry %d/%d after %.1fs",
+                    type(e).__name__,
+                    attempt + 1,
+                    MAX_RETRIES,
+                    wait,
+                )
+                await asyncio.sleep(wait)
+                continue
+            raise SemanticScholarError(
+                f"Network error after {MAX_RETRIES} retries: {type(e).__name__}: {e}"
+            ) from e
 
     raise SemanticScholarError("Request failed: no response received")  # pragma: no cover
 

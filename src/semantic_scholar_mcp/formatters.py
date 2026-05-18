@@ -17,8 +17,10 @@ _MAX_ABSTRACT_CHARS = 500
 def format_paper_markdown(paper: dict[str, Any]) -> str:
     """Render a paper dict as a chat-friendly markdown block."""
     lines = []
-    title = paper.get("title", "Unknown Title")
-    year = paper.get("year", "N/A")
+    # ``.get(default)`` only fires when the key is missing; the S2 API returns
+    # explicit nulls for incomplete records, so coalesce with ``or`` instead.
+    title = paper.get("title") or "Unknown Title"
+    year = paper.get("year") or "N/A"
     lines.append(f"### {title} ({year})")
 
     authors = paper.get("authors", [])
@@ -75,16 +77,20 @@ def format_paper_markdown(paper: dict[str, Any]) -> str:
 
 def format_author_markdown(author: dict[str, Any]) -> str:
     """Render an author dict as a chat-friendly markdown block."""
-    lines = [f"### {author.get('name', 'Unknown')}"]
+    lines = [f"### {author.get('name') or 'Unknown'}"]
 
     affiliations = author.get("affiliations") or []
     if affiliations:
         lines.append(f"**Affiliations:** {', '.join(affiliations[:3])}")
 
+    # h-index: 0 is a meaningful value (early-career), so distinguish missing
+    # ("N/A") from explicit 0 instead of using ``or 0``.
+    h_index = author.get("hIndex")
+    h_index_str = str(h_index) if h_index is not None else "N/A"
     lines.append(
-        f"**h-index:** {author.get('hIndex')} | "
-        f"**Papers:** {author.get('paperCount', 0)} | "
-        f"**Citations:** {author.get('citationCount', 0)}"
+        f"**h-index:** {h_index_str} | "
+        f"**Papers:** {author.get('paperCount') or 0} | "
+        f"**Citations:** {author.get('citationCount') or 0}"
     )
 
     if author.get("homepage"):
