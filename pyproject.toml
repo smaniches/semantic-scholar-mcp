@@ -1,6 +1,6 @@
 [project]
 name = "s2-mcp-server"
-version = "1.2.2"
+version = "1.3.0"
 description = "Model Context Protocol server for Semantic Scholar — 200M+ academic papers, 14 tools spanning paper search, citation graph traversal, author profiles, and recommendations."
 readme = "README.md"
 requires-python = ">=3.10"
