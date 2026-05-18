@@ -3,6 +3,15 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  # Manual / programmatic trigger. release-please.yml dispatches this after
+  # creating a release because GITHUB_TOKEN-authored release events do not
+  # fan out to other workflows.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. semantic-scholar-mcp-v1.3.0)"
+        required: false
+        type: string
 
 permissions:
   contents: read

@@ -7,13 +7,46 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Needed so this workflow can dispatch publish.yml and docker.yml after
+  # release-please creates the release. workflow_dispatch is the documented
+  # exception that lets a GITHUB_TOKEN-driven workflow start downstream
+  # workflows — without it the release: published event is suppressed and
+  # PyPI / GHCR never see the new version.
+  actions: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-    - uses: googleapis/release-please-action@v5
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        config-file: release-please-config.json
-        manifest-file: .release-please-manifest.json
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Whenever a release was created, fan out to the workflows that publish
+      # the artifacts. We use workflow_dispatch (rather than relying on the
+      # native release: published trigger) because release-please runs under
+      # GITHUB_TOKEN and GitHub deliberately suppresses cascade triggers from
+      # GITHUB_TOKEN-authored events.
+      #   docs: https://docs.github.com/en/actions/security-guides/automatic-token-authentication
+      - name: Dispatch PyPI publish
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run publish.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.release.outputs.tag_name }}" \
+            --field tag="${{ steps.release.outputs.tag_name }}"
+
+      - name: Dispatch Docker image build
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run docker.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.release.outputs.tag_name }}" \
+            --field tag="${{ steps.release.outputs.tag_name }}"
