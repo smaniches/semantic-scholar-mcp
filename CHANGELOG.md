@@ -2,6 +2,19 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.0...semantic-scholar-mcp-v1.3.1) (2026-05-18)
+
+
+### Documentation
+
+* point DOI badge and CITATION.cff at the Zenodo concept DOI ([#60](https://github.com/smaniches/semantic-scholar-mcp/issues/60)) ([f64e756](https://github.com/smaniches/semantic-scholar-mcp/commit/f64e756466362529beca722fd9919d44eda5a497))
+
+
+### CI/CD
+
+* fix GITHUB_TOKEN suppression of release: published downstream workflows ([#57](https://github.com/smaniches/semantic-scholar-mcp/issues/57)) ([9359952](https://github.com/smaniches/semantic-scholar-mcp/commit/9359952f54451f4731bfef2adac122cb0eec0bf4))
+* make workflow_dispatch honor inputs.tag for build ref and Docker semver tags ([#59](https://github.com/smaniches/semantic-scholar-mcp/issues/59)) ([e4f1c1d](https://github.com/smaniches/semantic-scholar-mcp/commit/e4f1c1d3a2001f3824d3f24b8da23e66b8183733))
+
 ## [1.3.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.2.2...semantic-scholar-mcp-v1.3.0) (2026-05-18)
 
 
