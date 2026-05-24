@@ -334,3 +334,56 @@ class TestAuthorToolsIntegration:
         text = _text(result)
         assert "Yoshua Bengio" in text
         assert "GAN Paper" in text
+
+
+# ===============================================================================
+# VALIDATION ERROR FRIENDLY MESSAGES
+# ===============================================================================
+
+
+class TestValidationErrorFriendlyMessage:
+    """Verify pydantic ValidationError produces friendly user-facing messages."""
+
+    @pytest.mark.asyncio
+    async def test_extra_field_returns_friendly_error(self, reset_all):
+        """Extra 'fields' parameter should produce structured friendly error."""
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers",
+                {"params": {"query": "test", "fields": "title"}},
+            )
+        msg = str(exc_info.value)
+        assert "Invalid parameter" in msg
+        assert "fields" in msg
+        assert "field selection is managed internally" in msg
+        assert "Accepted parameters" in msg
+        assert "query" in msg
+        assert "Extra inputs are not permitted" not in msg
+        assert "errors.pydantic.dev" not in msg
+
+    @pytest.mark.asyncio
+    async def test_unknown_parameter_returns_accepted_list(self, reset_all):
+        """Unknown parameter should list accepted parameters."""
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers",
+                {"params": {"query": "test", "bogus_param": 42}},
+            )
+        msg = str(exc_info.value)
+        assert "Invalid parameter" in msg
+        assert "bogus_param" in msg
+        assert "Accepted parameters" in msg
+        assert "errors.pydantic.dev" not in msg
+
+    @pytest.mark.asyncio
+    async def test_constraint_violation_returns_friendly_error(self, reset_all):
+        """Constraint violation (limit=0) should produce a clean message."""
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers",
+                {"params": {"query": "test", "limit": 0}},
+            )
+        msg = str(exc_info.value)
+        assert "Validation error" in msg
+        assert "limit" in msg
+        assert "errors.pydantic.dev" not in msg

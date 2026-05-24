@@ -25,15 +25,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, get_type_hints
 
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
-from mcp.types import ToolAnnotations
+from mcp.types import ContentBlock, ToolAnnotations
+from pydantic import ValidationError as PydanticValidationError
 
 from . import __version__
 
@@ -118,7 +119,80 @@ async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
         logger.info("Server shutdown complete")
 
 
-mcp = FastMCP(
+def _get_accepted_params(tool_name: str, tool_manager: Any) -> list[str]:
+    """Extract accepted parameter names from a tool's input Pydantic model."""
+    tool = tool_manager.get_tool(tool_name)
+    if not tool:
+        return []
+    try:
+        hints = get_type_hints(tool.fn)
+    except Exception:
+        return []
+    for name, param_type in hints.items():
+        if name == "return":
+            continue
+        if isinstance(param_type, type) and hasattr(param_type, "model_fields"):
+            return list(param_type.model_fields.keys())
+    return []
+
+
+def _friendly_validation_message(
+    tool_name: str,
+    exc: PydanticValidationError,
+    tool_manager: Any,
+) -> str:
+    """Convert a raw pydantic ValidationError into a user-friendly message."""
+    errors = exc.errors()
+
+    extra_fields: list[str] = []
+    other_messages: list[str] = []
+
+    for err in errors:
+        loc_parts = [str(p) for p in err.get("loc", ()) if p != "params"]
+        loc_str = ".".join(loc_parts) if loc_parts else "input"
+        if err.get("type") == "extra_forbidden":
+            extra_fields.append(loc_str)
+        else:
+            other_messages.append(f"{loc_str}: {err['msg']}")
+
+    accepted = _get_accepted_params(tool_name, tool_manager)
+    accepted_str = f" Accepted parameters: {accepted}." if accepted else ""
+
+    if extra_fields and not other_messages:
+        parts = [f"Invalid parameter(s): {extra_fields}."]
+        if "fields" in extra_fields:
+            parts.append(
+                "This tool does not expose a 'fields' parameter;"
+                " field selection is managed internally."
+            )
+        parts.append(accepted_str.strip())
+        return " ".join(p for p in parts if p)
+
+    if other_messages and not extra_fields:
+        return f"Validation error: {'; '.join(other_messages)}.{accepted_str}"
+
+    all_msgs = [f"Invalid parameter(s): {extra_fields}"] if extra_fields else []
+    all_msgs.extend(other_messages)
+    return f"Validation error: {'; '.join(all_msgs)}.{accepted_str}"
+
+
+class _S2FastMCP(FastMCP):
+    """FastMCP subclass that intercepts pydantic input-validation errors."""
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> Sequence[ContentBlock] | dict[str, Any]:
+        try:
+            return await super().call_tool(name, arguments)
+        except ToolError as e:
+            if isinstance(e.__cause__, PydanticValidationError):
+                raise ToolError(
+                    _friendly_validation_message(name, e.__cause__, self._tool_manager)
+                ) from e.__cause__
+            raise
+
+
+mcp = _S2FastMCP(
     "semantic_scholar_mcp",
     instructions="""
     Semantic Scholar MCP Server - Access 200M+ academic papers.

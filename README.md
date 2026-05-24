@@ -594,7 +594,7 @@ Check Semantic Scholar API status
 ```json
 {
   "server": "semantic-scholar-mcp",
-  "version": "1.2.2",
+  "version": "1.3.1",
   "api_key_configured": true,
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
   "api_reachable": true
@@ -608,8 +608,10 @@ Check Semantic Scholar API status
 | Tier | Requests/Second | How to Get |
 |------|-----------------|------------|
 | No API Key | 1 req/sec | Default |
-| Free API Key | 1 req/sec | [Sign up](https://www.semanticscholar.org/product/api) |
+| API Key | 10 req/sec | [Sign up](https://www.semanticscholar.org/product/api) (free) |
 | Academic Partner | 10-100 req/sec | Apply via S2 |
+
+> **Note:** The client-side rate limiter enforces the intervals above. The upstream Semantic Scholar API may impose stricter limits during high-traffic periods.
 
 The server automatically handles rate limiting with:
 - Request serialization to enforce minimum intervals
