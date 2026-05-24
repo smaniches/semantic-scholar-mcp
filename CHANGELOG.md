@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.1...semantic-scholar-mcp-v1.3.2) (2026-05-24)
+
+
+### Bug Fixes
+
+* intercept pydantic ValidationError before it reaches MCP clients ([#61](https://github.com/smaniches/semantic-scholar-mcp/issues/61)) ([a795d81](https://github.com/smaniches/semantic-scholar-mcp/commit/a795d8106e7026508a1168a2cdb95c28c7d97368))
+
 ## [1.3.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.0...semantic-scholar-mcp-v1.3.1) (2026-05-18)
 
 
