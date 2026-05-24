@@ -171,7 +171,14 @@ def _friendly_validation_message(
     if other_messages and not extra_fields:
         return f"Validation error: {'; '.join(other_messages)}.{accepted_str}"
 
-    all_msgs = [f"Invalid parameter(s): {extra_fields}"] if extra_fields else []
+    all_msgs: list[str] = []
+    if extra_fields:
+        all_msgs.append(f"Invalid parameter(s): {extra_fields}")
+        if "fields" in extra_fields:
+            all_msgs.append(
+                "This tool does not expose a 'fields' parameter;"
+                " field selection is managed internally"
+            )
     all_msgs.extend(other_messages)
     return f"Validation error: {'; '.join(all_msgs)}.{accepted_str}"
 

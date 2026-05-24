@@ -387,3 +387,17 @@ class TestValidationErrorFriendlyMessage:
         assert "Validation error" in msg
         assert "limit" in msg
         assert "errors.pydantic.dev" not in msg
+
+    @pytest.mark.asyncio
+    async def test_mixed_extra_and_constraint_includes_fields_note(self, reset_all):
+        """Mixed errors (extra 'fields' + constraint) should still include the fields note."""
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers",
+                {"params": {"query": "test", "fields": "title", "limit": 0}},
+            )
+        msg = str(exc_info.value)
+        assert "fields" in msg
+        assert "field selection is managed internally" in msg
+        assert "limit" in msg
+        assert "errors.pydantic.dev" not in msg
