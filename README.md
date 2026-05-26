@@ -157,12 +157,10 @@ You can provide your API key in two ways:
    }
    ```
 
-   > **Caution:** per-request `api_key` values are part of the tool-call
-   > arguments and may be visible in MCP transcripts, client logs, and the
-   > LLM's tool-call history depending on the client. For production use,
-   > prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable. Removal of
-   > the per-request parameter is planned for a follow-up release; see
-   > [.github/SECURITY.md](.github/SECURITY.md) for the tracked list.
+   > **Deprecated:** per-request `api_key` is deprecated and will be removed
+   > in v2.0.0. Tool-call arguments may be visible in MCP transcripts, client
+   > logs, and the LLM's tool-call history. Use the `SEMANTIC_SCHOLAR_API_KEY`
+   > environment variable instead. See [SECURITY.md](SECURITY.md) for details.
 
 Get a free API key at: https://www.semanticscholar.org/product/api
 
@@ -594,7 +592,7 @@ Check Semantic Scholar API status
 ```json
 {
   "server": "semantic-scholar-mcp",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "api_key_configured": true,
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
   "api_reachable": true
@@ -617,28 +615,6 @@ The server automatically handles rate limiting with:
 - Request serialization to enforce minimum intervals
 - Exponential backoff retry for 429 (rate limit) and 503 (service unavailable) errors
 - Maximum 3 retries with jitter
-
----
-
-## Architecture
-
-```
-+-----------------+     +----------------------+     +-----------------+
-|  Claude Desktop |---->|  semantic-scholar-mcp |---->| Semantic Scholar|
-|   (MCP Client)  |<----|     (This Server)     |<----+      API        |
-+-----------------+     +----------------------+     +-----------------+
-        |                         |                          |
-        | stdio (JSON-RPC)        | Your API Key             | HTTPS
-        | Local process           | Local machine            | 200M+ papers
-```
-
-**Where your API key goes.** The MCP server runs locally on your machine and
-does not store your API key on disk. When the server makes authenticated
-requests, the key is sent **only** to `api.semanticscholar.org` over HTTPS as
-the `x-api-key` header that the Semantic Scholar API requires. No telemetry
-is sent to any third party. See the per-request `api_key` caution above for
-how transcript exposure can occur when the parameter is used per-request
-instead of via the environment variable.
 
 ---
 
@@ -666,12 +642,16 @@ mypy src/
 
 ## Security
 
-API keys are never persisted to disk by the server. Prefer the
-`SEMANTIC_SCHOLAR_API_KEY` environment variable over the per-request `api_key`
-tool parameter (see [SECURITY.md](.github/SECURITY.md) for details on the
-transcript-exposure risk). All API communication uses HTTPS to
-`api.semanticscholar.org`. See [SECURITY.md](.github/SECURITY.md) for
-vulnerability reporting and the v1.2.x known-limitations list.
+API keys are never persisted to disk by the server. The MCP server runs
+locally on your machine; when it makes authenticated requests, the key is
+sent **only** to `api.semanticscholar.org` over HTTPS as the `x-api-key`
+header. No telemetry is sent to any third party.
+
+Prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable over the
+per-request `api_key` tool parameter. The per-request parameter is
+**deprecated** (removal planned for v2.0.0) because tool-call arguments may
+be visible in MCP transcripts and client logs. See [SECURITY.md](SECURITY.md)
+for vulnerability reporting and the known-limitations list.
 
 ---
 

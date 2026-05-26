@@ -141,3 +141,69 @@ class TestRedirectFollowing:
         result = await make_request("GET", "paper/search", params={"query": "x"})
         assert isinstance(result, dict)
         assert result["total"] == 1
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Per-request api_key deprecation warning
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestApiKeyDeprecationWarning:
+    def test_warns_when_api_key_provided(self):
+        with pytest.warns(DeprecationWarning, match="deprecated"):
+            from semantic_scholar_mcp.client import get_headers
+
+            get_headers(api_key="test-key")
+
+    def test_no_warning_when_api_key_is_none(self):
+        import warnings
+
+        from semantic_scholar_mcp.client import get_headers
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            get_headers(api_key=None)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# is_valid_paper_id — injection-character rejection parity with validate_paper_id
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestIsValidPaperIdInjection:
+    """Verify is_valid_paper_id rejects the same injection characters as validate_paper_id."""
+
+    def test_rejects_null_byte(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert not is_valid_paper_id("DOI:10.1234\x00injection")
+
+    def test_rejects_query_string(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert not is_valid_paper_id("DOI:10.1234?q=1")
+
+    def test_rejects_fragment(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert not is_valid_paper_id("URL:https://example.com#frag")
+
+    def test_rejects_path_traversal(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert not is_valid_paper_id("DOI:../etc/passwd")
+
+    def test_accepts_valid_doi(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert is_valid_paper_id("DOI:10.1038/s41586-021-03819-2")
+
+    def test_accepts_valid_arxiv(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert is_valid_paper_id("ARXIV:1706.03762")
+
+    def test_accepts_valid_hex_id(self):
+        from semantic_scholar_mcp.validators import is_valid_paper_id
+
+        assert is_valid_paper_id("649def34f8be52c8b66281af98ae884c09aef38b")
