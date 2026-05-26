@@ -81,7 +81,7 @@ async def close_client() -> None:
 def get_headers(api_key: str | None = None) -> dict[str, str]:
     """Build request headers. The per-call ``api_key`` overrides the env var."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    if api_key:
+    if api_key is not None:
         warnings.warn(
             "Per-request api_key is deprecated and will be removed in v2.0.0. "
             "Set the SEMANTIC_SCHOLAR_API_KEY environment variable instead. "
