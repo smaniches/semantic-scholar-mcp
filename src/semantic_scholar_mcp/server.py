@@ -895,7 +895,8 @@ def main() -> None:
     if not SEMANTIC_SCHOLAR_API_KEY:
         logger.warning(
             "SEMANTIC_SCHOLAR_API_KEY not set. "
-            "You can provide api_key per-request or use rate-limited public access (1 req/sec)."
+            "Running with rate-limited public access (1 req/sec). "
+            "Get a free API key at https://www.semanticscholar.org/product/api"
         )
     mcp.run()
 

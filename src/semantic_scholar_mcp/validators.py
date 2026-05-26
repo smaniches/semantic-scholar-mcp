@@ -53,7 +53,10 @@ def is_valid_paper_id(paper_id: str) -> bool:
     """Non-raising twin of :func:`validate_paper_id` for bulk pre-checks."""
     if not paper_id or not paper_id.strip():
         return False
-    return any(p.match(paper_id.strip()) for p in _PAPER_ID_PATTERNS)
+    paper_id = paper_id.strip()
+    if any(c in paper_id for c in "\x00?#") or "../" in paper_id:
+        return False
+    return any(p.match(paper_id) for p in _PAPER_ID_PATTERNS)
 
 
 __all__ = ["is_valid_paper_id", "validate_paper_id"]

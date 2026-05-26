@@ -72,7 +72,11 @@ class ResponseFormat(str, Enum):
 
 _API_KEY_FIELD = Field(
     default=None,
-    description="API key (overrides SEMANTIC_SCHOLAR_API_KEY env var)",
+    description=(
+        "API key (overrides SEMANTIC_SCHOLAR_API_KEY env var). "
+        "Deprecated: prefer the environment variable. Removal planned for v2.0.0."
+    ),
+    json_schema_extra={"deprecated": True},
 )
 _RESPONSE_FORMAT_FIELD = Field(
     default=ResponseFormat.MARKDOWN,

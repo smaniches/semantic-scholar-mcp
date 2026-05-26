@@ -15,6 +15,7 @@ import json as _json
 import os
 import random
 import time
+import warnings
 from email.utils import parsedate_to_datetime
 from typing import Any, cast
 
@@ -80,6 +81,14 @@ async def close_client() -> None:
 def get_headers(api_key: str | None = None) -> dict[str, str]:
     """Build request headers. The per-call ``api_key`` overrides the env var."""
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
+    if api_key:
+        warnings.warn(
+            "Per-request api_key is deprecated and will be removed in v2.0.0. "
+            "Set the SEMANTIC_SCHOLAR_API_KEY environment variable instead. "
+            "See SECURITY.md for transcript-exposure risk.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
     if effective_key:
         headers["x-api-key"] = effective_key
@@ -136,7 +145,9 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
         return default
     from datetime import datetime, timezone
 
-    now = datetime.now(timezone.utc) if target.tzinfo else datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    if target.tzinfo is None:
+        target = target.replace(tzinfo=timezone.utc)
     delta = (target - now).total_seconds()
     return max(delta, 0.0)
 
