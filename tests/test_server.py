@@ -1914,14 +1914,12 @@ class TestMultiRecommendTool:
         assert "Recommended Paper" in result
         assert "Multi-Paper" in result
 
-    def test_multi_recommend_invalid_ids(self):
+    async def test_multi_recommend_invalid_ids(self):
         from semantic_scholar_mcp.server import MultiRecommendInput, multi_recommend
 
         params = MultiRecommendInput(positive_paper_ids=["invalid-id"])
         with pytest.raises(ToolError, match="Invalid paper ID"):
-            import asyncio
-
-            asyncio.get_event_loop().run_until_complete(multi_recommend(params))
+            await multi_recommend(params)
 
 
 class TestSnippetSearchTool:
