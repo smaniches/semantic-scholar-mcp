@@ -1140,6 +1140,26 @@ class TestServerStatusTool:
         assert parsed["api_reachable"] is False
         assert "error" in parsed
 
+    @pytest.mark.asyncio
+    async def test_server_status_rate_limited_is_reachable(self, reset_client, monkeypatch):
+        """A 429 means reachable-but-throttled: report it, not a false outage."""
+        import json
+
+        from semantic_scholar_mcp import server as srv
+        from semantic_scholar_mcp.errors import RateLimitError
+
+        async def _raise_rate_limited(*args, **kwargs):
+            raise RateLimitError("Rate limited. Get a free API key for faster access.")
+
+        monkeypatch.setattr(srv, "make_request", _raise_rate_limited)
+
+        result = await srv.server_status()
+        parsed = json.loads(result)
+        assert parsed["api_reachable"] is True
+        assert parsed["rate_limited"] is True
+        assert "note" in parsed
+        assert "error" not in parsed
+
 
 # ===============================================================================
 # MAKE REQUEST TESTS

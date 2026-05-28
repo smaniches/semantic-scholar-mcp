@@ -106,3 +106,16 @@ def test_release_please_tracks_every_versioned_file() -> None:
     # which reads pyproject.toml — so bumping pyproject is sufficient for the
     # runtime constant; server.py no longer carries a hardcoded version string.
     assert config["release-type"] == "python"
+
+
+def test_mcp_handshake_advertises_runtime_version() -> None:
+    """The MCP ``initialize`` handshake must report our package version, not the
+    bundled SDK's version. Regression guard for ``serverInfo.version`` silently
+    defaulting to the FastMCP SDK version.
+    """
+    from semantic_scholar_mcp.server import mcp
+
+    advertised = mcp._mcp_server.version
+    assert advertised == __version__, (
+        f"MCP serverInfo version {advertised!r} != runtime __version__ {__version__!r}"
+    )
