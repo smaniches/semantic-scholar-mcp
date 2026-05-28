@@ -19,14 +19,6 @@ Tool-call arguments are typically captured by MCP clients and may be surfaced
 in LLM tool-call history. Use the `SEMANTIC_SCHOLAR_API_KEY` environment
 variable instead.
 
-## GitHub Actions pin strategy
-
-GitHub Actions are tag-pinned, not SHA-pinned. Major versions are guarded by
-Dependabot grouping rules and `update-types: [minor, patch]` restrictions so
-unreviewed major bumps cannot land automatically. SHA-pinning, Sigstore
-signing, build-provenance attestations, and CycloneDX SBOM generation are
-planned for a future supply-chain hardening iteration.
-
 ## Development status
 
 The package classifies itself as `Development Status :: 4 - Beta` in

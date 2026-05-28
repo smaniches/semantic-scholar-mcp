@@ -82,7 +82,7 @@ README advertises a tool the server does not register.
 | File | What to look at |
 | --- | --- |
 | `SECURITY.md` | Vulnerability reporting, API key handling, security features |
-| `LIMITATIONS.md` | Known gaps (URL encoding, per-request key, Actions pinning) |
+| `LIMITATIONS.md` | Known gaps (URL encoding, per-request key) |
 | `src/semantic_scholar_mcp/validators.py` | Paper-ID input validation, injection guards |
 | `src/semantic_scholar_mcp/client.py` | HTTP client, rate limiter, retry loop, key handling |
 | `src/semantic_scholar_mcp/errors.py` | Typed exception hierarchy |
@@ -93,6 +93,6 @@ README advertises a tool the server does not register.
 | --- | --- | --- |
 | `ci.yml` | push/PR to main | lint, format, mypy, tests (3.10-3.13, Linux/macOS/Windows), CodeQL, dependency review |
 | `test-api-compat.yml` | push/PR/weekly | live API compatibility (requires `SEMANTIC_SCHOLAR_API_KEY` secret) |
-| `publish.yml` | release published | build + trusted PyPI publish |
-| `docker.yml` | release/push to main | build + push to ghcr.io |
+| `publish.yml` | release published | build + trusted PyPI publish; SLSA provenance + PEP 740 attestations; CycloneDX SBOM |
+| `docker.yml` | release/push to main | build + push to ghcr.io; SLSA build-provenance attestation |
 | `release-please.yml` | push to main | automated release PR |

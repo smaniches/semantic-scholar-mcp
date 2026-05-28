@@ -55,6 +55,10 @@ as the `x-api-key` header, and is never written to disk by this server.
   backoff with jitter on `429` and `503`.
 - HTTPS-only API communication.
 - Minimal direct dependency footprint (`mcp`, `httpx`, `pydantic`).
+- Supply-chain hardening: GitHub Actions pinned to commit SHAs; Sigstore-backed
+  SLSA build-provenance attestations on the wheel, sdist, and container image;
+  PEP 740 attestations on PyPI uploads; and a CycloneDX SBOM published with each
+  release.
 
 ## Known Limitations
 
