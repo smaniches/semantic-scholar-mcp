@@ -186,6 +186,13 @@ def _friendly_validation_message(
 class _S2FastMCP(FastMCP):
     """FastMCP subclass that intercepts pydantic input-validation errors."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # FastMCP leaves the low-level server's version unset, so the MCP
+        # ``initialize`` handshake would otherwise advertise the bundled SDK's
+        # version. Pin it to our package version instead.
+        self._mcp_server.version = __version__
+
     async def call_tool(
         self, name: str, arguments: dict[str, Any]
     ) -> Sequence[ContentBlock] | dict[str, Any]:
@@ -875,11 +882,21 @@ async def server_status() -> str:
             params={"query": "test", "limit": 1, "fields": "paperId"},
         )
         status["api_reachable"] = True
+        status["rate_limited"] = False
+    except RateLimitError as e:
+        # A 429 is a *response*: the API is reachable, it's just throttling us
+        # (expected on the keyless public tier). Report that distinctly rather
+        # than as an outage, so the health check stays accurate under load.
+        status["api_reachable"] = True
+        status["rate_limited"] = True
+        status["note"] = str(e)
     except SemanticScholarError as e:
         status["api_reachable"] = False
+        status["rate_limited"] = False
         status["error"] = str(e)
     except (httpx.HTTPError, OSError, RuntimeError) as e:
         status["api_reachable"] = False
+        status["rate_limited"] = False
         status["error"] = str(e)
 
     return json.dumps(status, indent=2)
