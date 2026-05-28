@@ -35,6 +35,11 @@ COPY --from=builder /build/dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && \
     rm -rf /tmp/*.whl
 
+# Unbuffered output so structured JSON logs reach stderr promptly under the
+# stdio transport; skip .pyc writes the non-root user can't persist anyway.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
 # Switch to non-root user
 USER mcp
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from semantic_scholar_mcp.server import mcp
+from semantic_scholar_mcp.server import _get_accepted_params, mcp
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -51,4 +51,42 @@ def test_readme_does_not_advertise_unregistered_tools() -> None:
     assert not missing_headings, (
         "README.md is missing 'Tools Reference' headings for these "
         f"registered tools: {missing_headings}."
+    )
+
+
+def test_every_tool_parameter_is_documented_in_readme() -> None:
+    """Each tool's input-model fields must appear in that tool's README section.
+
+    Extends the tool-name guard to the parameter level: a v1.3.x audit found
+    ``from_pool`` (on ``semantic_scholar_recommendations``) wired up and tested
+    but absent from the README parameter tables. Checking per-section — rather
+    than against the whole file — means a parameter missing from one tool can't
+    be masked by the same name appearing under a different tool (common fields
+    like ``limit`` and ``api_key`` are shared across many tools).
+    """
+    import re
+
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+
+    # Slice the README into per-tool sections: each runs from its
+    # ``### N. `tool_name``` heading to the next such heading (or end of file).
+    headings = list(
+        re.finditer(r"^###\s*\d+\.\s*`(semantic_scholar_[a-z_]+)`", readme, re.MULTILINE)
+    )
+    sections: dict[str, str] = {}
+    for i, match in enumerate(headings):
+        end = headings[i + 1].start() if i + 1 < len(headings) else len(readme)
+        sections[match.group(1)] = readme[match.end() : end]
+
+    tool_manager = mcp._tool_manager
+    undocumented: dict[str, list[str]] = {}
+    for name in _registered_tool_names():
+        section = sections.get(name, "")
+        for param in _get_accepted_params(name, tool_manager):
+            if f"`{param}`" not in section:
+                undocumented.setdefault(name, []).append(param)
+    assert not undocumented, (
+        "README.md 'Tools Reference' is missing parameter documentation for "
+        f"{undocumented}. Document each parameter as a `code-span` within its "
+        "tool's section."
     )

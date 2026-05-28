@@ -340,6 +340,7 @@ Get AI-powered paper recommendations based on a seed paper.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `paper_id` | string | Yes | Seed paper ID in any supported format |
+| `from_pool` | string | No | Recommendation pool: `"recent"` (default) or `"all-cs"` |
 | `limit` | integer | No | Max recommendations 1-100 (default: 10) |
 | `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
 | `api_key` | string | No | Override environment API key |
