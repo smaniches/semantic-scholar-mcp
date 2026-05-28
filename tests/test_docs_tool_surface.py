@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from semantic_scholar_mcp.server import mcp
+from semantic_scholar_mcp.server import _get_accepted_params, mcp
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -51,4 +51,25 @@ def test_readme_does_not_advertise_unregistered_tools() -> None:
     assert not missing_headings, (
         "README.md is missing 'Tools Reference' headings for these "
         f"registered tools: {missing_headings}."
+    )
+
+
+def test_every_tool_parameter_is_documented_in_readme() -> None:
+    """Each tool's input-model fields must appear in the README.
+
+    Extends the tool-name guard to the parameter level: a v1.3.x audit found
+    ``from_pool`` (on ``semantic_scholar_recommendations``) wired up and tested
+    but absent from the README parameter tables. Parameters are documented as
+    backtick code-spans, so this checks for ``\\`field\\```.
+    """
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    tool_manager = mcp._tool_manager
+    undocumented: dict[str, list[str]] = {}
+    for name in _registered_tool_names():
+        for param in _get_accepted_params(name, tool_manager):
+            if f"`{param}`" not in readme:
+                undocumented.setdefault(name, []).append(param)
+    assert not undocumented, (
+        "README.md 'Tools Reference' is missing parameter documentation for "
+        f"{undocumented}. Document each parameter as a `code-span`."
     )
