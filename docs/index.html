@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Semantic Scholar MCP Server</title>
+<meta name="description" content="An open-source Model Context Protocol (MCP) server for the Semantic Scholar Academic Graph API — 14 tools for paper search, citation-graph traversal, author profiles, and recommendations." />
+<link rel="canonical" href="https://smaniches.github.io/semantic-scholar-mcp/" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Semantic Scholar MCP Server" />
+<meta property="og:description" content="An open-source MCP server for the Semantic Scholar Academic Graph API — paper search, citation-graph traversal, author profiles, and recommendations, from any MCP client." />
+<meta property="og:url" content="https://smaniches.github.io/semantic-scholar-mcp/" />
+<meta name="twitter:card" content="summary" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f8fafc;
+    --border: #e2e8f0;
+    --ink: #0f172a;
+    --muted: #56627a;
+    --accent: #2f4b8f;
+    --accent-ink: #ffffff;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+    --radius: 12px;
+    --maxw: 880px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1020;
+      --surface: #121a2e;
+      --border: #25304a;
+      --ink: #e8edf7;
+      --muted: #9aa6bf;
+      --accent: #6f8fe0;
+      --accent-ink: #0b1020;
+      --code-bg: #060a16;
+      --code-ink: #d7e0f5;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+  header.hero {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 56px 0 40px;
+  }
+  .eyebrow {
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  h1 { font-size: 2.15rem; line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.02em; }
+  .lede { font-size: 1.16rem; color: var(--muted); margin: 0 0 22px; max-width: 64ch; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+  .badges img { height: 20px; display: block; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; padding: 10px 18px; border-radius: 8px;
+    font-weight: 600; font-size: 15px; border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { text-decoration: none; opacity: .92; }
+  .btn.secondary { background: var(--bg); color: var(--ink); }
+  .btn.secondary:hover { text-decoration: none; border-color: var(--accent); }
+  main section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  h2 { font-size: 1.4rem; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 + .sub { color: var(--muted); margin: 0 0 22px; }
+  .note {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent); border-radius: 8px;
+    padding: 14px 16px; color: var(--ink); margin: 18px 0 0;
+  }
+  .note strong { color: var(--ink); }
+  pre {
+    background: var(--code-bg); color: var(--code-ink);
+    padding: 14px 16px; border-radius: 10px; overflow-x: auto;
+    font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    margin: 0 0 12px;
+  }
+  pre .c { color: #93c5a8; } /* comment */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .card h3 { margin: 0 0 10px; font-size: 1rem; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin: 4px 0; }
+  .card code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { padding-left: 26px; position: relative; margin: 10px 0; }
+  ul.checks li::before { content: "✓"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+  footer { padding: 36px 0 56px; color: var(--muted); font-size: 14px; }
+  footer .links { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 18px; }
+  footer .disclaimer { font-size: 13px; line-height: 1.6; }
+  .kicker { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Open source · Model Context Protocol</p>
+    <h1>Semantic Scholar MCP Server</h1>
+    <p class="lede">
+      An open-source MCP server that brings the
+      <a href="https://www.semanticscholar.org/product/api" rel="noopener">Semantic Scholar Academic Graph API</a>
+      to any Model Context Protocol client — 14 tools for paper search, citation-graph
+      traversal, author profiles, full-text snippets, and recommendations.
+    </p>
+    <p class="badges">
+      <a href="https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml"><img src="https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
+      <a href="https://pypi.org/project/s2-mcp-server/"><img src="https://img.shields.io/pypi/v/s2-mcp-server" alt="PyPI version" /></a>
+      <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+" /></a>
+      <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Compatible-blue" alt="MCP compatible" /></a>
+      <a href="https://doi.org/10.5281/zenodo.19324159"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19324159-2f4b8f?logo=zenodo&logoColor=white" alt="DOI" /></a>
+      <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/smaniches/semantic-scholar-mcp">View on GitHub</a>
+      <a class="btn secondary" href="https://pypi.org/project/s2-mcp-server/">PyPI</a>
+      <a class="btn secondary" href="https://github.com/smaniches/semantic-scholar-mcp#readme">Documentation</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="what">
+    <div class="wrap">
+      <h2>What it is</h2>
+      <p>
+        Semantic Scholar MCP Server is a Python package that exposes the Semantic Scholar
+        Academic Graph and Recommendations APIs as <a href="https://modelcontextprotocol.io">Model Context Protocol</a>
+        tools. Connected to an MCP client — such as Claude Desktop, Claude Code, Cursor, or
+        Cline — it lets the assistant search the literature, traverse citation graphs, look up
+        authors, fetch recommendations, search within paper full text, and export citations,
+        all over the standard MCP interface.
+      </p>
+      <p class="note">
+        <strong>Independent project.</strong> This is an unofficial, community-built client.
+        It is not affiliated with, endorsed by, or sponsored by the Allen Institute for AI or
+        Semantic Scholar. It calls the public Semantic Scholar API and is subject to that
+        service's terms and availability.
+      </p>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install</h2>
+      <p class="sub">Pick whichever fits your client. No build step.</p>
+      <pre><span class="c"># Run directly from PyPI (recommended)</span>
+uvx s2-mcp-server</pre>
+      <pre><span class="c"># Or install with pip</span>
+pip install s2-mcp-server</pre>
+      <pre><span class="c"># Or run the container image</span>
+docker run -i ghcr.io/smaniches/semantic-scholar-mcp:latest</pre>
+      <p class="note">
+        Works with <strong>no API key</strong> on Semantic Scholar's public tier, which is
+        rate-limited (around one request per second). A
+        <a href="https://www.semanticscholar.org/product/api">free API key</a> raises the
+        limit substantially — provide it via the <code>SEMANTIC_SCHOLAR_API_KEY</code>
+        environment variable. See the
+        <a href="https://github.com/smaniches/semantic-scholar-mcp#readme">README</a> for
+        client-by-client setup.
+      </p>
+    </div>
+  </section>
+
+  <section id="tools">
+    <div class="wrap">
+      <h2>Tools</h2>
+      <p class="sub">Fourteen tools, grouped by what they do.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>Search &amp; match</h3>
+          <ul>
+            <li><code>search_papers</code> — query with filters</li>
+            <li><code>bulk_search</code> — sorted, cursor-paged</li>
+            <li><code>match_paper</code> — best title match</li>
+            <li><code>snippet_search</code> — full-text snippets</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Papers &amp; citations</h3>
+          <ul>
+            <li><code>get_paper</code> — details, citations, references</li>
+            <li><code>bulk_papers</code> — up to 500 at once</li>
+            <li><code>export_citation</code> — BibTeX</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Authors</h3>
+          <ul>
+            <li><code>search_authors</code> — by name</li>
+            <li><code>get_author</code> — profile &amp; papers</li>
+            <li><code>paper_authors</code> — a paper's authors</li>
+            <li><code>author_batch</code> — up to 1,000 at once</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Recommendations &amp; status</h3>
+          <ul>
+            <li><code>recommendations</code> — from a seed paper</li>
+            <li><code>multi_recommend</code> — positive/negative seeds</li>
+            <li><code>status</code> — health &amp; rate-tier check</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="engineering">
+    <div class="wrap">
+      <h2>Engineering</h2>
+      <p class="sub">Verifiable facts, not adjectives.</p>
+      <ul class="checks">
+        <li>Tested across Python 3.10–3.13 on Linux, macOS, and Windows — unit, property-based, load, and live API-compatibility suites, with a coverage gate in CI.</li>
+        <li>Static analysis on every change: <code>ruff</code>, <code>mypy</code> (strict), and CodeQL.</li>
+        <li>Resilient API client: per-tier rate limiting, exponential-backoff retries that honour <code>Retry-After</code>, and typed, actionable errors.</li>
+        <li>Hardened supply chain: GitHub Actions pinned to commit SHAs; SLSA build-provenance attestations on the wheel, sdist, and container image; a CycloneDX SBOM published with each release.</li>
+        <li>Distributed on <a href="https://pypi.org/project/s2-mcp-server/">PyPI</a> (with PEP 740 attestations) and as a container image on <a href="https://ghcr.io/smaniches/semantic-scholar-mcp">GHCR</a>. MIT licensed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="status">
+    <div class="wrap">
+      <h2>Status &amp; honest limitations</h2>
+      <p>
+        This is a <strong>Beta (v1.x)</strong> project under active maintenance; the tool API
+        is stable across the v1 series. Known boundaries are documented in the open rather than
+        glossed over:
+      </p>
+      <ul>
+        <li>Paper IDs are validated against injection-relevant characters but are not yet fully URL-encoded — a constrained, documented gap planned for a future release.</li>
+        <li>The per-request <code>api_key</code> tool parameter is <strong>deprecated</strong> (use the environment variable); removal is planned for v2.0.0.</li>
+      </ul>
+      <p class="kicker">
+        Full detail: <a href="https://github.com/smaniches/semantic-scholar-mcp/blob/main/LIMITATIONS.md">Known Limitations</a>
+        · <a href="https://github.com/smaniches/semantic-scholar-mcp/blob/main/SECURITY.md">Security policy</a>
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="https://github.com/smaniches/semantic-scholar-mcp">GitHub</a>
+      <a href="https://pypi.org/project/s2-mcp-server/">PyPI</a>
+      <a href="https://ghcr.io/smaniches/semantic-scholar-mcp">Container image</a>
+      <a href="https://doi.org/10.5281/zenodo.19324159">DOI / Zenodo</a>
+      <a href="https://github.com/smaniches/semantic-scholar-mcp/issues">Issues</a>
+    </div>
+    <p class="disclaimer">
+      Maintained by <a href="https://topologica.ai">TOPOLOGICA</a>. Released under the MIT License.
+      Built on the <a href="https://modelcontextprotocol.io">Model Context Protocol</a>.<br />
+      Independent, open-source software — not affiliated with or endorsed by the Allen Institute
+      for AI or Semantic Scholar. Product and service names are the property of their respective owners.
+    </p>
+  </div>
+</footer>
+</body>
+</html>
