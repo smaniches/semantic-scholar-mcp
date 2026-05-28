@@ -595,6 +595,7 @@ Check Semantic Scholar API status
   "server": "semantic-scholar-mcp",
   "version": "1.3.2",
   "api_key_configured": true,
+  "rate_tier": "authenticated (10 req/sec)",
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
   "api_reachable": true
 }
