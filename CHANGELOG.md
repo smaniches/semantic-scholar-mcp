@@ -2,6 +2,29 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.3](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.2...semantic-scholar-mcp-v1.3.3) (2026-06-04)
+
+
+### Bug Fixes
+
+* report accurate version and rate-limit state to MCP clients ([#68](https://github.com/smaniches/semantic-scholar-mcp/issues/68)) ([9d2b10d](https://github.com/smaniches/semantic-scholar-mcp/commit/9d2b10d8f78398d18014d7da2a7c3765f9381541))
+
+
+### Documentation
+
+* add a GitHub Pages landing page ([#69](https://github.com/smaniches/semantic-scholar-mcp/issues/69)) ([34f5ec3](https://github.com/smaniches/semantic-scholar-mcp/commit/34f5ec3433c4fff1c9bcf50abee99704fe9272e6))
+* add the always-present rate_tier field to the status example ([#65](https://github.com/smaniches/semantic-scholar-mcp/issues/65)) ([db72975](https://github.com/smaniches/semantic-scholar-mcp/commit/db72975b067ed3af60c391beef8b0f41988931de))
+
+
+### CI/CD
+
+* bump actions/download-artifact from 4.3.0 to 8.0.1 ([#74](https://github.com/smaniches/semantic-scholar-mcp/issues/74)) ([dba7400](https://github.com/smaniches/semantic-scholar-mcp/commit/dba740089a1e6373fec4a5cee31800fd5c68b003))
+* bump actions/setup-python from 5.6.0 to 6.2.0 ([#71](https://github.com/smaniches/semantic-scholar-mcp/issues/71)) ([08af123](https://github.com/smaniches/semantic-scholar-mcp/commit/08af123abe738df04df10c0c7b34023fc88230be))
+* bump actions/upload-artifact from 4.6.2 to 7.0.1 ([#73](https://github.com/smaniches/semantic-scholar-mcp/issues/73)) ([32c6450](https://github.com/smaniches/semantic-scholar-mcp/commit/32c64500738d7cf2f2aac3459b9e6a4cfd3addbf))
+* bump codecov/codecov-action from 4.6.0 to 6.0.1 ([#72](https://github.com/smaniches/semantic-scholar-mcp/issues/72)) ([7bf89ad](https://github.com/smaniches/semantic-scholar-mcp/commit/7bf89adbfad7c8013b3fe9b932d6dc5096b50f8e))
+* bump github/codeql-action from 3.36.0 to 4.36.0 ([#70](https://github.com/smaniches/semantic-scholar-mcp/issues/70)) ([33037a3](https://github.com/smaniches/semantic-scholar-mcp/commit/33037a3b20a8bde9905072a9de39b087aa55bbfa))
+* harden the release supply chain (SHA-pinned Actions, attestations, SBOM) ([#67](https://github.com/smaniches/semantic-scholar-mcp/issues/67)) ([090100a](https://github.com/smaniches/semantic-scholar-mcp/commit/090100a5d4896955f2847c5a7869d88b4530769e))
+
 ## [1.3.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.1...semantic-scholar-mcp-v1.3.2) (2026-05-24)
 
 
