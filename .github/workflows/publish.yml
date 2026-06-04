@@ -52,7 +52,6 @@ jobs:
           --pyproject pyproject.toml \
           --output-format JSON \
           --spec-version 1.5 \
-          --output-reproducible \
           --output-file sbom.cdx.json
     - name: Attest build provenance for the distributions
       uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
