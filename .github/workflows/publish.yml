@@ -51,7 +51,7 @@ jobs:
         cyclonedx-py environment /tmp/sbom-venv/bin/python \
           --pyproject pyproject.toml \
           --output-format JSON \
-          --spec-version 1.6 \
+          --spec-version 1.5 \
           --output-reproducible \
           --output-file sbom.cdx.json
     - name: Attest build provenance for the distributions
