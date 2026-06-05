@@ -11,7 +11,7 @@ authors = [
 maintainers = [
     {name = "TOPOLOGICA LLC", email = "support@topologica.ai"}
 ]
-keywords = ["mcp", "model-context-protocol", "semantic-scholar", "academic-research", "claude", "python", "llm", "research-tools"]
+keywords = ["mcp", "mcp-server", "model-context-protocol", "semantic-scholar", "academic-research", "claude", "python", "llm", "research-tools"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
