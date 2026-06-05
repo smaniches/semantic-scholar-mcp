@@ -2,6 +2,14 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.3.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.3...semantic-scholar-mcp-v1.3.4) (2026-06-04)
+
+
+### CI/CD
+
+* drop --output-reproducible so the SBOM keeps serialNumber ([492851c](https://github.com/smaniches/semantic-scholar-mcp/commit/492851c130f86bd0d80e3d45dbf1d46e2a34c180))
+* emit CycloneDX 1.5 SBOM so attest-sbom accepts it ([361c33a](https://github.com/smaniches/semantic-scholar-mcp/commit/361c33a1e81df5b0d39a697c0730929e4edfbdd6))
+
 ## [1.3.3](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.2...semantic-scholar-mcp-v1.3.3) (2026-06-04)
 
 
