@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json as _json
+import math
 import os
 import random
 import time
@@ -134,9 +135,14 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
     if not header_value:
         return default
     try:
-        return float(header_value)
+        seconds = float(header_value)
     except ValueError:
         pass
+    else:
+        # ``float()`` accepts "nan"/"inf"; a non-finite delay would serialize to
+        # invalid JSON (NaN/Infinity) downstream, so treat it as malformed.
+        if math.isfinite(seconds):
+            return seconds
     try:
         target = parsedate_to_datetime(header_value)
     except (TypeError, ValueError):

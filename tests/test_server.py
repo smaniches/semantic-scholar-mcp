@@ -1149,7 +1149,9 @@ class TestServerStatusTool:
         from semantic_scholar_mcp.errors import RateLimitError
 
         async def _raise_rate_limited(*args, **kwargs):
-            raise RateLimitError("Rate limited. Get a free API key for faster access.")
+            raise RateLimitError(
+                "Rate limited. Get a free API key for faster access.", retry_after=5.0
+            )
 
         monkeypatch.setattr(srv, "make_request", _raise_rate_limited)
 
@@ -1157,6 +1159,7 @@ class TestServerStatusTool:
         parsed = json.loads(result)
         assert parsed["api_reachable"] is True
         assert parsed["rate_limited"] is True
+        assert parsed["retry_after"] == 5.0
         assert "note" in parsed
         assert "error" not in parsed
 

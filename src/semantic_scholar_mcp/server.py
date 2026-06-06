@@ -883,20 +883,26 @@ async def server_status() -> str:
         )
         status["api_reachable"] = True
         status["rate_limited"] = False
+        status["retry_after"] = None
     except RateLimitError as e:
         # A 429 is a *response*: the API is reachable, it's just throttling us
         # (expected on the keyless public tier). Report that distinctly rather
         # than as an outage, so the health check stays accurate under load.
+        # Surface retry_after (parsed from the Retry-After header in the client)
+        # so clients and monitors know when they can safely resume.
         status["api_reachable"] = True
         status["rate_limited"] = True
+        status["retry_after"] = e.retry_after
         status["note"] = str(e)
     except SemanticScholarError as e:
         status["api_reachable"] = False
         status["rate_limited"] = False
+        status["retry_after"] = None
         status["error"] = str(e)
     except (httpx.HTTPError, OSError, RuntimeError) as e:
         status["api_reachable"] = False
         status["rate_limited"] = False
+        status["retry_after"] = None
         status["error"] = str(e)
 
     return json.dumps(status, indent=2)
