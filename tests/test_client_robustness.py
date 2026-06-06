@@ -50,6 +50,14 @@ class TestParseRetryAfter:
     def test_malformed_header_falls_back(self):
         assert _parse_retry_after("not a number or date", default=12.5) == 12.5
 
+    def test_non_finite_header_falls_back(self):
+        # float() accepts "nan"/"inf"; a non-finite delay must not leak through,
+        # or it would serialize to invalid JSON (NaN/Infinity) downstream.
+        assert _parse_retry_after("nan", default=8.0) == 8.0
+        assert _parse_retry_after("inf", default=8.0) == 8.0
+        assert _parse_retry_after("-inf", default=8.0) == 8.0
+        assert _parse_retry_after("Infinity", default=8.0) == 8.0
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Bad JSON response — surface a typed error, don't crash
