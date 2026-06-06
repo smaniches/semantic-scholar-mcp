@@ -10,7 +10,7 @@
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**A comprehensive 14-tool Semantic Scholar MCP server for academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
+**A 14-tool Semantic Scholar MCP server for academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
 
 ---
 
