@@ -66,7 +66,7 @@ and the caller would otherwise reimplement.
 | Citation graph | both directions (citations and references) in `get_paper` | manual paging over two endpoints |
 | Bulk operations | papers (≤500) and authors (≤1000) in one call | caller batches and paginates |
 | Full-text snippet search | `snippet_search` with surrounding context | separate endpoint, caller-assembled |
-| Paper-ID resolution | seven formats — DOI, ArXiv, PubMed, ACL, Corpus ID, URL, S2 hash — validated pre-flight ([`validators.py`](src/semantic_scholar_mcp/validators.py)) | caller normalizes and validates IDs |
+| Paper-ID resolution | seven formats — Semantic Scholar ID, DOI, ArXiv, PubMed, Corpus ID, ACL, URL — validated pre-flight ([`validators.py`](src/semantic_scholar_mcp/validators.py)) | caller normalizes and validates IDs |
 | Rate limiting | client-side per-tier limiter, never exceeds the interval ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller throttles by hand |
 | Retry / backoff | bounded, jittered retry on 429/503/timeout, honors `Retry-After` ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller implements retry |
 | Errors | typed exception hierarchy, branchable by caller ([`errors.py`](src/semantic_scholar_mcp/errors.py)) | parse HTTP status strings |
