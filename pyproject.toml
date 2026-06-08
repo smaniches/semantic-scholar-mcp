@@ -47,6 +47,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://topologica.ai"
+Documentation = "https://smaniches.github.io/semantic-scholar-mcp/"
 Repository = "https://github.com/smaniches/semantic-scholar-mcp"
 Issues = "https://github.com/smaniches/semantic-scholar-mcp/issues"
 Changelog = "https://github.com/smaniches/semantic-scholar-mcp/blob/main/CHANGELOG.md"
