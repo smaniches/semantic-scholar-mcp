@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
 [![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19324159-3C5A99?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.19324159)
+[![Provenance: SLSA + SBOM](https://img.shields.io/badge/provenance-SLSA_+_SBOM-blue)](#provenance--supply-chain)
 [![Docker](https://img.shields.io/badge/ghcr.io-semantic--scholar--mcp-blue?logo=docker)](https://ghcr.io/smaniches/semantic-scholar-mcp)
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,19 +13,66 @@
 
 **A 14-tool Semantic Scholar MCP server for academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
 
+Every release ships **verifiable supply-chain provenance**: Sigstore-signed SLSA build-provenance attestations on the wheel, sdist, and container image; PEP 740 attestations on the PyPI upload; and a CycloneDX SBOM — so you can prove the artifact you installed was built from this repo. See [Provenance & supply chain](#provenance--supply-chain).
+
+> Author: **Santiago Maniches** · ORCID [0009-0005-6480-1987](https://orcid.org/0009-0005-6480-1987) · TOPOLOGICA LLC
+
+---
+
+## Provenance & supply chain
+
+A research tool is only as trustworthy as the chain from its source to the
+binary you run. Every release of this server ships cryptographically
+verifiable supply-chain evidence, all generated in CI from the tagged commit:
+
+| Guarantee | What it proves | Where it is produced |
+|---|---|---|
+| **SLSA build provenance** (wheel + sdist) | the published distributions were built by this repo's `publish.yml` from the released tag, not hand-uploaded | [`publish.yml`](.github/workflows/publish.yml) — `actions/attest-build-provenance` (lines 56–59) |
+| **SLSA build provenance** (container image) | the `ghcr.io` image digest was built by this repo's `docker.yml` | [`docker.yml`](.github/workflows/docker.yml) — `actions/attest-build-provenance`, `push-to-registry` (lines 110–116) |
+| **PEP 740 attestations** | the PyPI upload itself carries Sigstore-backed attestations under Trusted Publishing | [`publish.yml`](.github/workflows/publish.yml) — `attestations: true` (line 97) |
+| **CycloneDX SBOM** | a machine-readable bill of materials, generated then attested against the distributions | [`publish.yml`](.github/workflows/publish.yml) — `cyclonedx-py` + `actions/attest-sbom` (lines 46–64) |
+| **SHA-pinned Actions** | every CI action is pinned to a commit SHA, so the release pipeline itself cannot silently change | all jobs in `.github/workflows/` (e.g. `publish.yml`, `docker.yml`) |
+
+Verify the wheel and the container image against their attestations with the
+GitHub CLI:
+
+```bash
+# Wheel / sdist (download from the PyPI project or the release assets first)
+gh attestation verify s2_mcp_server-*.whl --repo smaniches/semantic-scholar-mcp
+
+# Container image
+gh attestation verify oci://ghcr.io/smaniches/semantic-scholar-mcp:latest \
+  --repo smaniches/semantic-scholar-mcp
+```
+
+The full supply-chain posture, including the known-limitations list, is in
+[SECURITY.md](SECURITY.md). This is **release-time** provenance (proving how
+the artifact was built); the server does not currently attach a per-response
+receipt to individual API results.
+
 ---
 
 ## How it compares
 
-What this server offers:
+There is no public Semantic Scholar MCP standard, so the most useful
+comparison is against the obvious alternative: calling the
+[Semantic Scholar REST API](https://api.semanticscholar.org/) yourself from an
+agent. Everything in the right-hand column is plumbing this server already owns
+and the caller would otherwise reimplement.
 
-- 14 tools covering search, retrieval, recommendations, and status.
-- Citation-graph traversal in both directions (citations and references).
-- Bulk paper and author retrieval in single requests.
-- Full-text snippet search with surrounding context.
-- Paper-ID resolution across DOI, ArXiv, PubMed, ACL, Corpus ID, and Semantic Scholar IDs.
-- A minted Zenodo DOI, citable in methods sections.
-- MIT licensed.
+| | This server | Raw S2 REST API from an agent |
+|---|---|---|
+| Tool surface | 14 typed MCP tools (search, retrieval, recommendations, status) | caller composes raw HTTP requests |
+| Citation graph | both directions (citations and references) in `get_paper` | manual paging over two endpoints |
+| Bulk operations | papers (≤500) and authors (≤1000) in one call | caller batches and paginates |
+| Full-text snippet search | `snippet_search` with surrounding context | separate endpoint, caller-assembled |
+| Paper-ID resolution | seven formats — Semantic Scholar ID, DOI, ArXiv, PubMed, Corpus ID, ACL, URL — validated pre-flight ([`validators.py`](src/semantic_scholar_mcp/validators.py)) | caller normalizes and validates IDs |
+| Rate limiting | client-side per-tier limiter, never exceeds the interval ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller throttles by hand |
+| Retry / backoff | bounded, jittered retry on 429/503/timeout, honors `Retry-After` ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller implements retry |
+| Errors | typed exception hierarchy, branchable by caller ([`errors.py`](src/semantic_scholar_mcp/errors.py)) | parse HTTP status strings |
+| Output | chat-tuned Markdown or JSON per call ([`formatters.py`](src/semantic_scholar_mcp/formatters.py)) | raw JSON |
+| Supply-chain provenance | SLSA + PEP 740 + CycloneDX SBOM per release ([see above](#provenance--supply-chain)) | n/a |
+| Citability | minted Zenodo DOI, MIT licensed | n/a |
 
 ---
 
@@ -606,7 +654,7 @@ Check Semantic Scholar API status
 ```json
 {
   "server": "semantic-scholar-mcp",
-  "version": "1.3.2",
+  "version": "<current package version>",
   "api_key_configured": true,
   "rate_tier": "authenticated (10 req/sec)",
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
