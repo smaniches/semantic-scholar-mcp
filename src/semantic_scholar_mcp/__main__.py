@@ -7,5 +7,6 @@ Organization: TOPOLOGICA LLC (https://topologica.ai)
 
 from .server import main
 
-if __name__ == "__main__":
+# Run-as-script guard; main() is tested directly, so the guard is excluded.
+if __name__ == "__main__":  # pragma: no cover
     main()

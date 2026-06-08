@@ -57,7 +57,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
     - name: Test with coverage
-      run: pytest --cov=src/semantic_scholar_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --tb=short -q
+      run: pytest --cov=src/semantic_scholar_mcp --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=100 --tb=short -q
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1

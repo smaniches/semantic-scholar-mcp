@@ -172,7 +172,10 @@ def _friendly_validation_message(
         return f"Validation error: {'; '.join(other_messages)}.{accepted_str}"
 
     all_msgs: list[str] = []
-    if extra_fields:
+    # Reaching here means both lists are non-empty (the single-bucket cases
+    # returned above), so ``extra_fields`` is always truthy; the False arm is
+    # unreachable defensive code.
+    if extra_fields:  # pragma: no branch
         all_msgs.append(f"Invalid parameter(s): {extra_fields}")
         if "fields" in extra_fields:
             all_msgs.append(
@@ -924,7 +927,8 @@ def main() -> None:
     mcp.run()
 
 
-if __name__ == "__main__":
+# Run-as-script guard; main() is tested directly, so the guard is excluded.
+if __name__ == "__main__":  # pragma: no cover
     main()
 
 

@@ -147,7 +147,9 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
         target = parsedate_to_datetime(header_value)
     except (TypeError, ValueError):
         return default
-    if target is None:
+    # Defensive: on Python >=3.10 parsedate_to_datetime raises (never returns
+    # None) for bad input, so this arm is unreachable on supported versions.
+    if target is None:  # pragma: no cover
         return default
     from datetime import datetime, timezone
 
