@@ -6,6 +6,11 @@ through a semaphore so the per-second rate limit (1 req/s public, 10 req/s
 keyed) is enforced even when the MCP host issues tool calls in parallel.
 Retries cover ``429`` and ``503`` with exponential backoff + jitter, capped
 at 30 s, honoring the ``Retry-After`` header when present.
+
+API-key resolution order (highest precedence first): the deprecated per-call
+``api_key`` tool parameter, the request-scoped key bound by the Streamable
+HTTP transport (see :mod:`semantic_scholar_mcp.transport`), then the
+``SEMANTIC_SCHOLAR_API_KEY`` environment variable.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ import os
 import random
 import time
 import warnings
+from contextvars import ContextVar
 from email.utils import parsedate_to_datetime
 from typing import Any, cast
 
@@ -36,6 +42,18 @@ from .logging_config import get_logger
 SEMANTIC_SCHOLAR_API_KEY: str = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 SEMANTIC_SCHOLAR_API_BASE: str = "https://api.semanticscholar.org/graph/v1"
 RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
+
+# Request-scoped API key, bound per HTTP request by the Streamable HTTP
+# transport middleware. Contextvars are copied into the per-request server
+# task, so concurrent remote users can never observe each other's keys.
+# Empty string means "no key for this request" and falls through to the env var.
+_request_api_key: ContextVar[str] = ContextVar("semantic_scholar_request_api_key", default="")
+
+
+def get_request_api_key() -> str:
+    """Return the API key bound to the current request context ('' if none)."""
+    return _request_api_key.get()
+
 
 # Rate-limit state.
 _rate_semaphore = asyncio.Semaphore(1)
@@ -90,7 +108,7 @@ def get_headers(api_key: str | None = None) -> dict[str, str]:
             DeprecationWarning,
             stacklevel=2,
         )
-    effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
+    effective_key = api_key or _request_api_key.get() or SEMANTIC_SCHOLAR_API_KEY
     if effective_key:
         headers["x-api-key"] = effective_key
     return headers
@@ -113,7 +131,7 @@ async def make_request(
 
     url = f"{base_url or SEMANTIC_SCHOLAR_API_BASE}/{endpoint}"
     headers = get_headers(api_key)
-    effective_key = api_key or SEMANTIC_SCHOLAR_API_KEY
+    effective_key = api_key or _request_api_key.get() or SEMANTIC_SCHOLAR_API_KEY
 
     async with _rate_semaphore:
         now = time.monotonic()
@@ -293,6 +311,7 @@ __all__ = [
     "close_client",
     "get_client",
     "get_headers",
+    "get_request_api_key",
     "handle_error",
     "make_request",
 ]

@@ -54,6 +54,7 @@ from .client import (
     close_client,
     get_client,
     get_headers,
+    get_request_api_key,
     handle_error,
     make_request,
 )
@@ -88,6 +89,7 @@ from .models import (
     ResponseFormat,
     SnippetSearchInput,
 )
+from .transport import parse_transport_config, run_http
 from .validators import is_valid_paper_id, validate_paper_id
 
 # Back-compat aliases so legacy imports
@@ -107,16 +109,30 @@ _cache_clear = cache_clear
 logger = get_logger()
 
 
+# Reference count for _lifespan. Under stdio the lifespan is entered exactly
+# once; under Streamable HTTP the MCP SDK enters it once per session (and, in
+# stateless mode, once per request) while run_http() holds an outer reference
+# for the whole process. Teardown must only run when the last holder exits,
+# otherwise a finishing request would close the shared httpx client out from
+# under concurrent in-flight requests.
+_lifespan_depth = 0
+
+
 @asynccontextmanager
 async def _lifespan(app: FastMCP) -> AsyncIterator[None]:
     """Manage the shared HTTP client and cache across the server lifetime."""
-    logger.info("Starting semantic-scholar-mcp v%s", __version__)
+    global _lifespan_depth
+    _lifespan_depth += 1
+    if _lifespan_depth == 1:
+        logger.info("Starting semantic-scholar-mcp v%s", __version__)
     try:
         yield
     finally:
-        cache_clear()
-        await close_client()
-        logger.info("Server shutdown complete")
+        _lifespan_depth -= 1
+        if _lifespan_depth == 0:
+            cache_clear()
+            await close_client()
+            logger.info("Server shutdown complete")
 
 
 def _get_accepted_params(tool_name: str, tool_manager: Any) -> list[str]:
@@ -865,7 +881,9 @@ async def snippet_search(params: SnippetSearchInput) -> str:
 )
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
-    has_key = bool(SEMANTIC_SCHOLAR_API_KEY)
+    # A key can come from the env var or, on the Streamable HTTP transport,
+    # be bound to this request by the key-extraction middleware.
+    has_key = bool(SEMANTIC_SCHOLAR_API_KEY or get_request_api_key())
     status: dict[str, Any] = {
         "server": "semantic-scholar-mcp",
         "version": __version__,
@@ -916,15 +934,24 @@ async def server_status() -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def main() -> None:
-    """Run the MCP server over stdio."""
+def main(argv: Sequence[str] | None = None) -> None:
+    """Run the MCP server over stdio (default) or Streamable HTTP.
+
+    ``--transport http`` (or ``MCP_TRANSPORT=http``) serves the same FastMCP
+    instance over the MCP Streamable HTTP transport for remote clients; see
+    :mod:`semantic_scholar_mcp.transport` for the flag and env-var surface.
+    """
+    config = parse_transport_config(argv)
     if not SEMANTIC_SCHOLAR_API_KEY:
         logger.warning(
             "SEMANTIC_SCHOLAR_API_KEY not set. "
             "Running with rate-limited public access (1 req/sec). "
             "Get a free API key at https://www.semanticscholar.org/product/api"
         )
-    mcp.run()
+    if config.transport == "http":
+        run_http(mcp, config, _lifespan)
+    else:
+        mcp.run()
 
 
 # Run-as-script guard; main() is tested directly, so the guard is excluded.

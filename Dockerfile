@@ -43,8 +43,15 @@ ENV PYTHONUNBUFFERED=1 \
 # Switch to non-root user
 USER mcp
 
-# The MCP server communicates via stdio
-# API key should be passed as environment variable
-ENV SEMANTIC_SCHOLAR_API_KEY=""
+# The MCP server speaks stdio by default; pass `--transport http` (or set
+# MCP_TRANSPORT=http) to serve MCP Streamable HTTP instead. MCP_HOST defaults
+# to 0.0.0.0 here — unlike the CLI's loopback default — because a container's
+# port is only reachable if explicitly published (-p) or mapped by a platform.
+# API key should be passed as environment variable.
+ENV SEMANTIC_SCHOLAR_API_KEY="" \
+    MCP_HOST="0.0.0.0"
+
+# Informational: the HTTP transport's default port (override with --port/PORT)
+EXPOSE 8000
 
 ENTRYPOINT ["semantic-scholar-mcp"]
