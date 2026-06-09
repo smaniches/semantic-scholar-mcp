@@ -3,7 +3,7 @@
   "name": "io.github.smaniches/semantic-scholar-mcp",
   "title": "Semantic Scholar MCP Server",
   "version": "1.3.4",
-  "description": "MCP server providing access to 200M+ academic papers via the Semantic Scholar API. Supports paper search, author profiles, citation graphs, AI-powered recommendations, and bulk retrieval. Handles DOI, ArXiv, PubMed, ACL, and Semantic Scholar IDs.",
+  "description": "MCP server for the Semantic Scholar API: search 200M+ papers, citations, authors, recommendations.",
   "homepage": "https://github.com/smaniches/semantic-scholar-mcp",
   "license": "MIT",
   "author": {
