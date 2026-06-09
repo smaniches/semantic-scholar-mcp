@@ -23,7 +23,7 @@ identifiers:
 repository-code: "https://github.com/smaniches/semantic-scholar-mcp"
 url: "https://github.com/smaniches/semantic-scholar-mcp"
 license: MIT
-version: 1.3.4  # x-release-please-version
+version: 1.4.0  # x-release-please-version
 date-released: "2026-05-24"
 keywords:
   - mcp
