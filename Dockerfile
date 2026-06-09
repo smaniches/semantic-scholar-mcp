@@ -2,7 +2,7 @@
 # Produces a minimal production image for running the MCP server
 
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -17,7 +17,7 @@ COPY src/ src/
 RUN python -m build --wheel --outdir /build/dist
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-FROM python:3.13-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL maintainer="Santiago Maniches <santiago@topologica.ai>"
 LABEL org.opencontainers.image.source="https://github.com/smaniches/semantic-scholar-mcp"
