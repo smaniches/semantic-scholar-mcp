@@ -608,7 +608,7 @@ class TestMainEntryPoint:
         ran: list[bool] = []
         monkeypatch.setattr(server_mod.mcp, "run", lambda: ran.append(True))
 
-        server_mod.main()
+        server_mod.main([])
 
         assert ran == [True]
         assert any("API_KEY not set" in w for w in warnings)
@@ -625,7 +625,7 @@ class TestMainEntryPoint:
         ran: list[bool] = []
         monkeypatch.setattr(server_mod.mcp, "run", lambda: ran.append(True))
 
-        server_mod.main()
+        server_mod.main([])
 
         assert ran == [True]
         assert warnings == []

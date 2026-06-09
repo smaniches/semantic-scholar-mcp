@@ -141,6 +141,14 @@ docker pull ghcr.io/smaniches/semantic-scholar-mcp:latest
 docker run -e SEMANTIC_SCHOLAR_API_KEY=your-key ghcr.io/smaniches/semantic-scholar-mcp
 ```
 
+### Option 7: Remote server (Streamable HTTP)
+```bash
+# Serve MCP over HTTP at http://127.0.0.1:8000/mcp instead of stdio
+uvx s2-mcp-server --transport http
+```
+See [Remote access (Streamable HTTP)](#remote-access-streamable-http) for client
+configuration, per-request API keys, and deployment guidance.
+
 > **Note:** Get a free API key at [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api). Without a key, you get rate-limited public access (1 req/sec).
 
 ---
@@ -152,7 +160,7 @@ flowchart LR
   Client["MCP client<br/>(Claude Desktop, Claude Code,<br/>Cursor, Cline, Continue, …)"]
   subgraph Server ["s2-mcp-server (this package)"]
     direction TB
-    FastMCP["FastMCP runtime<br/>(stdio transport, lifespan)"]
+    FastMCP["FastMCP runtime<br/>(stdio / Streamable HTTP, lifespan)"]
     Tools["14 @mcp.tool functions<br/>(server.py)"]
     Models["Pydantic input models<br/>+ field sets (models.py)"]
     Validators["Paper-ID validator<br/>(validators.py)"]
@@ -165,7 +173,7 @@ flowchart LR
   S2Graph["Semantic Scholar<br/>Graph API"]
   S2Recs["Semantic Scholar<br/>Recommendations API"]
 
-  Client <-- "stdio (JSON-RPC)" --> FastMCP
+  Client <-- "stdio or Streamable HTTP<br/>(JSON-RPC)" --> FastMCP
   FastMCP --> Tools
   Tools --> Models
   Tools --> Validators
@@ -183,6 +191,7 @@ flowchart LR
 | Module | Responsibility |
 | --- | --- |
 | `server.py` | FastMCP instance, 14 `@mcp.tool` registrations, lifespan, `main()` entry. Re-exports the helper surface for back-compat. |
+| `transport.py` | Streamable HTTP transport: CLI/env parsing (`--transport http`), uvicorn wiring, and per-request API-key extraction (header / query param / Smithery config) into a request-scoped contextvar. |
 | `client.py` | Shared `httpx.AsyncClient` singleton, per-tier rate limiter (1 req/s public, 10 req/s keyed), retry loop with exponential backoff + jitter on 429/503/timeout, HTTP→typed-exception mapping. |
 | `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the four tiered field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`, `AUTHOR_FIELDS`). |
 | `validators.py` | Pre-flight paper-ID validation. Rejects NUL bytes, `?`, `#`, path traversal; accepts the seven canonical ID formats. |
@@ -193,7 +202,7 @@ flowchart LR
 
 **Design choices worth knowing**
 
-- **Single `httpx.AsyncClient` per process.** Created lazily, closed in the FastMCP lifespan teardown. Amortizes connection setup; respects keep-alive limits.
+- **Single `httpx.AsyncClient` per process.** Created lazily, closed in the FastMCP lifespan teardown. Amortizes connection setup; respects keep-alive limits. The lifespan is reference-counted: under the Streamable HTTP transport the SDK enters it per request, so teardown only runs when the last holder exits.
 - **Rate limit is enforced at the client, not the API.** A semaphore + last-request timestamp ensures we never exceed the per-tier interval even when the MCP host issues tool calls in parallel.
 - **Retry is bounded and jittered.** Up to `MAX_RETRIES = 3`, base 1 s, capped at 30 s. Honors `Retry-After` when present.
 - **Errors are typed.** Status codes map onto a small exception hierarchy so callers can branch on `AuthenticationError` vs `RateLimitError` vs `NotFoundError` instead of parsing strings.
@@ -206,14 +215,18 @@ flowchart LR
 
 ### API Key Options
 
-You can provide your API key in two ways:
+You can provide your API key in three ways:
 
 1. **Environment Variable** (recommended for persistent use):
    ```bash
    export SEMANTIC_SCHOLAR_API_KEY="your-api-key-here"
    ```
 
-2. **Per-Request Parameter** (overrides env var):
+2. **Per-request HTTP header** (Streamable HTTP transport only): send
+   `x-api-key: your-key` with each request — see
+   [Remote access (Streamable HTTP)](#remote-access-streamable-http).
+
+3. **Per-Request Parameter** (overrides env var):
    ```json
    {
      "api_key": "your-api-key-here"
@@ -250,6 +263,98 @@ Add to your Claude Desktop config file:
 ```
 
 Then **restart Claude Desktop**.
+
+---
+
+## Remote access (Streamable HTTP)
+
+stdio remains the default transport. `--transport http` serves the same 14
+tools over the [MCP Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http),
+which is what remote clients — claude.ai custom connectors, Smithery
+listings, `mcp-remote` bridges — connect to.
+
+```bash
+# Local HTTP endpoint at http://127.0.0.1:8000/mcp
+uvx s2-mcp-server --transport http
+
+# Bind a public interface and custom port (only behind a TLS proxy — see Security)
+uvx s2-mcp-server --transport http --host 0.0.0.0 --port 8080
+
+# Docker
+docker run -p 8000:8000 ghcr.io/smaniches/semantic-scholar-mcp --transport http
+```
+
+### Flags and environment variables
+
+| Flag | Env var | Default | Meaning |
+| --- | --- | --- | --- |
+| `--transport` | `MCP_TRANSPORT` | `stdio` | `stdio`, `http` (alias: `streamable-http`) |
+| `--host` | `MCP_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` in the Docker image) |
+| `--port` | `MCP_PORT`, then `PORT` | `8000` | Bind port (`PORT` is honored for hosting platforms) |
+| `--path` | `MCP_PATH` | `/mcp` | URL path of the MCP endpoint |
+| — | `MCP_STATELESS_HTTP` | `true` | One independent server interaction per request (recommended) |
+| — | `MCP_JSON_RESPONSE` | `true` | Plain JSON responses instead of SSE streams |
+
+CLI flags beat environment variables. The server is stateless and returns
+JSON by default — the configuration recommended for production Streamable
+HTTP deployments — and no tool relies on sessions, streaming, or
+server-initiated messages, so there is no functional trade-off.
+
+### Per-request API keys (bring your own key)
+
+When served over HTTP, each request may carry its own Semantic Scholar API
+key; concurrent users never share or observe each other's keys. Sources, in
+precedence order:
+
+1. `x-api-key` HTTP header (recommended)
+2. `SEMANTIC_SCHOLAR_API_KEY` query parameter (Smithery session config)
+3. `api_key` query parameter
+4. Legacy base64 `?config=` parameter (older Smithery deployments)
+
+A request without a key falls back to the server's `SEMANTIC_SCHOLAR_API_KEY`
+environment variable, or to keyless public-tier access.
+
+### Client configuration
+
+**Claude Code**
+
+```bash
+claude mcp add --transport http semantic-scholar http://127.0.0.1:8000/mcp \
+  --header "x-api-key: your-key-here"
+```
+
+**JSON config (clients that accept a `url`)**
+
+```json
+{
+  "mcpServers": {
+    "semantic-scholar": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp",
+      "headers": { "x-api-key": "your-key-here" }
+    }
+  }
+}
+```
+
+**claude.ai custom connectors** require a public HTTPS URL and accept either
+authless servers or OAuth — API keys in the connector URL are not supported
+by claude.ai. Host the server with the key supplied server-side
+(`SEMANTIC_SCHOLAR_API_KEY` env var) and register the public `/mcp` URL as
+the connector.
+
+**Smithery** lists remote servers by URL (`smithery mcp publish <url>`); the
+per-request key extraction above is compatible with Smithery session config
+out of the box.
+
+### Security notes
+
+- The HTTP transport performs **no authentication of inbound callers**. The
+  default bind is loopback (`127.0.0.1`). Expose it publicly only behind a
+  TLS-terminating reverse proxy, and prefer the `x-api-key` header over query
+  parameters (URLs end up in access logs).
+- API keys are request-scoped and never logged.
+- See [SECURITY.md](SECURITY.md) for the project's broader threat model.
 
 ---
 

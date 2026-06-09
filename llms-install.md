@@ -46,3 +46,30 @@ https://www.semanticscholar.org/product/api
   }
 }
 ```
+
+## Remote access (Streamable HTTP)
+
+The server can also be served over the MCP Streamable HTTP transport for
+remote clients:
+
+```bash
+uvx s2-mcp-server --transport http   # serves http://127.0.0.1:8000/mcp
+```
+
+Clients that accept a URL connect with:
+
+```json
+{
+  "mcpServers": {
+    "semantic-scholar": {
+      "type": "http",
+      "url": "http://127.0.0.1:8000/mcp",
+      "headers": { "x-api-key": "your-key-here" }
+    }
+  }
+}
+```
+
+The `x-api-key` header (or a `SEMANTIC_SCHOLAR_API_KEY` query parameter) is
+optional and scoped to each request; without it the server uses its own
+`SEMANTIC_SCHOLAR_API_KEY` environment variable or keyless public access.
