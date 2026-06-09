@@ -175,7 +175,11 @@ def extract_api_key(scope: Scope) -> str:
     headers: list[tuple[bytes, bytes]] = scope.get("headers") or []
     for name, value in headers:
         if name.lower() == b"x-api-key":
-            return value.decode("latin-1").strip()
+            header_key = value.decode("latin-1").strip()
+            # A blank header (e.g. a proxy forwarding `x-api-key:` unset) must
+            # not mask a key supplied via the query-parameter sources below.
+            if header_key:
+                return header_key
     query_string: bytes = scope.get("query_string") or b""
     query = parse_qs(query_string.decode("latin-1"))
     for param in ("SEMANTIC_SCHOLAR_API_KEY", "api_key"):

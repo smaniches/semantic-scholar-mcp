@@ -237,6 +237,18 @@ class TestExtractApiKey:
         )
         assert extract_api_key(scope) == "header-key"
 
+    def test_blank_header_falls_back_to_query_param(self):
+        """A proxy forwarding an empty `x-api-key:` must not mask other sources."""
+        scope = _http_scope(
+            headers=[(b"x-api-key", b"  ")],
+            query_string=b"SEMANTIC_SCHOLAR_API_KEY=query-key",
+        )
+        assert extract_api_key(scope) == "query-key"
+
+    def test_blank_header_and_no_other_source(self):
+        scope = _http_scope(headers=[(b"x-api-key", b"")])
+        assert extract_api_key(scope) == ""
+
     def test_schema_param_beats_reserved_api_key_param(self):
         """Smithery's gateway reserves `api_key` for the Smithery user key, so
         the schema-named param must win when both are present.
