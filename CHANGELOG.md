@@ -2,6 +2,31 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.4.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.4...semantic-scholar-mcp-v1.4.0) (2026-06-09)
+
+
+### Features
+
+* **status:** surface retry_after in server_status payload ([#79](https://github.com/smaniches/semantic-scholar-mcp/issues/79)) ([732bfc8](https://github.com/smaniches/semantic-scholar-mcp/commit/732bfc8c93c3df308c6b9132e658a93e45ab8965))
+
+
+### Documentation
+
+* **landing:** use canonical semantic_scholar_ tool names on the Pages site ([#76](https://github.com/smaniches/semantic-scholar-mcp/issues/76)) ([0509933](https://github.com/smaniches/semantic-scholar-mcp/commit/0509933923d009707ded98de2d55db8f85f56ad2))
+* **readme:** surface supply-chain provenance + fix 'How it compares' + unstick version example ([#82](https://github.com/smaniches/semantic-scholar-mcp/issues/82)) ([0ebfe51](https://github.com/smaniches/semantic-scholar-mcp/commit/0ebfe51b3f794dea25032d012806d6922cec3aca))
+* remove emoji status legend; align status example with tool output ([#83](https://github.com/smaniches/semantic-scholar-mcp/issues/83)) ([fbf02ea](https://github.com/smaniches/semantic-scholar-mcp/commit/fbf02ea0692e7393752d1940152d8534727df0de))
+
+
+### CI/CD
+
+* bump codecov/codecov-action from 6.0.1 to 7.0.0 ([#86](https://github.com/smaniches/semantic-scholar-mcp/issues/86)) ([6afe85c](https://github.com/smaniches/semantic-scholar-mcp/commit/6afe85c74d52dc94bdf121f71b15d6508b8ccf54))
+* bump the github-actions group with 2 updates ([#85](https://github.com/smaniches/semantic-scholar-mcp/issues/85)) ([f040b80](https://github.com/smaniches/semantic-scholar-mcp/commit/f040b80ee72f663ce692775fd14223832fa47efa))
+
+
+### Testing
+
+* reach 100% line+branch coverage and enforce it in CI ([#84](https://github.com/smaniches/semantic-scholar-mcp/issues/84)) ([81a27e2](https://github.com/smaniches/semantic-scholar-mcp/commit/81a27e2c0376cb934cb64ae40ce5d82fad4c7f6e))
+
 ## [1.3.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.3...semantic-scholar-mcp-v1.3.4) (2026-06-04)
 
 
