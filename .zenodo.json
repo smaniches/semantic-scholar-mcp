@@ -1,6 +1,6 @@
 {
   "title": "Semantic Scholar MCP Server",
-  "description": "A Model Context Protocol (MCP) server providing programmatic access to the Semantic Scholar academic graph (200M+ papers) — paper search, citation graph traversal, author profiles, recommendations, bulk retrieval, BibTeX export, and snippet search. 14 tools, MIT-licensed, distributed on PyPI as s2-mcp-server, on GitHub Container Registry, and in the Smithery MCP registry.",
+  "description": "A Model Context Protocol (MCP) server providing programmatic access to the Semantic Scholar academic graph (200M+ papers) — paper search, citation graph traversal, author profiles, recommendations, bulk retrieval, BibTeX export, and snippet search. 14 tools, MIT-licensed, distributed on PyPI as s2-mcp-server and on GitHub Container Registry.",
   "upload_type": "software",
   "access_right": "open",
   "license": "MIT",
