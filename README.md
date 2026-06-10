@@ -144,7 +144,8 @@ docker run -e SEMANTIC_SCHOLAR_API_KEY=your-key ghcr.io/smaniches/semantic-schol
 ### Option 7: Remote server (Streamable HTTP) — requires ≥ 1.5.0
 ```bash
 # Serve MCP over HTTP at http://127.0.0.1:8000/mcp instead of stdio
-uvx s2-mcp-server --transport http
+# (--from pins the floor: uvx may otherwise reuse a cached older version)
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 ```
 See [Remote access (Streamable HTTP)](#remote-access-streamable-http) for client
 configuration, per-request API keys, and deployment guidance.
@@ -279,10 +280,11 @@ listings, `mcp-remote` bridges — connect to.
 
 ```bash
 # Local HTTP endpoint at http://127.0.0.1:8000/mcp
-uvx s2-mcp-server --transport http
+# (--from pins the floor: uvx may otherwise reuse a cached older version)
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 
 # Bind a public interface and custom port (only behind a TLS proxy — see Security)
-uvx s2-mcp-server --transport http --host 0.0.0.0 --port 8080
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http --host 0.0.0.0 --port 8080
 
 # Docker
 docker run -p 8000:8000 ghcr.io/smaniches/semantic-scholar-mcp --transport http
