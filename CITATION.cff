@@ -13,18 +13,18 @@ authors:
     orcid: "https://orcid.org/0009-0005-6480-1987"
     affiliation: "TOPOLOGICA LLC"
     email: santiago@topologica.ai
+# Concept DOI: version-independent, always resolves to the latest release.
+# This is the canonical "cite all versions" DOI and never changes between releases.
+doi: 10.5281/zenodo.19324159
 identifiers:
   - type: doi
     value: 10.5281/zenodo.19324159
-    description: "Zenodo concept DOI (all-versions, resolves to latest)"
-  - type: doi
-    value: 10.5281/zenodo.20270474
-    description: "Zenodo version DOI for v1.3.0 (immutable, cite for reproducibility)"
+    description: "Zenodo concept DOI - cite this; covers all versions and always resolves to the latest release"
 repository-code: "https://github.com/smaniches/semantic-scholar-mcp"
 url: "https://github.com/smaniches/semantic-scholar-mcp"
 license: MIT
 version: 1.5.0  # x-release-please-version
-date-released: "2026-05-24"
+date-released: "2026-06-10"
 keywords:
   - mcp
   - model-context-protocol
