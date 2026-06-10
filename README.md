@@ -141,10 +141,11 @@ docker pull ghcr.io/smaniches/semantic-scholar-mcp:latest
 docker run -e SEMANTIC_SCHOLAR_API_KEY=your-key ghcr.io/smaniches/semantic-scholar-mcp
 ```
 
-### Option 7: Remote server (Streamable HTTP)
+### Option 7: Remote server (Streamable HTTP) — requires ≥ 1.5.0
 ```bash
 # Serve MCP over HTTP at http://127.0.0.1:8000/mcp instead of stdio
-uvx s2-mcp-server --transport http
+# (--from pins the floor: uvx may otherwise reuse a cached older version)
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 ```
 See [Remote access (Streamable HTTP)](#remote-access-streamable-http) for client
 configuration, per-request API keys, and deployment guidance.
@@ -273,12 +274,17 @@ tools over the [MCP Streamable HTTP transport](https://modelcontextprotocol.io/s
 which is what remote clients — claude.ai custom connectors, Smithery
 listings, `mcp-remote` bridges — connect to.
 
+> **Requires `s2-mcp-server` ≥ 1.5.0.** Earlier releases (≤ 1.4.0) do not
+> parse CLI flags: they silently ignore `--transport http` and start a stdio
+> server instead, never opening the port.
+
 ```bash
 # Local HTTP endpoint at http://127.0.0.1:8000/mcp
-uvx s2-mcp-server --transport http
+# (--from pins the floor: uvx may otherwise reuse a cached older version)
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 
 # Bind a public interface and custom port (only behind a TLS proxy — see Security)
-uvx s2-mcp-server --transport http --host 0.0.0.0 --port 8080
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http --host 0.0.0.0 --port 8080
 
 # Docker
 docker run -p 8000:8000 ghcr.io/smaniches/semantic-scholar-mcp --transport http
@@ -814,10 +820,14 @@ mypy src/
 
 ## Security
 
-API keys are never persisted to disk by the server. The MCP server runs
-locally on your machine; when it makes authenticated requests, the key is
-sent **only** to `api.semanticscholar.org` over HTTPS as the `x-api-key`
-header. No telemetry is sent to any third party.
+API keys are never persisted to disk by the server. When the server makes
+authenticated requests, the key is sent **only** to `api.semanticscholar.org`
+over HTTPS as the `x-api-key` header. No telemetry is sent to any third
+party. Under the default stdio transport the server runs locally on your
+machine; if you connect to a **remotely hosted** instance over
+[Streamable HTTP](#remote-access-streamable-http), your per-request key also
+transits that endpoint's operator before being forwarded to Semantic Scholar
+— only send keys to remote endpoints you trust, and only over HTTPS.
 
 Prefer the `SEMANTIC_SCHOLAR_API_KEY` environment variable over the
 per-request `api_key` tool parameter. The per-request parameter is

@@ -50,10 +50,16 @@ https://www.semanticscholar.org/product/api
 ## Remote access (Streamable HTTP)
 
 The server can also be served over the MCP Streamable HTTP transport for
-remote clients:
+remote clients.
+
+> **Version requirement: `s2-mcp-server` >= 1.5.0.** Releases up to 1.4.0 do
+> not parse CLI flags — they silently ignore `--transport http` and start a
+> stdio server instead, never opening the HTTP port. Pin the version to
+> guarantee a compatible release:
 
 ```bash
-uvx s2-mcp-server --transport http   # serves http://127.0.0.1:8000/mcp
+uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
+# serves http://127.0.0.1:8000/mcp
 ```
 
 Clients that accept a URL connect with:

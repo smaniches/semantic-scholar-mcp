@@ -31,7 +31,7 @@ Expected response time: 48 hours.
 
 ## API Key Handling
 
-The server accepts the Semantic Scholar API key in two places:
+The server accepts the Semantic Scholar API key in three places:
 
 1. **`SEMANTIC_SCHOLAR_API_KEY` environment variable** (recommended). The key
    stays in the local process environment and is never serialized into tool
@@ -42,9 +42,20 @@ The server accepts the Semantic Scholar API key in two places:
    expose the key in client logs and transcripts**. A runtime
    `DeprecationWarning` is now emitted when this parameter is used.
    Removal is planned for v2.0.0.
+3. **Per-request transport credentials** (Streamable HTTP only, since
+   v1.5.0). When served with `--transport http`, each request may carry a key
+   in the `x-api-key` header (preferred) or a
+   `SEMANTIC_SCHOLAR_API_KEY`/`api_key` query parameter. The key is bound to
+   a request-scoped context variable, is never logged, and cannot leak across
+   concurrent requests. Prefer the header: query strings commonly end up in
+   proxy and access logs.
 
-In both cases the key is sent only to `api.semanticscholar.org` over HTTPS,
-as the `x-api-key` header, and is never written to disk by this server.
+In all cases this server forwards the key only to `api.semanticscholar.org`
+over HTTPS, as the `x-api-key` header, and never writes it to disk. Be aware
+that when you connect to a **remotely hosted** instance over Streamable HTTP,
+your key necessarily transits that endpoint's operator before it is forwarded
+to Semantic Scholar — send keys only to remote endpoints you trust, and only
+over HTTPS.
 
 ## Security Features
 
