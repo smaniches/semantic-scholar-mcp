@@ -2,6 +2,19 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.4.0...semantic-scholar-mcp-v1.5.0) (2026-06-10)
+
+
+### Features
+
+* add Streamable HTTP transport for remote clients ([#96](https://github.com/smaniches/semantic-scholar-mcp/issues/96)) ([d8a7a0d](https://github.com/smaniches/semantic-scholar-mcp/commit/d8a7a0d822816335525023264b403f3166172b84))
+
+
+### Bug Fixes
+
+* pin HTTP docs to &gt;=1.5.0 and qualify remote-transport key guidance ([#97](https://github.com/smaniches/semantic-scholar-mcp/issues/97)) ([f5d920c](https://github.com/smaniches/semantic-scholar-mcp/commit/f5d920c61a8ef2562e3c95c9cd21bc42a344d79d))
+* remove unlisted-Smithery claim from Zenodo description (honesty) ([#90](https://github.com/smaniches/semantic-scholar-mcp/issues/90)) ([84dc4d2](https://github.com/smaniches/semantic-scholar-mcp/commit/84dc4d2b22ae2a2932480baea69ee19464753d01))
+
 ## [1.4.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.3.4...semantic-scholar-mcp-v1.4.0) (2026-06-09)
 
 
