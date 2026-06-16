@@ -119,3 +119,34 @@ def test_mcp_handshake_advertises_runtime_version() -> None:
     assert advertised == __version__, (
         f"MCP serverInfo version {advertised!r} != runtime __version__ {__version__!r}"
     )
+
+
+def test_security_md_supported_version_tracks_runtime() -> None:
+    """SECURITY.md's supported-versions table must track the current minor line.
+
+    Guards the drift surfaced by the 2026-06-15 quality audit, where the table
+    still advertised ``1.3.x`` support while the package had moved to ``1.5.0``.
+    The table may list one or more supported ``X.Y.x`` minors; it must include
+    the current ``__version__`` minor, and the ``< X.Y | No`` boundary row must
+    name the lowest still-supported minor.
+    """
+    text = _read("SECURITY.md")
+    # Rows of the form `| 1.5.x | Yes |` (the `< 1.5 | No` boundary row has no `.x`).
+    rows = re.findall(r"\|\s*(\d+\.\d+)\.x\s*\|\s*(Yes|No)\s*\|", text)
+    supported = {ver for ver, flag in rows if flag == "Yes"}
+    assert supported, "SECURITY.md has no `X.Y.x | Yes` supported-version row"
+    current_minor = ".".join(__version__.split(".")[:2])
+    assert current_minor in supported, (
+        f"SECURITY.md supported minors {sorted(supported)} omit the current minor "
+        f"{current_minor!r} (from __version__ {__version__!r}) — update the "
+        f"Supported Versions table in SECURITY.md (see CONTRIBUTING.md 'Releasing')."
+    )
+    # The `< X.Y | No` boundary row must name the lowest still-supported minor,
+    # so a half-update (supported row bumped, boundary left stale) is caught too.
+    boundary = set(re.findall(r"\|\s*<\s*(\d+\.\d+)\s*\|\s*No\s*\|", text))
+    lowest_supported = min(supported, key=lambda m: tuple(map(int, m.split("."))))
+    assert boundary == {lowest_supported}, (
+        f"SECURITY.md boundary row should read `< {lowest_supported} | No` (the "
+        f"lowest supported minor); found {sorted(boundary)}. Update BOTH rows of "
+        f"the Supported Versions table."
+    )
