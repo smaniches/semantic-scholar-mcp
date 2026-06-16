@@ -359,7 +359,9 @@ out of the box.
   default bind is loopback (`127.0.0.1`). Expose it publicly only behind a
   TLS-terminating reverse proxy, and prefer the `x-api-key` header over query
   parameters (URLs end up in access logs).
-- API keys are request-scoped and never logged.
+- API keys are request-scoped, and the server itself never logs them. (A key
+  placed in a URL query parameter can still appear in access logs, as noted
+  above — prefer the `x-api-key` header.)
 - See [SECURITY.md](SECURITY.md) for the project's broader threat model.
 
 ---
@@ -875,6 +877,5 @@ Contributions welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md
 ---
 
 <p align="center">
-  <b>Built by <a href="https://topologica.ai">TOPOLOGICA LLC</a></b><br>
-  <i>Advancing computational research through topological intelligence</i>
+  <b>Built by <a href="https://topologica.ai">TOPOLOGICA LLC</a></b>
 </p>

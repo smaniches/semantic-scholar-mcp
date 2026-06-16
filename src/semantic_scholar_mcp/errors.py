@@ -1,6 +1,6 @@
 """Typed exception hierarchy for Semantic Scholar API errors.
 
-Mapped from HTTP status codes in :mod:`client._handle_error`. Tools surface
+Mapped from HTTP status codes in :func:`client.handle_error`. Tools surface
 these as MCP ``ToolError`` instances so clients see actionable messages.
 """
 
