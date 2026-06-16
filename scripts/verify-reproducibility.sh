@@ -86,16 +86,17 @@ echo ">> [8/8] lock freshness (advisory: committed pins == fresh resolve)"
 # release, with no local change. It therefore WARNS and never fails the run; the
 # authoritative gates are steps 1-7. We compare only name==version + --hash
 # content: ALL comment lines (including indented '# via' provenance, whose graph
-# varies by resolver Python) are stripped, so a comment-only difference is not
-# flagged.
+# varies by resolver Python) and blank/whitespace-only lines are stripped, so a
+# comment- or whitespace-only difference is not flagged.
 if command -v uv >/dev/null 2>&1; then
     FRESH="$WORK/fresh.lock"
     if uv pip compile pyproject.toml --extra dev --universal --generate-hashes \
             --quiet -o "$FRESH" 2>/dev/null; then
-        # Strip CR so a CRLF/LF difference (e.g. a Windows-generated FRESH vs the
-        # LF-pinned committed lock) cannot spuriously trip the advisory warning.
-        if diff -q <(tr -d '\r' < "$LOCK" | grep -vE '^[[:space:]]*#') \
-                   <(tr -d '\r' < "$FRESH" | grep -vE '^[[:space:]]*#') >/dev/null 2>&1; then
+        # Strip CR (CRLF/LF differences), comments, and blank lines so only
+        # name==version + --hash content is compared; none of those can spuriously
+        # trip the advisory warning across uv versions or platforms.
+        if diff -q <(tr -d '\r' < "$LOCK" | grep -vE '^[[:space:]]*(#|$)') \
+                   <(tr -d '\r' < "$FRESH" | grep -vE '^[[:space:]]*(#|$)') >/dev/null 2>&1; then
             echo "   lock is current."
         else
             echo "   WARNING: $LOCK differs from a fresh resolve (likely an upstream"
