@@ -49,7 +49,10 @@ if command -v uv >/dev/null 2>&1; then
     echo ">> [3/8] installing package (no deps; already locked)"
     uv pip install --no-deps -e . >/dev/null
 else
-    python -m venv "$VENV"
+    # Prefer python3: on many distros `python` is absent or points at python2.
+    PYTHON="python3"
+    command -v python3 >/dev/null 2>&1 || PYTHON="python"
+    "$PYTHON" -m venv "$VENV"
     activate
     python -m pip install --upgrade pip >/dev/null
     echo ">> [2/8] installing dev deps from $LOCK (hash-checked)"
@@ -89,8 +92,10 @@ if command -v uv >/dev/null 2>&1; then
     FRESH="$WORK/fresh.lock"
     if uv pip compile pyproject.toml --extra dev --universal --generate-hashes \
             --quiet -o "$FRESH" 2>/dev/null; then
-        if diff -q <(grep -vE '^[[:space:]]*#' "$LOCK") \
-                   <(grep -vE '^[[:space:]]*#' "$FRESH") >/dev/null 2>&1; then
+        # Strip CR so a CRLF/LF difference (e.g. a Windows-generated FRESH vs the
+        # LF-pinned committed lock) cannot spuriously trip the advisory warning.
+        if diff -q <(tr -d '\r' < "$LOCK" | grep -vE '^[[:space:]]*#') \
+                   <(tr -d '\r' < "$FRESH" | grep -vE '^[[:space:]]*#') >/dev/null 2>&1; then
             echo "   lock is current."
         else
             echo "   WARNING: $LOCK differs from a fresh resolve (likely an upstream"
