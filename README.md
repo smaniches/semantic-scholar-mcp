@@ -21,6 +21,19 @@ Every release ships **verifiable supply-chain provenance**: Sigstore-signed SLSA
 
 ---
 
+## Quick start
+
+```bash
+uvx s2-mcp-server                                      # run instantly, no install
+claude mcp add semantic-scholar -- uvx s2-mcp-server   # or register it in Claude Code
+```
+
+No API key is needed to start (public rate limit: 1 req/sec); set
+`SEMANTIC_SCHOLAR_API_KEY` for 10 req/sec. Claude Desktop, Docker, pip, and
+remote (Streamable HTTP) setups are in [Installation](#installation).
+
+---
+
 ## Provenance & supply chain
 
 A research tool is only as trustworthy as the chain from its source to the
