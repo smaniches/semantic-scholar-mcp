@@ -195,7 +195,9 @@ async def _execute_request_with_retry(
     client = await get_client()
 
     def backoff(n: int) -> float:
-        return float(RETRY_BACKOFF_BASE * (2**n) + random.uniform(0, 0.5))
+        # Jitter spreads retry timing to avoid thundering-herd; it is not a
+        # security primitive, so the stdlib PRNG is correct here (not secrets).
+        return float(RETRY_BACKOFF_BASE * (2**n) + random.uniform(0, 0.5))  # nosec B311
 
     for attempt in range(MAX_RETRIES + 1):
         try:
@@ -224,7 +226,8 @@ async def _execute_request_with_retry(
                     if status == 429
                     else default
                 )
-                wait = min(retry_after + random.uniform(0, 0.5), 30.0)
+                # Jitter (non-security) again; see backoff() above.
+                wait = min(retry_after + random.uniform(0, 0.5), 30.0)  # nosec B311
                 logger.warning(
                     "HTTP %d. Retry %d/%d after %.1fs", status, attempt + 1, MAX_RETRIES, wait
                 )
