@@ -42,24 +42,31 @@ def reset_rate_limit():
     The asyncio.Semaphore is bound to an event loop on first use.
     pytest-asyncio creates a new loop per test, so we must recreate the semaphore.
 
-    Also neutralizes any ambient ``SEMANTIC_SCHOLAR_API_KEY`` (captured into the
-    module constant at import time) so the public-tier timing assertions are
-    hermetic regardless of the developer's shell environment. Tests that
-    exercise the keyed interval pass an explicit ``api_key`` argument and are
-    unaffected.
+    Also neutralizes any ambient ``SEMANTIC_SCHOLAR_API_KEY`` so the public-tier
+    timing assertions are hermetic regardless of the developer's shell
+    environment. The constant is captured at import time into both ``client``
+    (used by the rate limiter) and ``server`` (which does ``from .client import
+    SEMANTIC_SCHOLAR_API_KEY``, binding its own name), so both are reset. Tests
+    that exercise the keyed interval pass an explicit ``api_key`` argument and
+    are unaffected.
     """
     import asyncio
 
+    from semantic_scholar_mcp import server
+
     old_time = client._last_request_time
     old_semaphore = client._rate_semaphore
-    old_key = client.SEMANTIC_SCHOLAR_API_KEY
+    old_client_key = client.SEMANTIC_SCHOLAR_API_KEY
+    old_server_key = server.SEMANTIC_SCHOLAR_API_KEY
     client._last_request_time = 0.0
     client._rate_semaphore = asyncio.Semaphore(1)
     client.SEMANTIC_SCHOLAR_API_KEY = ""
+    server.SEMANTIC_SCHOLAR_API_KEY = ""
     yield
     client._last_request_time = old_time
     client._rate_semaphore = old_semaphore
-    client.SEMANTIC_SCHOLAR_API_KEY = old_key
+    client.SEMANTIC_SCHOLAR_API_KEY = old_client_key
+    server.SEMANTIC_SCHOLAR_API_KEY = old_server_key
 
 
 @pytest.fixture(autouse=True)
