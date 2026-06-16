@@ -56,9 +56,9 @@ else
     activate
     python -m pip install --upgrade pip >/dev/null
     echo ">> [2/8] installing dev deps from $LOCK (hash-checked)"
-    pip install --require-hashes -r "$LOCK" >/dev/null
+    python -m pip install --require-hashes -r "$LOCK" >/dev/null
     echo ">> [3/8] installing package (no deps; already locked)"
-    pip install --no-deps -e . >/dev/null
+    python -m pip install --no-deps -e . >/dev/null
 fi
 
 echo ">> [4/8] lint + format (ruff)"
