@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.1...semantic-scholar-mcp-v1.5.2) (2026-06-16)
+
+
+### Documentation
+
+* correct CITATION.cff date-released to 1.5.1 release date ([#102](https://github.com/smaniches/semantic-scholar-mcp/issues/102)) ([0e12d5f](https://github.com/smaniches/semantic-scholar-mcp/commit/0e12d5fbe24df7ef9b7de8e26a39d2f63cb83d81))
+
 ## [1.5.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.0...semantic-scholar-mcp-v1.5.1) (2026-06-16)
 
 
