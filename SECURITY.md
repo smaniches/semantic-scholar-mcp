@@ -46,9 +46,10 @@ The server accepts the Semantic Scholar API key in three places:
    v1.5.0). When served with `--transport http`, each request may carry a key
    in the `x-api-key` header (preferred) or a
    `SEMANTIC_SCHOLAR_API_KEY`/`api_key` query parameter. The key is bound to
-   a request-scoped context variable, is never logged, and cannot leak across
-   concurrent requests. Prefer the header: query strings commonly end up in
-   proxy and access logs.
+   a request-scoped context variable, is never written to the server's own
+   logs, and cannot leak across concurrent requests. Prefer the header: a key
+   in a query string (unlike the header) commonly ends up in proxy and access
+   logs.
 
 In all cases this server forwards the key only to `api.semanticscholar.org`
 over HTTPS, as the `x-api-key` header, and never writes it to disk. Be aware

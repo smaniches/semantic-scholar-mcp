@@ -20,7 +20,7 @@ uvx s2-mcp-server
 pytest --cov=src/semantic_scholar_mcp --cov-report=term-missing --tb=short -q
 ```
 
-CI enforces `--cov-fail-under=80`. Tests that require a live
+CI enforces `--cov-fail-under=100` (line + branch). Tests that require a live
 `SEMANTIC_SCHOLAR_API_KEY` are skipped by default (14 tests in
 `test_api_compatibility.py`).
 
