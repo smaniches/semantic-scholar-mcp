@@ -2,6 +2,21 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.0...semantic-scholar-mcp-v1.5.1) (2026-06-16)
+
+
+### Documentation
+
+* align SECURITY.md supported versions and guard against drift ([5fb65da](https://github.com/smaniches/semantic-scholar-mcp/commit/5fb65da523951e02aa0f77a7e0d5635474f2425b))
+* **citation:** lead with concept DOI and correct release date ([#98](https://github.com/smaniches/semantic-scholar-mcp/issues/98)) ([8d768d3](https://github.com/smaniches/semantic-scholar-mcp/commit/8d768d3f28ea40f5b20dc38ca34368a2121a947d))
+
+
+### CI/CD
+
+* add bandit SAST gate and pinned dependency CVE audit ([07ce2aa](https://github.com/smaniches/semantic-scholar-mcp/commit/07ce2aa13375f8200339a496e696c39c197c3bc8))
+* add SAST + dependency CVE gates, hash-pinned lock, and version-drift guard ([73e3dd4](https://github.com/smaniches/semantic-scholar-mcp/commit/73e3dd4a045ba953232972407c4d9070be27eb7d))
+* also audit win32-only lock pins on a Windows leg ([017b9ea](https://github.com/smaniches/semantic-scholar-mcp/commit/017b9ea034e16b25469b76438b4f345d75a24904))
+
 ## [1.5.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.4.0...semantic-scholar-mcp-v1.5.0) (2026-06-10)
 
 
