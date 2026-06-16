@@ -1,0 +1,5 @@
+# Shell scripts must stay LF: a CRLF checkout breaks them under bash
+# ("\r: command not found"). The dependency lock stays byte-stable across
+# platforms so its hashes and diffs are deterministic.
+*.sh                  text eol=lf
+requirements-dev.lock text eol=lf

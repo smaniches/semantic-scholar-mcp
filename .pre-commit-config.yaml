@@ -25,3 +25,11 @@ repos:
         additional_dependencies: [mcp>=1.25.0, httpx>=0.25.0, pydantic>=2.0.0]
         args: [--strict]
         files: ^src/
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]==1.9.4"]  # match rev + CI pin
+        files: ^src/

@@ -43,6 +43,8 @@ dev = [
     "ruff>=0.1.0",
     "pre-commit>=3.0.0",
     "hypothesis>=6.0.0",
+    "bandit[toml]>=1.8,<2",
+    "pip-audit>=2.7,<3",
 ]
 
 [project.urls]
@@ -88,3 +90,9 @@ select = ["E", "F", "I", "UP"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.bandit]
+# SAST gate; see the `sast` job in .github/workflows/ci.yml. Each `# nosec`
+# suppression in the source carries an inline justification. Tests are excluded:
+# assertion-heavy test code is out of scope for production SAST.
+exclude_dirs = ["tests"]
