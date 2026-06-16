@@ -47,9 +47,15 @@ USER mcp
 # MCP_TRANSPORT=http) to serve MCP Streamable HTTP instead. MCP_HOST defaults
 # to 0.0.0.0 here — unlike the CLI's loopback default — because a container's
 # port is only reachable if explicitly published (-p) or mapped by a platform.
-# API key should be passed as environment variable.
-ENV SEMANTIC_SCHOLAR_API_KEY="" \
-    MCP_HOST="0.0.0.0"
+#
+# SEMANTIC_SCHOLAR_API_KEY is intentionally NOT declared as a build-time ENV:
+# baking a secret-named variable into an image layer trips secret scanners, and
+# an empty default is behaviorally identical to leaving it unset (the client
+# resolves the key with `os.environ.get(..., "")` and only sends an x-api-key
+# header when the value is truthy). Pass it at runtime instead, e.g.
+# `docker run -e SEMANTIC_SCHOLAR_API_KEY=... ...`; without it the server runs
+# in rate-limited keyless mode.
+ENV MCP_HOST="0.0.0.0"
 
 # Informational: the HTTP transport's default port (override with --port/PORT)
 EXPOSE 8000
