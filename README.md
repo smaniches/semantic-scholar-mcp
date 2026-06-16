@@ -21,6 +21,19 @@ Every release ships **verifiable supply-chain provenance**: Sigstore-signed SLSA
 
 ---
 
+## Quick start
+
+```bash
+uvx s2-mcp-server                                      # run instantly, no install
+claude mcp add semantic-scholar -- uvx s2-mcp-server   # or register it in Claude Code
+```
+
+No API key is needed to start (public rate limit: 1 req/sec); set
+`SEMANTIC_SCHOLAR_API_KEY` for 10 req/sec. Claude Desktop, Docker, pip, and
+remote (Streamable HTTP) setups are in [Installation](#installation).
+
+---
+
 ## Provenance & supply chain
 
 A research tool is only as trustworthy as the chain from its source to the
@@ -359,7 +372,9 @@ out of the box.
   default bind is loopback (`127.0.0.1`). Expose it publicly only behind a
   TLS-terminating reverse proxy, and prefer the `x-api-key` header over query
   parameters (URLs end up in access logs).
-- API keys are request-scoped and never logged.
+- API keys are request-scoped, and the server itself never logs them. (A key
+  placed in a URL query parameter can still appear in access logs, as noted
+  above — prefer the `x-api-key` header.)
 - See [SECURITY.md](SECURITY.md) for the project's broader threat model.
 
 ---
@@ -875,6 +890,5 @@ Contributions welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md
 ---
 
 <p align="center">
-  <b>Built by <a href="https://topologica.ai">TOPOLOGICA LLC</a></b><br>
-  <i>Advancing computational research through topological intelligence</i>
+  <b>Built by <a href="https://topologica.ai">TOPOLOGICA LLC</a></b>
 </p>
