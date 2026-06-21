@@ -4,8 +4,8 @@ A single :class:`httpx.AsyncClient` is reused for the process lifetime to
 amortize connection setup across tool invocations. Requests are serialized
 through a semaphore so the per-second rate limit (1 req/s public, 10 req/s
 keyed) is enforced even when the MCP host issues tool calls in parallel.
-Retries cover ``429`` and ``503`` with exponential backoff + jitter, capped
-at 30 s, honoring the ``Retry-After`` header when present.
+Retries cover ``429``, ``502``, and ``503`` with exponential backoff +
+jitter, capped at 30 s, honoring the ``Retry-After`` header when present.
 
 API-key resolution order (highest precedence first): the deprecated per-call
 ``api_key`` tool parameter, the request-scoped key bound by the Streamable
