@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.3](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.2...semantic-scholar-mcp-v1.5.3) (2026-06-21)
+
+
+### Bug Fixes
+
+* retry HTTP 502/503 honoring Retry-After and tighten pydantic/httpx bounds ([#105](https://github.com/smaniches/semantic-scholar-mcp/issues/105)) ([2f1ce8d](https://github.com/smaniches/semantic-scholar-mcp/commit/2f1ce8d1ad1dab71ca0218f4699677e4192c341d))
+
 ## [1.5.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.1...semantic-scholar-mcp-v1.5.2) (2026-06-16)
 
 
