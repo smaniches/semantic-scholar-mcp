@@ -221,11 +221,10 @@ async def _execute_request_with_retry(
             status = e.response.status_code
             if status in (429, 502, 503) and attempt < MAX_RETRIES:
                 default = RETRY_BACKOFF_BASE * (2**attempt)
-                retry_after = (
-                    _parse_retry_after(e.response.headers.get("Retry-After"), default)
-                    if status == 429
-                    else default
-                )
+                # RFC 9110: Retry-After accompanies 429 and is also commonly sent
+                # with 503/502. Honor it for every retriable status, falling back
+                # to exponential backoff when the header is absent or unparseable.
+                retry_after = _parse_retry_after(e.response.headers.get("Retry-After"), default)
                 # Jitter (non-security) again; see backoff() above.
                 wait = min(retry_after + random.uniform(0, 0.5), 30.0)  # nosec B311
                 logger.warning(

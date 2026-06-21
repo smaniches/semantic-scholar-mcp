@@ -433,6 +433,29 @@ class TestRetryLogic:
 
     @respx.mock
     @pytest.mark.asyncio
+    async def test_503_with_retry_after_retries(self, reset_client):
+        """503 carrying a Retry-After header is retried and honored.
+
+        RFC 9110 allows Retry-After on 503/502, not only 429; the retry path
+        parses it for every retriable status and falls back to backoff when
+        absent.
+        """
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(503, headers={"Retry-After": "0.1"}),
+                Response(200, json={"data": []}),
+            ]
+        )
+
+        await _get_client()
+        result = await _execute_request_with_retry("GET", url, {"query": "x"}, None, {}, None)
+
+        assert result == {"data": []}
+        assert route.call_count == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
     async def test_timeout_then_success(self, reset_client):
         """Timeout should retry and eventually succeed."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
