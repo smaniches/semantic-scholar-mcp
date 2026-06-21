@@ -433,6 +433,29 @@ class TestRetryLogic:
 
     @respx.mock
     @pytest.mark.asyncio
+    async def test_503_with_retry_after_retries(self, reset_client):
+        """503 carrying a Retry-After header is retried and honored.
+
+        RFC 9110 allows Retry-After on 503/502, not only 429; the retry path
+        parses it for every retriable status and falls back to backoff when
+        absent.
+        """
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(503, headers={"Retry-After": "0.1"}),
+                Response(200, json={"data": []}),
+            ]
+        )
+
+        await _get_client()
+        result = await _execute_request_with_retry("GET", url, {"query": "x"}, None, {}, None)
+
+        assert result == {"data": []}
+        assert route.call_count == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
     async def test_timeout_then_success(self, reset_client):
         """Timeout should retry and eventually succeed."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
@@ -481,6 +504,34 @@ class TestRetryLogic:
 
         # Should retry MAX_RETRIES times (3) + 1 initial = 4 calls
         assert route.call_count == 4
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_502_then_success(self, monkeypatch, reset_client):
+        """502 Bad Gateway is transient and should retry, then succeed on 200."""
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+
+        # First call returns 502, second returns 200.
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(502),
+                Response(200, json={"data": [{"paperId": "123"}]}),
+            ]
+        )
+
+        # Skip the backoff sleep so the test runs fast.
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        async def _no_sleep(_):
+            return None
+
+        monkeypatch.setattr(_ssm_client_mod.asyncio, "sleep", _no_sleep)
+
+        await _get_client()
+        result = await _execute_request_with_retry("GET", url, {"query": "test"}, None, {}, None)
+
+        assert result == {"data": [{"paperId": "123"}]}
+        assert route.call_count == 2
 
     @respx.mock
     @pytest.mark.asyncio

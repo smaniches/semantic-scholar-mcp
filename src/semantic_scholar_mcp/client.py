@@ -4,8 +4,8 @@ A single :class:`httpx.AsyncClient` is reused for the process lifetime to
 amortize connection setup across tool invocations. Requests are serialized
 through a semaphore so the per-second rate limit (1 req/s public, 10 req/s
 keyed) is enforced even when the MCP host issues tool calls in parallel.
-Retries cover ``429`` and ``503`` with exponential backoff + jitter, capped
-at 30 s, honoring the ``Retry-After`` header when present.
+Retries cover ``429``, ``502``, and ``503`` with exponential backoff +
+jitter, capped at 30 s, honoring the ``Retry-After`` header when present.
 
 API-key resolution order (highest precedence first): the deprecated per-call
 ``api_key`` tool parameter, the request-scoped key bound by the Streamable
@@ -188,7 +188,7 @@ async def _execute_request_with_retry(
 ) -> dict[str, Any] | list[Any]:
     """Execute one request with exponential-backoff retry for transient errors.
 
-    Retries: 429, 503, and any transport-level :class:`httpx.RequestError`
+    Retries: 429, 502, 503, and any transport-level :class:`httpx.RequestError`
     (timeouts, connect/read errors, DNS hiccups, remote-protocol errors).
     Non-retriable status codes raise a typed exception via :func:`handle_error`.
     """
@@ -219,13 +219,12 @@ async def _execute_request_with_retry(
                 ) from e
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            if status in (429, 503) and attempt < MAX_RETRIES:
+            if status in (429, 502, 503) and attempt < MAX_RETRIES:
                 default = RETRY_BACKOFF_BASE * (2**attempt)
-                retry_after = (
-                    _parse_retry_after(e.response.headers.get("Retry-After"), default)
-                    if status == 429
-                    else default
-                )
+                # RFC 9110: Retry-After accompanies 429 and is also commonly sent
+                # with 503/502. Honor it for every retriable status, falling back
+                # to exponential backoff when the header is absent or unparseable.
+                retry_after = _parse_retry_after(e.response.headers.get("Retry-After"), default)
                 # Jitter (non-security) again; see backoff() above.
                 wait = min(retry_after + random.uniform(0, 0.5), 30.0)  # nosec B311
                 logger.warning(
