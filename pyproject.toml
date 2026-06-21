@@ -29,8 +29,8 @@ classifiers = [
 
 dependencies = [
     "mcp>=1.25.0,<2",  # >=1.25.0: upstream MCP SDK security fixes (see CHANGELOG / commit b351483)
-    "httpx>=0.25.0",
-    "pydantic>=2.0.0",
+    "httpx>=0.25.0,<1",
+    "pydantic>=2.1.0,<3",
 ]
 
 [project.optional-dependencies]

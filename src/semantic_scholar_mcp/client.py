@@ -188,7 +188,7 @@ async def _execute_request_with_retry(
 ) -> dict[str, Any] | list[Any]:
     """Execute one request with exponential-backoff retry for transient errors.
 
-    Retries: 429, 503, and any transport-level :class:`httpx.RequestError`
+    Retries: 429, 502, 503, and any transport-level :class:`httpx.RequestError`
     (timeouts, connect/read errors, DNS hiccups, remote-protocol errors).
     Non-retriable status codes raise a typed exception via :func:`handle_error`.
     """
@@ -219,7 +219,7 @@ async def _execute_request_with_retry(
                 ) from e
         except httpx.HTTPStatusError as e:
             status = e.response.status_code
-            if status in (429, 503) and attempt < MAX_RETRIES:
+            if status in (429, 502, 503) and attempt < MAX_RETRIES:
                 default = RETRY_BACKOFF_BASE * (2**attempt)
                 retry_after = (
                     _parse_retry_after(e.response.headers.get("Retry-After"), default)

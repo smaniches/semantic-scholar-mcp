@@ -484,6 +484,34 @@ class TestRetryLogic:
 
     @respx.mock
     @pytest.mark.asyncio
+    async def test_502_then_success(self, monkeypatch, reset_client):
+        """502 Bad Gateway is transient and should retry, then succeed on 200."""
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+
+        # First call returns 502, second returns 200.
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(502),
+                Response(200, json={"data": [{"paperId": "123"}]}),
+            ]
+        )
+
+        # Skip the backoff sleep so the test runs fast.
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        async def _no_sleep(_):
+            return None
+
+        monkeypatch.setattr(_ssm_client_mod.asyncio, "sleep", _no_sleep)
+
+        await _get_client()
+        result = await _execute_request_with_retry("GET", url, {"query": "test"}, None, {}, None)
+
+        assert result == {"data": [{"paperId": "123"}]}
+        assert route.call_count == 2
+
+    @respx.mock
+    @pytest.mark.asyncio
     async def test_timeout_retries_then_raises(self, reset_client):
         """Timeout should retry max times then raise."""
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
