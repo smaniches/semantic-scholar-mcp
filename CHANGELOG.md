@@ -5,6 +5,11 @@ All notable changes documented here. Format: [Keep a Changelog](https://keepacha
 ## [1.5.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.3...semantic-scholar-mcp-v1.5.4) (2026-06-22)
 
 
+### Bug Fixes
+
+* trim the appended author/ORCID trailer from `LICENSE` so GitHub correctly detects the MIT license ([#109](https://github.com/smaniches/semantic-scholar-mcp/issues/109))
+
+
 ### CI/CD
 
 * bump actions/checkout from 6.0.3 to 7.0.0 ([#107](https://github.com/smaniches/semantic-scholar-mcp/issues/107)) ([45cf566](https://github.com/smaniches/semantic-scholar-mcp/commit/45cf56612cca533c66552ff807f898fc2333dcf3))
