@@ -28,14 +28,16 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write       # OIDC for Sigstore-backed build-provenance attestation
-  attestations: write   # persist the provenance attestation
 
 jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read        # actions/checkout
+      packages: write       # GHCR push
+      id-token: write       # OIDC for Sigstore-backed build-provenance attestation
+      attestations: write   # persist the provenance attestation
 
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
