@@ -5,18 +5,20 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
-  # Needed so this workflow can dispatch publish.yml and docker.yml after
-  # release-please creates the release. workflow_dispatch is the documented
-  # exception that lets a GITHUB_TOKEN-driven workflow start downstream
-  # workflows — without it the release: published event is suppressed and
-  # PyPI / GHCR never see the new version.
-  actions: write
+  contents: read
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # release commits and tags
+      pull-requests: write  # the release PR
+      # Needed so this workflow can dispatch publish.yml and docker.yml after
+      # release-please creates the release. workflow_dispatch is the documented
+      # exception that lets a GITHUB_TOKEN-driven workflow start downstream
+      # workflows — without it the release: published event is suppressed and
+      # PyPI / GHCR never see the new version.
+      actions: write
     steps:
       - id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5

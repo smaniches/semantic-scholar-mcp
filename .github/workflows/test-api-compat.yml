@@ -8,6 +8,9 @@ on:
     - cron: '0 9 * * 1'  # Weekly Monday 9am UTC: catch S2 changes early
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   api-compat:
     runs-on: ubuntu-latest
