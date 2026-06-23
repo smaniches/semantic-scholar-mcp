@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.5](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.4...semantic-scholar-mcp-v1.5.5) (2026-06-23)
+
+
+### CI/CD
+
+* scope workflow token permissions to job level (OpenSSF Scorecard) ([#110](https://github.com/smaniches/semantic-scholar-mcp/issues/110)) ([aa3cfa3](https://github.com/smaniches/semantic-scholar-mcp/commit/aa3cfa39dad5d55844f0135ab2b4f9bb16891bf3))
+
 ## [1.5.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.3...semantic-scholar-mcp-v1.5.4) (2026-06-22)
 
 
