@@ -47,8 +47,37 @@ jobs:
         # the workflow was triggered on (main on push, tag on release).
         ref: ${{ inputs.tag || github.ref }}
 
+    # docker/setup-buildx-action boots a BuildKit container by pulling
+    # moby/buildkit from Docker Hub — a recurring transient failure point
+    # (Docker Hub timeouts / rate limits). When the release *dispatch* run hits
+    # it, the version-pinned image tags (e.g. :1.5.6, :1.5) silently fail to
+    # publish even though PyPI and the GitHub release succeed, because the
+    # concurrent push-triggered run only stamps :latest and :<sha>. Pre-pull
+    # the image with bounded retries so a flaky pull can't drop a release's
+    # version tags; once present locally, buildx bootstrap reuses it without a
+    # network round-trip.
+    - name: Pre-pull BuildKit image (resilient to Docker Hub flakes)
+      env:
+        BUILDKIT_IMAGE: moby/buildkit:buildx-stable-1
+      run: |
+        for attempt in $(seq 1 5); do
+          if docker pull "$BUILDKIT_IMAGE"; then
+            echo "Pulled $BUILDKIT_IMAGE on attempt $attempt."
+            exit 0
+          fi
+          wait=$((attempt * 10))
+          echo "Pull attempt $attempt failed; retrying in ${wait}s..."
+          sleep "$wait"
+        done
+        echo "::error::Failed to pull $BUILDKIT_IMAGE after 5 attempts."
+        exit 1
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+      with:
+        # Pin the builder to the same image pre-pulled above so bootstrap
+        # reuses the local copy instead of re-fetching from Docker Hub.
+        driver-opts: image=moby/buildkit:buildx-stable-1
 
     - name: Login to GitHub Container Registry
       if: github.event_name != 'pull_request'
