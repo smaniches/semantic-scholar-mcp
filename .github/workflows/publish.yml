@@ -95,3 +95,61 @@ jobs:
         # Sigstore-backed PEP 740 attestations are on by default under trusted
         # publishing; set explicitly to make the supply-chain posture obvious.
         attestations: true
+
+  publish-mcp-registry:
+    name: Publish to MCP Registry
+    # Runs only after the PyPI publish succeeds: the registry validates that the
+    # pip package referenced by server.json (s2-mcp-server == its version) is
+    # live, so the distribution must exist first. Hence a job here rather than a
+    # separately dispatched workflow.
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read     # actions/checkout
+      id-token: write    # GitHub OIDC -> MCP Registry auth (io.github.* namespace)
+
+    steps:
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        # Check out the released tag so the published server.json version
+        # matches the release rather than main HEAD.
+        ref: ${{ inputs.tag || github.ref }}
+
+    # Trusted publishing returns before the new version is queryable on PyPI's
+    # CDN-fronted JSON API, which the registry's package-ownership check reads.
+    # `needs: publish-pypi` orders the jobs; this short poll absorbs the
+    # index-propagation lag so the publish below can't fail spuriously.
+    - name: Wait for the PyPI version to be queryable
+      run: |
+        version="$(jq -r '.packages[0].version' server.json)"
+        echo "Confirming s2-mcp-server==${version} is queryable on PyPI..."
+        for attempt in $(seq 1 20); do
+          if curl --fail --silent --show-error --location \
+               "https://pypi.org/pypi/s2-mcp-server/${version}/json" >/dev/null; then
+            echo "s2-mcp-server==${version} is live."
+            exit 0
+          fi
+          echo "Attempt ${attempt}: not queryable yet; retrying in 15s..."
+          sleep 15
+        done
+        echo "::error::s2-mcp-server did not become queryable on PyPI in time."
+        exit 1
+
+    - name: Install mcp-publisher
+      env:
+        # Pinned to a specific release rather than the mutable `latest`, to match
+        # this repo's pin-everything supply-chain posture. Bump deliberately.
+        MCP_PUBLISHER_VERSION: v1.7.9
+      run: |
+        curl --fail --silent --show-error --location \
+          "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" \
+          | tar -xz mcp-publisher
+
+    - name: Authenticate to the MCP Registry via GitHub OIDC
+      # No secret required: OIDC proves this run belongs to smaniches/*, which
+      # owns the io.github.smaniches/* namespace. The `mcp-name` marker in
+      # README.md ties the PyPI package to this registry entry.
+      run: ./mcp-publisher login github-oidc
+
+    - name: Publish server.json to the MCP Registry
+      run: ./mcp-publisher publish
