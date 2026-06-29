@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.7](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.6...semantic-scholar-mcp-v1.5.7) (2026-06-29)
+
+
+### CI/CD
+
+* harden Docker release build against transient BuildKit pull failures ([#114](https://github.com/smaniches/semantic-scholar-mcp/issues/114)) ([6a838b1](https://github.com/smaniches/semantic-scholar-mcp/commit/6a838b127018301cc7ca4f8f4e535a2392b32d7a))
+
 ## [1.5.6](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.5...semantic-scholar-mcp-v1.5.6) (2026-06-29)
 
 
