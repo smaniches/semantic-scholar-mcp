@@ -18,6 +18,11 @@ LABEL org.opencontainers.image.licenses="MIT"
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
+# Create the non-root user before copying source, so this static system-level
+# layer stays cached when only the application code changes.
+RUN groupadd --gid 1000 mcp && \
+    useradd --uid 1000 --gid mcp --shell /bin/bash --create-home mcp
+
 WORKDIR /app
 
 # Install the package and its runtime deps from source (pure-Python wheel build,
@@ -26,9 +31,6 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir .
 
-# Run as a non-root user.
-RUN groupadd --gid 1000 mcp && \
-    useradd --uid 1000 --gid mcp --shell /bin/bash --create-home mcp
 USER mcp
 
 # The MCP server speaks stdio by default (what Glama's build test exercises);
