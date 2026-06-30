@@ -1,8 +1,13 @@
-# Git
+# Keep the Docker build context lean — only what `pip install .` needs
+# (pyproject.toml, src/, README.md) plus small root metadata reaches the image.
+# A lean context also keeps the upload to Glama's remote builder small.
+
+# Version control
 .git
 .gitignore
+.gitattributes
 
-# Python
+# Python build / cache artifacts
 __pycache__
 *.py[cod]
 *.egg-info
@@ -10,32 +15,42 @@ dist/
 build/
 .eggs/
 
+# Dependency lock (dev only)
+requirements-dev.lock
+
 # Virtual environments
 .venv
 venv
 env
 
-# IDE
+# IDE / editor
 .idea
 .vscode
 *.swp
+.editorconfig
 
-# Testing
+# Test, type and lint caches + the test suite itself (not needed at runtime)
 .pytest_cache
 .coverage
 htmlcov
 .mypy_cache
 .ruff_cache
 .hypothesis
+tests/
 
-# CI/CD
+# CI, docs, examples, scripts — not needed in the image
 .github
-
-# Docs (not needed in image)
+docs/
 examples/
+scripts/
+
+# Non-README markdown
 *.md
 !README.md
 
-# OS
+# Image / logo assets
+*.png
+
+# OS cruft
 .DS_Store
 Thumbs.db

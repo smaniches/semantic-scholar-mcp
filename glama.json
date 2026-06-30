@@ -1,1 +1,9 @@
-{"$schema":"https://glama.ai/mcp/schemas/server.json","maintainers":["smaniches"],"emoji":"📚"}
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["smaniches"],
+  "emoji": "📚",
+  "name": "Semantic Scholar MCP Server",
+  "description": "A Model Context Protocol server for the Semantic Scholar academic graph — 200M+ papers with 14 tools spanning paper search, citation-graph traversal, author profiles, recommendations, bulk retrieval, and BibTeX export, usable from any MCP client.",
+  "license": "MIT",
+  "homepage": "https://github.com/smaniches/semantic-scholar-mcp"
+}
