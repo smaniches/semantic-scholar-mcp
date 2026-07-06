@@ -45,10 +45,10 @@ from .cache import _MAX_SIZE as _CACHE_MAX_SIZE  # noqa: F401
 from .cache import _TTL as _CACHE_TTL  # noqa: F401
 from .cache import _cache, cache_clear, cache_get, cache_set  # noqa: F401
 from .client import (
-    MAX_RETRIES,  # noqa: F401
+    MAX_RETRIES,
     RECOMMENDATIONS_BASE,
-    RETRY_BACKOFF_BASE,  # noqa: F401
-    SEMANTIC_SCHOLAR_API_BASE,  # noqa: F401
+    RETRY_BACKOFF_BASE,
+    SEMANTIC_SCHOLAR_API_BASE,
     SEMANTIC_SCHOLAR_API_KEY,
     _execute_request_with_retry,  # noqa: F401
     close_client,
@@ -347,7 +347,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
         if sub_tasks:
             keys = list(sub_tasks.keys())
             responses = await asyncio.gather(*sub_tasks.values())
-            for key, resp in zip(keys, responses):
+            for key, resp in zip(keys, responses, strict=True):
                 result[key] = resp.get("data", []) if isinstance(resp, dict) else []
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
@@ -964,6 +964,15 @@ if __name__ == "__main__":  # pragma: no cover
 # is invisible at the import boundary.
 __all__ = [
     "AUTHOR_FIELDS",
+    "MAX_RETRIES",
+    "PAPER_BULK_SEARCH_FIELDS",
+    "PAPER_DETAIL_FIELDS",
+    "PAPER_SEARCH_FIELDS",
+    "PAPER_SEARCH_FIELDS_LITE",
+    "RECOMMENDATIONS_BASE",
+    "RETRY_BACKOFF_BASE",
+    "SEMANTIC_SCHOLAR_API_BASE",
+    "SEMANTIC_SCHOLAR_API_KEY",
     "AuthenticationError",
     "AuthorBatchInput",
     "AuthorDetailsInput",
@@ -971,24 +980,15 @@ __all__ = [
     "BulkPaperInput",
     "BulkSearchInput",
     "CitationExportInput",
-    "MAX_RETRIES",
     "MultiRecommendInput",
     "NotFoundError",
-    "PAPER_BULK_SEARCH_FIELDS",
-    "PAPER_DETAIL_FIELDS",
-    "PAPER_SEARCH_FIELDS",
-    "PAPER_SEARCH_FIELDS_LITE",
     "PaperAuthorsInput",
     "PaperDetailsInput",
     "PaperMatchInput",
     "PaperRecommendationsInput",
     "PaperSearchInput",
-    "RECOMMENDATIONS_BASE",
-    "RETRY_BACKOFF_BASE",
     "RateLimitError",
     "ResponseFormat",
-    "SEMANTIC_SCHOLAR_API_BASE",
-    "SEMANTIC_SCHOLAR_API_KEY",
     "SemanticScholarError",
     "ServerError",
     "SnippetSearchInput",

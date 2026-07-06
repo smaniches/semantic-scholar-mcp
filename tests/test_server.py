@@ -15,6 +15,7 @@ import pytest
 import respx
 from httpx import Response
 from mcp.server.fastmcp.exceptions import ToolError
+from pydantic import ValidationError as PydanticValidationError
 
 from semantic_scholar_mcp.server import (
     SEMANTIC_SCHOLAR_API_BASE,
@@ -1519,9 +1520,11 @@ class TestBackoffTiming:
             return None
 
         await _get_client()
-        with patch("semantic_scholar_mcp.server.asyncio.sleep", side_effect=capture_sleep):
-            with pytest.raises(ServerError):
-                await _execute_request_with_retry("GET", url, None, None, {}, None)
+        with (
+            patch("semantic_scholar_mcp.server.asyncio.sleep", side_effect=capture_sleep),
+            pytest.raises(ServerError),
+        ):
+            await _execute_request_with_retry("GET", url, None, None, {}, None)
 
         assert route.call_count == 4  # 1 initial + 3 retries
         assert len(sleep_calls) == 3  # 3 sleeps between retries
@@ -1725,7 +1728,7 @@ class TestExportCitationTool:
         """export_citation should reject invalid paper IDs."""
         from semantic_scholar_mcp.server import CitationExportInput
 
-        with pytest.raises(Exception):
+        with pytest.raises(PydanticValidationError):
             CitationExportInput(paper_id="")
 
     @respx.mock
