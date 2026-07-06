@@ -78,6 +78,16 @@ include = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+# Mirror of the CI gate (see .github/workflows/ci.yml) so `pytest --cov` locally
+# enforces the same 100% line + branch threshold without any CLI flags.
+[tool.coverage.run]
+branch = true
+source = ["src/semantic_scholar_mcp"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
 [tool.mypy]
 python_version = "3.10"
 strict = true
