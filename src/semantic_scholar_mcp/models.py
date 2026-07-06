@@ -233,7 +233,9 @@ class MultiRecommendInput(BaseModel):
         ..., description="Papers to find similar results for", min_length=1, max_length=100
     )
     negative_paper_ids: list[str] = Field(
-        default_factory=list, description="Papers to dissimilar from", max_length=100
+        default_factory=list,
+        description="Papers to steer recommendations away from",
+        max_length=100,
     )
     limit: int = Field(default=10, description="Max recommendations", ge=1, le=500)
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
