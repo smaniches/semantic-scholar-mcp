@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.5.8](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.7...semantic-scholar-mcp-v1.5.8) (2026-07-06)
+
+
+### Bug Fixes
+
+* clarify negative_paper_ids parameter description for multi_recommend ([55c1236](https://github.com/smaniches/semantic-scholar-mcp/commit/55c12369a51892175446cd8efa57563181f0f809))
+
 ## [1.5.7](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.6...semantic-scholar-mcp-v1.5.7) (2026-06-29)
 
 
