@@ -31,6 +31,7 @@ dependencies = [
     "mcp>=1.25.0,<2",  # >=1.25.0: upstream MCP SDK security fixes (see CHANGELOG / commit b351483)
     "httpx>=0.25.0,<1",
     "pydantic>=2.1.0,<3",
+    "starlette>=0.27,<2",  # imported directly in transport.py (also a hard dependency of mcp)
 ]
 
 [project.optional-dependencies]
