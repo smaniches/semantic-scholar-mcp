@@ -126,7 +126,7 @@ class TestNetworkErrorRetry:
 
         monkeypatch.setattr(client_mod.asyncio, "sleep", _no_sleep)
 
-        with pytest.raises(SemanticScholarError, match="Network error after .* retries"):
+        with pytest.raises(SemanticScholarError, match=r"Network error after .* retries"):
             await make_request("GET", "paper/search", params={"query": "x"})
 
 

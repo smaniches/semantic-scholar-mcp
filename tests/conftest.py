@@ -27,7 +27,10 @@ def reset_client():
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                loop.create_task(client._client.aclose())
+                # Bind the task so it isn't garbage-collected before it runs
+                # (the event loop keeps only a weak reference to tasks).
+                close_task = loop.create_task(client._client.aclose())
+                close_task.add_done_callback(lambda _: None)
             else:
                 loop.run_until_complete(client._client.aclose())
         except RuntimeError:

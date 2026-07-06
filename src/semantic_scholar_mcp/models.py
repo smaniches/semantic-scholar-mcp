@@ -261,6 +261,10 @@ class SnippetSearchInput(BaseModel):
 
 __all__ = [
     "AUTHOR_FIELDS",
+    "PAPER_BULK_SEARCH_FIELDS",
+    "PAPER_DETAIL_FIELDS",
+    "PAPER_SEARCH_FIELDS",
+    "PAPER_SEARCH_FIELDS_LITE",
     "AuthorBatchInput",
     "AuthorDetailsInput",
     "AuthorSearchInput",
@@ -268,10 +272,6 @@ __all__ = [
     "BulkSearchInput",
     "CitationExportInput",
     "MultiRecommendInput",
-    "PAPER_BULK_SEARCH_FIELDS",
-    "PAPER_DETAIL_FIELDS",
-    "PAPER_SEARCH_FIELDS",
-    "PAPER_SEARCH_FIELDS_LITE",
     "PaperAuthorsInput",
     "PaperDetailsInput",
     "PaperMatchInput",
