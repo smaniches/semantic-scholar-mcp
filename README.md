@@ -717,7 +717,7 @@ papers.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `positive_paper_ids` | string[] | Yes | Papers to find similar results for (1-100) |
-| `negative_paper_ids` | string[] | No | Papers to dissimilate from (0-100) |
+| `negative_paper_ids` | string[] | No | Papers to steer recommendations away from (0-100) |
 | `limit` | integer | No | Max recommendations 1-500 (default: 10) |
 | `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
 | `api_key` | string | No | Override environment API key |
