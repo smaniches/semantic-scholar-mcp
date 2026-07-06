@@ -90,6 +90,27 @@ class TestCacheOperations:
         assert _cache_get("new_key") == "new_val"
         assert len(_cache) == _CACHE_MAX_SIZE
 
+    def test_cache_eviction_removes_the_oldest_entry(self):
+        """Eviction must drop the entry with the OLDEST timestamp specifically.
+
+        Surfaced by a mutation spot-check: flipping min() to max() in the
+        eviction (evicting the newest instead) left the whole suite green,
+        because only the cache size and the new key were asserted.
+        """
+        from semantic_scholar_mcp.server import _CACHE_MAX_SIZE
+
+        for i in range(_CACHE_MAX_SIZE):
+            _cache_set(f"key{i}", f"val{i}")
+        # Backdate one entry (within TTL) so it is unambiguously the oldest.
+        _cache["key7"] = (time.monotonic() - 200, "val7")
+
+        _cache_set("new_key", "new_val")
+
+        assert _cache_get("key7") is None, "the oldest entry should have been evicted"
+        assert _cache_get("new_key") == "new_val"
+        assert _cache_get("key0") == "val0", "newer entries must survive eviction"
+        assert len(_cache) == _CACHE_MAX_SIZE
+
     def test_cache_stores_various_types(self):
         """Should handle dicts, lists, strings, None."""
         _cache_set("dict", {"a": 1})
