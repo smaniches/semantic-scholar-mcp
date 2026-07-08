@@ -64,9 +64,9 @@ over HTTPS.
 - Input validation on all tool parameters; paper-ID format whitelist rejects
   null bytes, `?`, `#`, and `../`.
 - Semantic Scholar API rate limits respected automatically; exponential
-  backoff with jitter on `429` and `503`.
+  backoff with jitter on `429`, `502`, and `503`.
 - HTTPS-only API communication.
-- Minimal direct dependency footprint (`mcp`, `httpx`, `pydantic`).
+- Minimal direct dependency footprint (`mcp`, `httpx`, `pydantic`, `starlette`).
 - Supply-chain hardening: GitHub Actions pinned to commit SHAs; Sigstore-backed
   SLSA build-provenance attestations on the wheel, sdist, and container image;
   PEP 740 attestations on PyPI uploads; and a CycloneDX SBOM published with each

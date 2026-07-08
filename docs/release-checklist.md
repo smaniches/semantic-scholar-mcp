@@ -1,5 +1,11 @@
 # Release Checklist — v1.0.0
 
+> **Historical document.** This checklist describes the manual process used for
+> the original v1.0.0 release. Releases are now automated by release-please
+> (see [CONTRIBUTING.md](../CONTRIBUTING.md#releasing)); the only remaining
+> manual step is the SECURITY.md "Supported Versions" table on minor/major
+> bumps.
+
 ## 1. Push
 ```bash
 git log -1 --stat   # review what you're pushing

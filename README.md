@@ -43,7 +43,7 @@ verifiable supply-chain evidence, all generated in CI from the tagged commit:
 | Guarantee | What it proves | Where it is produced |
 |---|---|---|
 | **SLSA build provenance** (wheel + sdist) | the published distributions were built by this repo's `publish.yml` from the released tag, not hand-uploaded | [`publish.yml`](.github/workflows/publish.yml) — `actions/attest-build-provenance` (lines 56–59) |
-| **SLSA build provenance** (container image) | the `ghcr.io` image digest was built by this repo's `docker.yml` | [`docker.yml`](.github/workflows/docker.yml) — `actions/attest-build-provenance`, `push-to-registry` (lines 110–116) |
+| **SLSA build provenance** (container image) | the `ghcr.io` image digest was built by this repo's `docker.yml` | [`docker.yml`](.github/workflows/docker.yml) — `actions/attest-build-provenance`, `push-to-registry` (lines 141–147) |
 | **PEP 740 attestations** | the PyPI upload itself carries Sigstore-backed attestations under Trusted Publishing | [`publish.yml`](.github/workflows/publish.yml) — `attestations: true` (line 97) |
 | **CycloneDX SBOM** | a machine-readable bill of materials, generated then attested against the distributions | [`publish.yml`](.github/workflows/publish.yml) — `cyclonedx-py` + `actions/attest-sbom` (lines 46–64) |
 | **SHA-pinned Actions** | every CI action is pinned to a commit SHA, so the release pipeline itself cannot silently change | all jobs in `.github/workflows/` (e.g. `publish.yml`, `docker.yml`) |
@@ -83,7 +83,7 @@ and the caller would otherwise reimplement.
 | Full-text snippet search | `snippet_search` with surrounding context | separate endpoint, caller-assembled |
 | Paper-ID resolution | seven formats — Semantic Scholar ID, DOI, ArXiv, PubMed, Corpus ID, ACL, URL — validated pre-flight ([`validators.py`](src/semantic_scholar_mcp/validators.py)) | caller normalizes and validates IDs |
 | Rate limiting | client-side per-tier limiter, never exceeds the interval ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller throttles by hand |
-| Retry / backoff | bounded, jittered retry on 429/503/timeout, honors `Retry-After` ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller implements retry |
+| Retry / backoff | bounded, jittered retry on 429/502/503/timeout, honors `Retry-After` ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller implements retry |
 | Errors | typed exception hierarchy, branchable by caller ([`errors.py`](src/semantic_scholar_mcp/errors.py)) | parse HTTP status strings |
 | Output | chat-tuned Markdown or JSON per call ([`formatters.py`](src/semantic_scholar_mcp/formatters.py)) | raw JSON |
 | Supply-chain provenance | SLSA + PEP 740 + CycloneDX SBOM per release ([see above](#provenance--supply-chain)) | n/a |
@@ -206,7 +206,7 @@ flowchart LR
 | --- | --- |
 | `server.py` | FastMCP instance, 14 `@mcp.tool` registrations, lifespan, `main()` entry. Re-exports the helper surface for back-compat. |
 | `transport.py` | Streamable HTTP transport: CLI/env parsing (`--transport http`), uvicorn wiring, and per-request API-key extraction (header / query param / Smithery config) into a request-scoped contextvar. |
-| `client.py` | Shared `httpx.AsyncClient` singleton, per-tier rate limiter (1 req/s public, 10 req/s keyed), retry loop with exponential backoff + jitter on 429/503/timeout, HTTP→typed-exception mapping. |
+| `client.py` | Shared `httpx.AsyncClient` singleton, per-tier rate limiter (1 req/s public, 10 req/s keyed), retry loop with exponential backoff + jitter on 429/502/503/timeout, HTTP→typed-exception mapping. |
 | `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the four tiered field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`, `AUTHOR_FIELDS`). |
 | `validators.py` | Pre-flight paper-ID validation. Rejects NUL bytes, `?`, `#`, path traversal; accepts the seven canonical ID formats. |
 | `cache.py` | In-memory TTL cache (5 min, 200 entries, oldest-first eviction) for paper/author lookups within a session. |
@@ -717,7 +717,7 @@ papers.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `positive_paper_ids` | string[] | Yes | Papers to find similar results for (1-100) |
-| `negative_paper_ids` | string[] | No | Papers to dissimilate from (0-100) |
+| `negative_paper_ids` | string[] | No | Papers to steer recommendations away from (0-100) |
 | `limit` | integer | No | Max recommendations 1-500 (default: 10) |
 | `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
 | `api_key` | string | No | Override environment API key |
@@ -806,7 +806,7 @@ Check Semantic Scholar API status
 
 The server automatically handles rate limiting with:
 - Request serialization to enforce minimum intervals
-- Exponential backoff retry for 429 (rate limit) and 503 (service unavailable) errors
+- Exponential backoff retry for 429 (rate limit), 502 (bad gateway), and 503 (service unavailable) errors
 - Maximum 3 retries with jitter
 
 ---
@@ -854,7 +854,7 @@ for vulnerability reporting and the known-limitations list.
 
 ## Related MCP servers by the same author
 
-- [`alphafold-sovereign-mcp`](https://github.com/smaniches/alphafold-sovereign-mcp) — Model Context Protocol server for AlphaFold DB and 13 other biomedical data sources, with a local SQLite knowledge graph (`pip install --pre alphafold-sovereign-mcp`).
+- [`alphafold-sovereign-mcp`](https://github.com/smaniches/alphafold-sovereign-mcp) — Model Context Protocol server for AlphaFold DB and other public biomedical data sources, with a local SQLite knowledge graph (`pip install --pre alphafold-sovereign-mcp`).
 - [`uniprot-mcp`](https://github.com/smaniches/uniprot-mcp) — Model Context Protocol server for UniProt Swiss-Prot and TrEMBL (`pip install uniprot-mcp-server`).
 
 ---
@@ -884,7 +884,6 @@ Contributions welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md
 ## Support
 
 - Issues: [GitHub Issues](https://github.com/smaniches/semantic-scholar-mcp/issues)
-- Discussions: [GitHub Discussions](https://github.com/smaniches/semantic-scholar-mcp/discussions)
 - Contact: santiago@topologica.ai
 
 ---

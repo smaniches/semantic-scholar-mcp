@@ -1,6 +1,6 @@
 [project]
 name = "s2-mcp-server"
-version = "1.5.7"
+version = "1.5.8"
 description = "Model Context Protocol server for Semantic Scholar — 200M+ academic papers, 14 tools spanning paper search, citation graph traversal, author profiles, and recommendations."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,7 @@ dependencies = [
     "mcp>=1.25.0,<2",  # >=1.25.0: upstream MCP SDK security fixes (see CHANGELOG / commit b351483)
     "httpx>=0.25.0,<1",
     "pydantic>=2.1.0,<3",
+    "starlette>=0.27,<2",  # imported directly in transport.py (also a hard dependency of mcp)
 ]
 
 [project.optional-dependencies]
@@ -77,6 +78,16 @@ include = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+# Mirror of the CI gate (see .github/workflows/ci.yml) so `pytest --cov` locally
+# enforces the same 100% line + branch threshold without any CLI flags.
+[tool.coverage.run]
+branch = true
+source = ["src/semantic_scholar_mcp"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
 [tool.mypy]
 python_version = "3.10"
 strict = true
@@ -86,7 +97,7 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["ASYNC", "B", "E", "F", "I", "N", "PGH", "RUF", "SIM", "UP"]
 
 [tool.ruff.format]
 quote-style = "double"

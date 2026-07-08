@@ -126,8 +126,41 @@ class TestNetworkErrorRetry:
 
         monkeypatch.setattr(client_mod.asyncio, "sleep", _no_sleep)
 
-        with pytest.raises(SemanticScholarError, match="Network error after .* retries"):
+        with pytest.raises(SemanticScholarError, match=r"Network error after .* retries"):
             await make_request("GET", "paper/search", params={"query": "x"})
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_retry_wait_is_capped_at_30_seconds(
+        self, monkeypatch, reset_client, reset_rate_limit
+    ):
+        """A huge Retry-After must not stall the retry loop past the 30 s cap.
+
+        Surfaced by a mutation spot-check: removing the min(..., 30.0) cap left
+        the whole suite green, because no test asserted the actual wait bound.
+        """
+        url = f"{client.SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(503, headers={"Retry-After": "300"}),
+                Response(200, json={"total": 0, "data": []}),
+            ]
+        )
+        import semantic_scholar_mcp.client as client_mod
+
+        sleeps: list[float] = []
+
+        async def _capture_sleep(duration):
+            sleeps.append(duration)
+
+        monkeypatch.setattr(client_mod.asyncio, "sleep", _capture_sleep)
+
+        result = await make_request("GET", "paper/search", params={"query": "x"})
+        assert result == {"total": 0, "data": []}
+        assert route.call_count == 2
+        # The 300 s Retry-After must be clamped: no sleep may exceed the cap.
+        assert sleeps, "a retry sleep should have been recorded"
+        assert max(sleeps) <= 30.0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -200,6 +233,44 @@ class TestIsValidPaperIdInjection:
         from semantic_scholar_mcp.validators import is_valid_paper_id
 
         assert not is_valid_paper_id("DOI:../etc/passwd")
+
+
+class TestValidatePaperIdInjection:
+    """Verify validate_paper_id (the raising pre-flight check the tools call)
+    rejects the injection characters itself, not just via its non-raising twin.
+
+    Surfaced by a mutation spot-check: removing the character check from
+    validate_paper_id alone left the whole suite green, because only
+    is_valid_paper_id's rejection was asserted.
+    """
+
+    def test_raises_on_null_byte(self):
+        from semantic_scholar_mcp.errors import ValidationError
+        from semantic_scholar_mcp.validators import validate_paper_id
+
+        with pytest.raises(ValidationError, match="invalid characters"):
+            validate_paper_id("DOI:10.1234\x00injection")
+
+    def test_raises_on_query_string(self):
+        from semantic_scholar_mcp.errors import ValidationError
+        from semantic_scholar_mcp.validators import validate_paper_id
+
+        with pytest.raises(ValidationError, match="invalid characters"):
+            validate_paper_id("DOI:10.1234?q=1")
+
+    def test_raises_on_fragment(self):
+        from semantic_scholar_mcp.errors import ValidationError
+        from semantic_scholar_mcp.validators import validate_paper_id
+
+        with pytest.raises(ValidationError, match="invalid characters"):
+            validate_paper_id("URL:https://example.com#frag")
+
+    def test_raises_on_path_traversal(self):
+        from semantic_scholar_mcp.errors import ValidationError
+        from semantic_scholar_mcp.validators import validate_paper_id
+
+        with pytest.raises(ValidationError, match="invalid characters"):
+            validate_paper_id("DOI:../etc/passwd")
 
     def test_accepts_valid_doi(self):
         from semantic_scholar_mcp.validators import is_valid_paper_id

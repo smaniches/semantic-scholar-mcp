@@ -20,7 +20,7 @@ try:
 except PackageNotFoundError:  # pragma: no cover — only when running uninstalled
     __version__ = "0.0.0+local"
 
-from .errors import (  # noqa: E402  (after __version__ to avoid circular import)
+from .errors import (  # after __version__ to avoid circular import
     AuthenticationError,
     NotFoundError,
     RateLimitError,
@@ -28,7 +28,7 @@ from .errors import (  # noqa: E402  (after __version__ to avoid circular import
     ServerError,
     ValidationError,
 )
-from .server import main, mcp  # noqa: E402  (depends on __version__)
+from .server import main, mcp  # depends on __version__
 
 __author__ = "Santiago Maniches"
 __email__ = "santiago@topologica.ai"
