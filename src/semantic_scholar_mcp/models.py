@@ -83,10 +83,26 @@ _RESPONSE_FORMAT_FIELD = Field(
     description="Output format",
 )
 
+# Accepted paper-identifier syntaxes, mirrored from validators.py. Shared by
+# every parameter that names a paper so the guidance stays identical.
+_PAPER_ID_FORMATS = (
+    "a 40-character S2 hex ID ('649def34f8be52c8b66281af98ae884c09aef38b'), "
+    "'DOI:10.18653/v1/N18-3011', 'ARXIV:1706.03762', 'PMID:19872477', "
+    "'CorpusId:215416146', 'ACL:W12-3903', or 'URL:https://...'"
+)
+
 
 class PaperSearchInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    query: str = Field(..., description="Search query", min_length=1, max_length=500)
+    query: str = Field(
+        ...,
+        description=(
+            "Search query, e.g. 'protein language models'. Supports AND, OR, NOT "
+            "operators and quoted phrases: '\"graph neural network\" AND drug'"
+        ),
+        min_length=1,
+        max_length=500,
+    )
     year: str | None = Field(default=None, description="Year filter: '2024', '2020-2024', '2020-'")
     fields_of_study: list[str] | None = Field(
         default=None,
@@ -97,8 +113,22 @@ class PaperSearchInput(BaseModel):
     )
     open_access_only: bool = Field(default=False, description="Only return open access papers")
     min_citation_count: int | None = Field(default=None, description="Minimum citations", ge=0)
-    limit: int = Field(default=10, description="Max results (1-100)", ge=1, le=100)
-    offset: int = Field(default=0, description="Pagination offset", ge=0)
+    limit: int = Field(
+        default=10,
+        description=(
+            "Max results per page (1-100, default 10); use semantic_scholar_bulk_search "
+            "for result sets beyond 1000"
+        ),
+        ge=1,
+        le=100,
+    )
+    offset: int = Field(
+        default=0,
+        description=(
+            "Pagination offset: pass the previous offset + limit to fetch the next page (default 0)"
+        ),
+        ge=0,
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 
@@ -107,22 +137,52 @@ class PaperDetailsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     paper_id: str = Field(
         ...,
-        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        description=f"Paper ID: {_PAPER_ID_FORMATS}",
         min_length=1,
     )
-    include_citations: bool = Field(default=False, description="Include citing papers")
-    include_references: bool = Field(default=False, description="Include referenced papers")
-    citations_limit: int = Field(default=10, description="Max citations to return", ge=1, le=100)
-    references_limit: int = Field(default=10, description="Max references to return", ge=1, le=100)
+    include_citations: bool = Field(
+        default=False,
+        description="Also list papers that cite this one (default false)",
+    )
+    include_references: bool = Field(
+        default=False,
+        description="Also list papers this one cites (default false)",
+    )
+    citations_limit: int = Field(
+        default=10,
+        description="Max citing papers returned when include_citations=true (1-100, default 10)",
+        ge=1,
+        le=100,
+    )
+    references_limit: int = Field(
+        default=10,
+        description="Max referenced papers returned when include_references=true "
+        "(1-100, default 10)",
+        ge=1,
+        le=100,
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 
 
 class AuthorSearchInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    query: str = Field(..., description="Author name to search", min_length=1, max_length=200)
-    limit: int = Field(default=10, description="Max results", ge=1, le=100)
-    offset: int = Field(default=0, description="Pagination offset", ge=0)
+    query: str = Field(
+        ...,
+        description="Author name to search, e.g. 'Yoshua Bengio'; partial names also match",
+        min_length=1,
+        max_length=200,
+    )
+    limit: int = Field(
+        default=10, description="Max results per page (1-100, default 10)", ge=1, le=100
+    )
+    offset: int = Field(
+        default=0,
+        description=(
+            "Pagination offset: pass the previous offset + limit to fetch the next page (default 0)"
+        ),
+        ge=0,
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 
@@ -138,11 +198,21 @@ class AuthorDetailsInput(BaseModel):
 
 class PaperRecommendationsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    paper_id: str = Field(..., description="Seed paper ID for recommendations", min_length=1)
-    from_pool: str = Field(
-        default="recent", description="Paper pool: 'recent' (default) or 'all-cs'"
+    paper_id: str = Field(
+        ...,
+        description=f"Seed paper the recommendations should resemble: {_PAPER_ID_FORMATS}",
+        min_length=1,
     )
-    limit: int = Field(default=10, description="Max recommendations", ge=1, le=100)
+    from_pool: str = Field(
+        default="recent",
+        description=(
+            "Candidate pool: 'recent' (default; recently published papers from all fields) "
+            "or 'all-cs' (computer-science papers of any age)"
+        ),
+    )
+    limit: int = Field(
+        default=10, description="Max recommendations (1-100, default 10)", ge=1, le=100
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 
@@ -187,12 +257,12 @@ class CitationExportInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     paper_id: str = Field(
         ...,
-        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        description=f"Paper ID: {_PAPER_ID_FORMATS}",
         min_length=1,
     )
     format: str = Field(
         default="bibtex",
-        description="Citation format (currently only 'bibtex' supported)",
+        description="Citation format (currently only 'bibtex' supported; anything else errors)",
     )
     api_key: str | None = _API_KEY_FIELD
 
@@ -208,10 +278,15 @@ class PaperAuthorsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     paper_id: str = Field(
         ...,
-        description="Paper ID: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx",
+        description=f"Paper ID: {_PAPER_ID_FORMATS}",
         min_length=1,
     )
-    limit: int = Field(default=100, description="Max authors to return", ge=1, le=1000)
+    limit: int = Field(
+        default=100,
+        description="Max authors to return, in listed author order (1-1000, default 100)",
+        ge=1,
+        le=1000,
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 
@@ -230,14 +305,25 @@ class AuthorBatchInput(BaseModel):
 class MultiRecommendInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     positive_paper_ids: list[str] = Field(
-        ..., description="Papers to find similar results for", min_length=1, max_length=100
+        ...,
+        description=(
+            "1-100 example papers the recommendations should resemble; "
+            f"each ID may be {_PAPER_ID_FORMATS}"
+        ),
+        min_length=1,
+        max_length=100,
     )
     negative_paper_ids: list[str] = Field(
         default_factory=list,
-        description="Papers to steer recommendations away from",
+        description=(
+            "Up to 100 papers to steer away from: results similar to these are down-ranked "
+            "(same ID formats as positive_paper_ids; default none)"
+        ),
         max_length=100,
     )
-    limit: int = Field(default=10, description="Max recommendations", ge=1, le=500)
+    limit: int = Field(
+        default=10, description="Max recommendations (1-500, default 10)", ge=1, le=500
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 

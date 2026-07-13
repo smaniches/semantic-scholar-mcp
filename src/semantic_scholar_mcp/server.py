@@ -228,14 +228,35 @@ class _S2FastMCP(FastMCP):
 mcp = _S2FastMCP(
     "semantic_scholar_mcp",
     instructions="""
-    Semantic Scholar MCP Server - Access 200M+ academic papers.
-    Created by Santiago Maniches (ORCID: 0009-0005-6480-1987)
-    TOPOLOGICA LLC - https://topologica.ai
+    Semantic Scholar MCP Server - search, retrieve, and analyze 200M+ academic
+    papers from the Semantic Scholar corpus.
 
-    Supports DOI, ArXiv, PubMed, ACL, and Semantic Scholar IDs.
+    Tool selection: semantic_scholar_search_papers for keyword search;
+    semantic_scholar_match_paper to resolve one known title;
+    semantic_scholar_get_paper for full details on one paper;
+    semantic_scholar_bulk_search for sorted or very large result sets;
+    semantic_scholar_bulk_papers / semantic_scholar_author_batch to fetch many
+    records in one call; semantic_scholar_snippet_search to search inside paper
+    full text; semantic_scholar_recommendations (one seed paper) or
+    semantic_scholar_multi_recommend (several positive/negative examples) for
+    similar-paper discovery; semantic_scholar_search_authors,
+    semantic_scholar_get_author, and semantic_scholar_paper_authors for author
+    profiles; semantic_scholar_export_citation for BibTeX;
+    semantic_scholar_status for connectivity and rate-tier checks.
+
+    Paper IDs accept: 40-char S2 hex ID, DOI:..., ARXIV:..., PMID:...,
+    CorpusId:..., ACL:..., URL:... All tools are read-only. Without
+    SEMANTIC_SCHOLAR_API_KEY requests share a 1 req/s budget (10 req/s keyed).
+
+    Created by Santiago Maniches (TOPOLOGICA LLC - https://topologica.ai).
     """,
     lifespan=_lifespan,
 )
+
+
+def _annotations(title: str) -> ToolAnnotations:
+    """Annotations shared by every tool: read-only, idempotent lookups."""
+    return ToolAnnotations(title=title, readOnlyHint=True, idempotentHint=True, openWorldHint=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -245,12 +266,19 @@ mcp = _S2FastMCP(
 
 @mcp.tool(
     name="semantic_scholar_search_papers",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Search Papers"),
 )
 async def search_papers(params: PaperSearchInput) -> str:
     """Search for academic papers.
 
-    Supports boolean operators (AND, OR, NOT), phrase search with quotes.
+    Relevance-ranked keyword search over 200M+ papers; supports boolean
+    operators (AND, OR, NOT) and quoted phrases, plus year, field-of-study,
+    publication-type, open-access, and citation-count filters. Page with
+    offset/limit (max 100 per call). For sorted or very large result sets
+    use semantic_scholar_bulk_search; to search inside paper full text use
+    semantic_scholar_snippet_search; to resolve one known title use
+    semantic_scholar_match_paper. Returns Markdown by default,
+    response_format='json' for raw JSON.
     """
     logger.info("Searching: %s", params.query)
 
@@ -297,10 +325,21 @@ async def search_papers(params: PaperSearchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_get_paper",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Get Paper Details"),
 )
 async def get_paper_details(params: PaperDetailsInput) -> str:
-    """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx"""
+    """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx
+
+    Returns title, abstract, authors, venue, year, citation counts, TLDR,
+    and open-access PDF link for one paper, e.g. paper_id='ARXIV:1706.03762'.
+    Set include_citations / include_references to also list citing and
+    referenced papers (fetched in parallel, 1-100 each). Results are cached
+    in memory for 5 minutes; an unknown ID raises a not-found error. Unkeyed
+    requests are throttled to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY)
+    and 429/502/503 responses retry automatically with backoff. Returns
+    Markdown by default, response_format='json' for raw JSON. To fetch many
+    papers at once use semantic_scholar_bulk_papers.
+    """
     logger.info("Getting paper: %s", params.paper_id)
 
     try:
@@ -379,10 +418,18 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_search_authors",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Search Authors"),
 )
 async def search_authors(params: AuthorSearchInput) -> str:
-    """Search for academic authors by name."""
+    """Search for academic authors by name.
+
+    Example: query='Yoshua Bengio'. Several distinct researchers can share a
+    name, so confirm identity with semantic_scholar_get_author (affiliations,
+    h-index, publications) before attributing work; to list the authors of a
+    specific paper use semantic_scholar_paper_authors instead. Page with
+    offset/limit (max 100 per call, default 10). Returns Markdown by default,
+    response_format='json' for raw JSON.
+    """
     logger.info("Searching authors: %s", params.query)
 
     try:
@@ -413,7 +460,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_get_author",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Get Author Profile"),
 )
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
@@ -463,10 +510,21 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_recommendations",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Recommend Similar Papers"),
 )
 async def get_recommendations(params: PaperRecommendationsInput) -> str:
-    """Get paper recommendations based on a seed paper."""
+    """Get paper recommendations based on a seed paper.
+
+    Provide one paper you already know (e.g. paper_id='ARXIV:1706.03762') and
+    receive up to `limit` similar papers. from_pool picks the candidate pool:
+    'recent' (default, recently published papers from all fields) or 'all-cs'
+    (computer-science papers of any age). When steering with several positive
+    or negative examples, use semantic_scholar_multi_recommend instead. An
+    unknown seed ID raises a not-found error; unkeyed requests are throttled
+    to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY) and 429/502/503
+    responses retry automatically with backoff. Returns Markdown by default,
+    response_format='json' for raw JSON.
+    """
     logger.info("Recommendations for: %s", params.paper_id)
 
     try:
@@ -497,7 +555,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_bulk_papers",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Get Papers in Bulk"),
 )
 async def get_bulk_papers(params: BulkPaperInput) -> str:
     """Retrieve multiple papers in a single request (max 500)."""
@@ -558,7 +616,7 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_bulk_search",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Bulk Paper Search"),
 )
 async def bulk_search(params: BulkSearchInput) -> str:
     """Search papers with sorting and cursor-based pagination for large result sets.
@@ -616,10 +674,17 @@ async def bulk_search(params: BulkSearchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_export_citation",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Export BibTeX Citation"),
 )
 async def export_citation(params: CitationExportInput) -> str:
-    """Export a citation for a paper in BibTeX format."""
+    """Export a citation for a paper in BibTeX format.
+
+    Use once you have a paper ID (from semantic_scholar_search_papers or
+    semantic_scholar_match_paper), e.g. paper_id='DOI:10.18653/v1/N18-3011'.
+    Returns the BibTeX entry as plain text - there is no response_format
+    option. Raises an error for an unknown ID, a paper without citation data,
+    or any format other than 'bibtex'.
+    """
     logger.info("Exporting citation for: %s", params.paper_id)
 
     try:
@@ -658,7 +723,7 @@ async def export_citation(params: CitationExportInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_match_paper",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Match Paper by Title"),
 )
 async def match_paper(params: PaperMatchInput) -> str:
     """Find the single best paper matching a title string. Returns match score."""
@@ -695,10 +760,18 @@ async def match_paper(params: PaperMatchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_paper_authors",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Get a Paper's Authors"),
 )
 async def get_paper_authors(params: PaperAuthorsInput) -> str:
-    """Get full author profiles for a paper's authors."""
+    """Get full author profiles for a paper's authors.
+
+    Unlike the abbreviated author list embedded in semantic_scholar_get_paper
+    results, this returns each author's complete profile - affiliations,
+    h-index, paper and citation counts - plus author IDs usable with
+    semantic_scholar_get_author. Example: paper_id='DOI:10.18653/v1/N18-3011'.
+    Authors are returned in listed order (limit 1-1000, default 100). Returns
+    Markdown by default, response_format='json' for raw JSON.
+    """
     logger.info("Getting authors for paper: %s", params.paper_id)
 
     try:
@@ -724,7 +797,7 @@ async def get_paper_authors(params: PaperAuthorsInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_author_batch",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Get Authors in Bulk"),
 )
 async def get_author_batch(params: AuthorBatchInput) -> str:
     """Retrieve multiple authors in a single request (max 1000)."""
@@ -771,10 +844,20 @@ async def get_author_batch(params: AuthorBatchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_multi_recommend",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Multi-Seed Recommendations"),
 )
 async def multi_recommend(params: MultiRecommendInput) -> str:
-    """Get recommendations using multiple positive and negative example papers."""
+    """Get recommendations using multiple positive and negative example papers.
+
+    Use instead of semantic_scholar_recommendations when steering with more
+    than one example: results resemble positive_paper_ids and are pushed away
+    from negative_paper_ids. Example:
+    positive_paper_ids=['ARXIV:1706.03762', 'DOI:10.18653/v1/N19-1423'],
+    negative_paper_ids=['ARXIV:1409.0473']. Accepts 1-100 positive and up to
+    100 negative IDs in any supported paper-ID format; malformed IDs raise an
+    error before any request is made. Returns up to `limit` (1-500, default
+    10) papers, Markdown by default or response_format='json' for raw JSON.
+    """
     logger.info(
         "Multi-recommend: %d positive, %d negative",
         len(params.positive_paper_ids),
@@ -826,7 +909,7 @@ async def multi_recommend(params: MultiRecommendInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_snippet_search",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Search Paper Full Text"),
 )
 async def snippet_search(params: SnippetSearchInput) -> str:
     """Search within paper full text. Returns text snippets with context.
@@ -877,7 +960,7 @@ async def snippet_search(params: SnippetSearchInput) -> str:
 
 @mcp.tool(
     name="semantic_scholar_status",
-    annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=True),
+    annotations=_annotations("Server Status"),
 )
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
