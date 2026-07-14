@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.6.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.8...semantic-scholar-mcp-v1.6.0) (2026-07-14)
+
+
+### Features
+
+* enrich tool definitions with usage guidance, behavior notes, and titles ([92f9514](https://github.com/smaniches/semantic-scholar-mcp/commit/92f9514ab0dac322f05616e095e9fadc6e2632c8))
+
 ## [1.5.8](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.7...semantic-scholar-mcp-v1.5.8) (2026-07-06)
 
 
