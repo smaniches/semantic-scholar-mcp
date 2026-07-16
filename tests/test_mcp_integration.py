@@ -19,11 +19,14 @@ from mcp.types import TextContent
 from semantic_scholar_mcp.server import RECOMMENDATIONS_BASE, SEMANTIC_SCHOLAR_API_BASE, mcp
 
 
-def _text(result: tuple) -> str:
-    """Extract text from call_tool result tuple."""
-    content_blocks = result[0]
-    assert len(content_blocks) > 0
-    block = content_blocks[0]
+def _text(result: list) -> str:
+    """Extract text from a call_tool result.
+
+    With structured output disabled on every tool, ``call_tool`` returns a
+    plain list of content blocks rather than a ``(content, structured)`` tuple.
+    """
+    assert len(result) > 0
+    block = result[0]
     assert isinstance(block, TextContent)
     return block.text
 

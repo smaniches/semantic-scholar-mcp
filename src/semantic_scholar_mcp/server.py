@@ -267,6 +267,7 @@ def _annotations(title: str) -> ToolAnnotations:
 @mcp.tool(
     name="semantic_scholar_search_papers",
     annotations=_annotations("Search Papers"),
+    structured_output=False,
 )
 async def search_papers(params: PaperSearchInput) -> str:
     """Search for academic papers.
@@ -326,6 +327,7 @@ async def search_papers(params: PaperSearchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_get_paper",
     annotations=_annotations("Get Paper Details"),
+    structured_output=False,
 )
 async def get_paper_details(params: PaperDetailsInput) -> str:
     """Get paper details. Accepts: S2 ID, DOI:xxx, ARXIV:xxx, PMID:xxx, CorpusId:xxx
@@ -419,6 +421,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
 @mcp.tool(
     name="semantic_scholar_search_authors",
     annotations=_annotations("Search Authors"),
+    structured_output=False,
 )
 async def search_authors(params: AuthorSearchInput) -> str:
     """Search for academic authors by name.
@@ -461,6 +464,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_get_author",
     annotations=_annotations("Get Author Profile"),
+    structured_output=False,
 )
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
@@ -511,6 +515,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
 @mcp.tool(
     name="semantic_scholar_recommendations",
     annotations=_annotations("Recommend Similar Papers"),
+    structured_output=False,
 )
 async def get_recommendations(params: PaperRecommendationsInput) -> str:
     """Get paper recommendations based on a seed paper.
@@ -556,6 +561,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
 @mcp.tool(
     name="semantic_scholar_bulk_papers",
     annotations=_annotations("Get Papers in Bulk"),
+    structured_output=False,
 )
 async def get_bulk_papers(params: BulkPaperInput) -> str:
     """Retrieve multiple papers in a single request (max 500)."""
@@ -617,6 +623,7 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
 @mcp.tool(
     name="semantic_scholar_bulk_search",
     annotations=_annotations("Bulk Paper Search"),
+    structured_output=False,
 )
 async def bulk_search(params: BulkSearchInput) -> str:
     """Search papers with sorting and cursor-based pagination for large result sets.
@@ -675,6 +682,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_export_citation",
     annotations=_annotations("Export BibTeX Citation"),
+    structured_output=False,
 )
 async def export_citation(params: CitationExportInput) -> str:
     """Export a citation for a paper in BibTeX format.
@@ -724,6 +732,7 @@ async def export_citation(params: CitationExportInput) -> str:
 @mcp.tool(
     name="semantic_scholar_match_paper",
     annotations=_annotations("Match Paper by Title"),
+    structured_output=False,
 )
 async def match_paper(params: PaperMatchInput) -> str:
     """Find the single best paper matching a title string. Returns match score."""
@@ -761,6 +770,7 @@ async def match_paper(params: PaperMatchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_paper_authors",
     annotations=_annotations("Get a Paper's Authors"),
+    structured_output=False,
 )
 async def get_paper_authors(params: PaperAuthorsInput) -> str:
     """Get full author profiles for a paper's authors.
@@ -798,6 +808,7 @@ async def get_paper_authors(params: PaperAuthorsInput) -> str:
 @mcp.tool(
     name="semantic_scholar_author_batch",
     annotations=_annotations("Get Authors in Bulk"),
+    structured_output=False,
 )
 async def get_author_batch(params: AuthorBatchInput) -> str:
     """Retrieve multiple authors in a single request (max 1000)."""
@@ -845,6 +856,7 @@ async def get_author_batch(params: AuthorBatchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_multi_recommend",
     annotations=_annotations("Multi-Seed Recommendations"),
+    structured_output=False,
 )
 async def multi_recommend(params: MultiRecommendInput) -> str:
     """Get recommendations using multiple positive and negative example papers.
@@ -910,6 +922,7 @@ async def multi_recommend(params: MultiRecommendInput) -> str:
 @mcp.tool(
     name="semantic_scholar_snippet_search",
     annotations=_annotations("Search Paper Full Text"),
+    structured_output=False,
 )
 async def snippet_search(params: SnippetSearchInput) -> str:
     """Search within paper full text. Returns text snippets with context.
@@ -961,6 +974,7 @@ async def snippet_search(params: SnippetSearchInput) -> str:
 @mcp.tool(
     name="semantic_scholar_status",
     annotations=_annotations("Server Status"),
+    structured_output=False,
 )
 async def server_status() -> str:
     """Check server health, API connectivity, and key status."""
