@@ -2,6 +2,14 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.6.0...semantic-scholar-mcp-v1.7.0) (2026-07-16)
+
+
+### Bug Fixes
+
+* **deps:** require mcp&gt;=1.28.1 to exclude CVE-2026-59950 ([2644357](https://github.com/smaniches/semantic-scholar-mcp/commit/2644357a7db9985486f9eb7c5bd063371a4c4f9e))
+* stop emitting auto-generated output schemas that duplicated every response ([ae86495](https://github.com/smaniches/semantic-scholar-mcp/commit/ae86495225d05b2380de7f51a95907350e7c760d))
+
 ## [1.6.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.5.8...semantic-scholar-mcp-v1.6.0) (2026-07-14)
 
 
