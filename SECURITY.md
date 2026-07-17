@@ -8,6 +8,11 @@
 | 1.6.x   | Yes       |
 | < 1.6   | No        |
 
+The 1.6.x line remains supported through **2026-10-16** as the documented
+fallback for integrators migrating off the duplicated `structuredContent`
+wire format removed in v1.7.0 (see the v1.7.0 release notes). After that
+date, only the newest minor line receives fixes.
+
 ## Reporting a Vulnerability
 
 **DO NOT** open public issues for security vulnerabilities.

@@ -77,7 +77,19 @@ by hand when the **minor or major** version changes:
   (`X.Y.x | Yes` and `< X.Y | No`). It is a prose security policy, not a
   version-bearing build artifact, so it is kept out of release-please.
   `tests/test_version_consistency.py` fails if the table falls behind the
-  package version, so the release PR's CI will flag a missed update.
+  package version.
+
+**Merge order matters.** Release PRs are created under `GITHUB_TOKEN`, and
+GitHub suppresses workflow runs for events created by that token — so a
+release PR shows **no CI**, and the SECURITY.md guard above can only fire on
+`main` *after* the release PR merges. To keep `main` green through a
+minor/major bump, land the SECURITY.md update **before** merging the release
+PR, with the table listing both the current and the upcoming minor — the
+guard passes in both states (see the v1.7.0 cycle, where #130 landed ahead
+of release PR #129; contrast the v1.6.0 cycle, where the missed update went
+red on `main` and needed #127). This is an accepted limitation of
+token-scoped automation; do not work around it by giving release-please a
+personal access token.
 
 A patch release (`X.Y.Z`) needs no SECURITY.md change.
 
