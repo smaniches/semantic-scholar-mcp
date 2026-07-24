@@ -310,6 +310,13 @@ class TestValidateAuthorId:
         with pytest.raises(ValidationError, match="Author ID cannot be empty"):
             _validate_author_id("")
 
+    def test_rejects_whitespace_only_author_id(self):
+        with pytest.raises(
+            ValidationError,
+            match="Author ID cannot be empty",
+        ):
+            _validate_author_id("   ")
+
     def test_rejects_non_numeric_author_id(self):
         with pytest.raises(ValidationError, match="Invalid author ID format"):
             _validate_author_id("ORCID:0009-0005-6480-1987")
