@@ -90,7 +90,7 @@ from .models import (
     SnippetSearchInput,
 )
 from .transport import parse_transport_config, run_http
-from .validators import is_valid_paper_id, validate_paper_id
+from .validators import is_valid_paper_id, validate_author_id, validate_paper_id
 
 # Back-compat aliases so legacy imports
 # (``from semantic_scholar_mcp.server import _make_request``) keep resolving.
@@ -99,6 +99,7 @@ _get_headers = get_headers
 _get_client = get_client
 _handle_error = handle_error
 _validate_paper_id = validate_paper_id
+_validate_author_id = validate_author_id
 _is_valid_paper_id = is_valid_paper_id
 _format_paper_markdown = format_paper_markdown
 _format_author_markdown = format_author_markdown
@@ -469,6 +470,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
     logger.info("Getting author: %s", params.author_id)
+    validate_author_id(params.author_id)
 
     try:
         cache_key = f"author:{params.author_id}"
@@ -813,6 +815,8 @@ async def get_paper_authors(params: PaperAuthorsInput) -> str:
 async def get_author_batch(params: AuthorBatchInput) -> str:
     """Retrieve multiple authors in a single request (max 1000)."""
     logger.info("Batch author retrieval: %d authors", len(params.author_ids))
+    for author_id in params.author_ids:
+        validate_author_id(author_id)
 
     try:
         response = await make_request(
@@ -1100,6 +1104,7 @@ __all__ = [
     "_handle_error",
     "_is_valid_paper_id",
     "_make_request",
+    "_validate_author_id",
     "_validate_paper_id",
     "bulk_search",
     "export_citation",

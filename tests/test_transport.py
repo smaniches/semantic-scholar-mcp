@@ -23,6 +23,7 @@ import respx
 from httpx import Response
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
+from starlette.requests import Request
 
 from semantic_scholar_mcp import __version__
 from semantic_scholar_mcp import client as client_mod
@@ -36,6 +37,7 @@ from semantic_scholar_mcp.transport import (
     RequestApiKeyMiddleware,
     TransportConfig,
     _env_flag,
+    _with_configured_hosts,
     build_http_app,
     extract_api_key,
     parse_transport_config,
@@ -50,6 +52,7 @@ TRANSPORT_ENV_VARS = (
     "MCP_PATH",
     "MCP_STATELESS_HTTP",
     "MCP_JSON_RESPONSE",
+    "MCP_ALLOWED_HOSTS",
 )
 
 
@@ -119,6 +122,17 @@ class TestParseTransportConfig:
         assert config.host == "0.0.0.0"
         assert config.port == 9001
         assert config.path == "/api/mcp"
+
+    def test_allowed_host_flag_repeats(self):
+        config = parse_transport_config(
+            ["--allowed-host", "s2.example.org:*", "--allowed-host", "10.0.0.5:8080"]
+        )
+        assert config.allowed_hosts == ("s2.example.org:*", "10.0.0.5:8080")
+
+    def test_allowed_hosts_env_csv(self, monkeypatch):
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", " s2.example.org:* , 10.0.0.5:8080 ,, ")
+        config = parse_transport_config([])
+        assert config.allowed_hosts == ("s2.example.org:*", "10.0.0.5:8080")
 
     def test_streamable_http_alias_normalizes_to_http(self):
         config = parse_transport_config(["--transport", "streamable-http"])
@@ -460,6 +474,53 @@ class TestRunHttp:
         assert isinstance(served["app"], Starlette)
         assert served["host"] == "0.0.0.0"
         assert served["port"] == 9050
+
+
+class TestHostValidation:
+    @pytest.mark.asyncio
+    async def test_configured_remote_host_allowed_and_unapproved_rejected(self):
+        from mcp.server.transport_security import (
+            TransportSecurityMiddleware,
+            TransportSecuritySettings,
+        )
+
+        settings = _with_configured_hosts(
+            TransportSecuritySettings(
+                enable_dns_rebinding_protection=True,
+                allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
+                allowed_origins=[],
+            ),
+            ("s2.example.org:*",),
+        )
+        security = TransportSecurityMiddleware(settings)
+
+        allowed_request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/mcp",
+                "headers": [
+                    (b"host", b"s2.example.org:8080"),
+                    (b"content-type", b"application/json"),
+                ],
+            }
+        )
+        rejected_request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/mcp",
+                "headers": [
+                    (b"host", b"evil.example:8080"),
+                    (b"content-type", b"application/json"),
+                ],
+            }
+        )
+
+        assert await security.validate_request(allowed_request, is_post=True) is None
+        rejection = await security.validate_request(rejected_request, is_post=True)
+        assert rejection is not None
+        assert rejection.status_code == 421
 
 
 class TestBuildHttpApp:

@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -71,6 +72,7 @@ class TransportConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     path: str = DEFAULT_PATH
+    allowed_hosts: tuple[str, ...] = ()
     stateless: bool = True
     json_response: bool = True
 
@@ -114,7 +116,8 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         description="Semantic Scholar MCP server (stdio by default; --transport http "
         "serves MCP Streamable HTTP for remote clients).",
         epilog="Environment fallbacks: MCP_TRANSPORT, MCP_HOST, MCP_PORT (or PORT), "
-        "MCP_PATH, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, SEMANTIC_SCHOLAR_API_KEY.",
+        "MCP_PATH, MCP_ALLOWED_HOSTS, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, "
+        "SEMANTIC_SCHOLAR_API_KEY.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -140,6 +143,16 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         default=os.environ.get("MCP_PATH", DEFAULT_PATH),
         help=f"URL path the MCP endpoint is served on (default: {DEFAULT_PATH})",
     )
+    parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        help=(
+            "additional Host header allowed by the HTTP transport DNS-rebinding "
+            "guard; repeat for multiple public hostnames/IPs (env: "
+            "MCP_ALLOWED_HOSTS comma-separated)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     # argparse validates `choices` only for CLI-provided values, so an env-var
@@ -155,9 +168,27 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         host=args.host,
         port=_resolve_port(args.port, parser),
         path=args.path,
+        allowed_hosts=_resolve_allowed_hosts(args.allowed_host),
         stateless=_env_flag("MCP_STATELESS_HTTP", default=True),
         json_response=_env_flag("MCP_JSON_RESPONSE", default=True),
     )
+
+
+def _resolve_allowed_hosts(cli_hosts: Sequence[str] | None) -> tuple[str, ...]:
+    """Resolve additional DNS-rebinding Host allow-list entries."""
+    raw_hosts = (
+        cli_hosts if cli_hosts is not None else os.environ.get("MCP_ALLOWED_HOSTS", "").split(",")
+    )
+    return tuple(host.strip() for host in raw_hosts if host.strip())
+
+
+def _with_configured_hosts(
+    settings: TransportSecuritySettings | None, hosts: Sequence[str]
+) -> TransportSecuritySettings:
+    """Return transport security settings extended with explicit public hosts."""
+    base_settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    merged_hosts = list(dict.fromkeys([*base_settings.allowed_hosts, *hosts]))
+    return base_settings.model_copy(update={"allowed_hosts": merged_hosts})
 
 
 def extract_api_key(scope: Scope) -> str:
@@ -268,6 +299,9 @@ def run_http(
     server.settings.streamable_http_path = config.path
     server.settings.stateless_http = config.stateless
     server.settings.json_response = config.json_response
+    server.settings.transport_security = _with_configured_hosts(
+        server.settings.transport_security, config.allowed_hosts
+    )
 
     app = build_http_app(server, resource_lifespan)
     logger.info(
@@ -287,6 +321,8 @@ __all__ = [
     "DEFAULT_PORT",
     "RequestApiKeyMiddleware",
     "TransportConfig",
+    "_resolve_allowed_hosts",
+    "_with_configured_hosts",
     "build_http_app",
     "extract_api_key",
     "parse_transport_config",
