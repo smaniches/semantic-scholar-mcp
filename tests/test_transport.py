@@ -522,6 +522,12 @@ class TestHostValidation:
         assert rejection is not None
         assert rejection.status_code == 421
 
+    def test_none_settings_preserves_dns_rebinding_protection(self):
+        settings = _with_configured_hosts(None, ("s2.example.org:*",))
+
+        assert settings.enable_dns_rebinding_protection is True
+        assert settings.allowed_hosts == ["s2.example.org:*"]
+
 
 class TestBuildHttpApp:
     @pytest.mark.asyncio

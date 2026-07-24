@@ -186,7 +186,7 @@ def _with_configured_hosts(
     settings: TransportSecuritySettings | None, hosts: Sequence[str]
 ) -> TransportSecuritySettings:
     """Return transport security settings extended with explicit public hosts."""
-    base_settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    base_settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=True)
     merged_hosts = list(dict.fromkeys([*base_settings.allowed_hosts, *hosts]))
     return base_settings.model_copy(update={"allowed_hosts": merged_hosts})
 
