@@ -53,6 +53,7 @@ TRANSPORT_ENV_VARS = (
     "MCP_STATELESS_HTTP",
     "MCP_JSON_RESPONSE",
     "MCP_ALLOWED_HOSTS",
+    "MCP_ALLOWED_ORIGINS",
 )
 
 
@@ -133,6 +134,38 @@ class TestParseTransportConfig:
         monkeypatch.setenv("MCP_ALLOWED_HOSTS", " s2.example.org:* , 10.0.0.5:8080 ,, ")
         config = parse_transport_config([])
         assert config.allowed_hosts == ("s2.example.org:*", "10.0.0.5:8080")
+
+    def test_allowed_origin_flag_repeats(self):
+        config = parse_transport_config(
+            [
+                "--allowed-origin",
+                "https://s2.example.org",
+                "--allowed-origin",
+                "https://admin.example.org",
+            ]
+        )
+        assert config.allowed_origins == (
+            "https://s2.example.org",
+            "https://admin.example.org",
+        )
+
+    def test_allowed_origins_env_csv(self, monkeypatch):
+        monkeypatch.setenv(
+            "MCP_ALLOWED_ORIGINS", " https://s2.example.org ,, https://admin.example.org "
+        )
+        config = parse_transport_config([])
+        assert config.allowed_origins == (
+            "https://s2.example.org",
+            "https://admin.example.org",
+        )
+
+    def test_positional_fields_remain_compatible(self):
+        config = TransportConfig("http", "0.0.0.0", 8000, "/mcp", False, False)
+
+        assert config.stateless is False
+        assert config.json_response is False
+        assert config.allowed_hosts == ()
+        assert config.allowed_origins == ()
 
     def test_streamable_http_alias_normalizes_to_http(self):
         config = parse_transport_config(["--transport", "streamable-http"])
@@ -488,10 +521,12 @@ class TestHostValidation:
             TransportSecuritySettings(
                 enable_dns_rebinding_protection=True,
                 allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"],
-                allowed_origins=[],
+                allowed_origins=["http://localhost:*"],
             ),
             ("s2.example.org:*",),
+            ("https://s2.example.org",),
         )
+        assert settings.allowed_origins == ["http://localhost:*", "https://s2.example.org"]
         security = TransportSecurityMiddleware(settings)
 
         allowed_request = Request(
@@ -501,6 +536,7 @@ class TestHostValidation:
                 "path": "/mcp",
                 "headers": [
                     (b"host", b"s2.example.org:8080"),
+                    (b"origin", b"https://s2.example.org"),
                     (b"content-type", b"application/json"),
                 ],
             }
@@ -522,11 +558,28 @@ class TestHostValidation:
         assert rejection is not None
         assert rejection.status_code == 421
 
+        rejected_origin_request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/mcp",
+                "headers": [
+                    (b"host", b"s2.example.org:8080"),
+                    (b"origin", b"https://evil.example"),
+                    (b"content-type", b"application/json"),
+                ],
+            }
+        )
+        origin_rejection = await security.validate_request(rejected_origin_request, is_post=True)
+        assert origin_rejection is not None
+        assert origin_rejection.status_code == 403
+
     def test_none_settings_preserves_dns_rebinding_protection(self):
         settings = _with_configured_hosts(None, ("s2.example.org:*",))
 
         assert settings.enable_dns_rebinding_protection is True
         assert settings.allowed_hosts == ["s2.example.org:*"]
+        assert settings.allowed_origins == []
 
 
 class TestBuildHttpApp:

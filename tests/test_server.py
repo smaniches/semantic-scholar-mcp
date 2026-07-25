@@ -321,6 +321,11 @@ class TestValidateAuthorId:
         with pytest.raises(ValidationError, match="Invalid author ID format"):
             _validate_author_id("ORCID:0009-0005-6480-1987")
 
+    @pytest.mark.parametrize("author_id", ["\u0661\u0662\u0663", "\uff11\uff12\uff13"])
+    def test_rejects_unicode_digits(self, author_id):
+        with pytest.raises(ValidationError, match="Invalid author ID format"):
+            _validate_author_id(author_id)
+
     def test_rejects_author_path_injection(self):
         with pytest.raises(ValidationError, match="Invalid author ID format"):
             _validate_author_id("123/../../paper/search")
@@ -1065,7 +1070,7 @@ class TestGetAuthorDetailsTool:
         from semantic_scholar_mcp.server import AuthorDetailsInput, get_author_details
 
         params = AuthorDetailsInput(author_id="123?fields=name", include_papers=False)
-        with pytest.raises(ValidationError, match="Invalid author ID format"):
+        with pytest.raises(ToolError, match="Invalid author ID format"):
             await get_author_details(params)
 
     @respx.mock
@@ -1956,7 +1961,7 @@ class TestAuthorBatchTool:
         from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
 
         params = AuthorBatchInput(author_ids=["1", "ORCID:0009-0005-6480-1987"])
-        with pytest.raises(ValidationError, match="Invalid author ID format"):
+        with pytest.raises(ToolError, match="Invalid author ID format"):
             await get_author_batch(params)
 
     @respx.mock

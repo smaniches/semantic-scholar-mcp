@@ -470,9 +470,9 @@ async def search_authors(params: AuthorSearchInput) -> str:
 async def get_author_details(params: AuthorDetailsInput) -> str:
     """Get author profile with optional publications list."""
     logger.info("Getting author: %s", params.author_id)
-    validate_author_id(params.author_id)
 
     try:
+        validate_author_id(params.author_id)
         cache_key = f"author:{params.author_id}"
         author = cache_get(cache_key)
         if author is None:
@@ -815,10 +815,10 @@ async def get_paper_authors(params: PaperAuthorsInput) -> str:
 async def get_author_batch(params: AuthorBatchInput) -> str:
     """Retrieve multiple authors in a single request (max 1000)."""
     logger.info("Batch author retrieval: %d authors", len(params.author_ids))
-    for author_id in params.author_ids:
-        validate_author_id(author_id)
 
     try:
+        for author_id in params.author_ids:
+            validate_author_id(author_id)
         response = await make_request(
             "POST",
             "author/batch",

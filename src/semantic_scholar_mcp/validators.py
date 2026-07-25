@@ -22,7 +22,7 @@ _PAPER_ID_PATTERNS = [
 ]
 
 
-_AUTHOR_ID_PATTERN = re.compile(r"^\d+$")
+_AUTHOR_ID_PATTERN = re.compile(r"^[0-9]+$")
 
 
 def validate_author_id(author_id: str) -> None:

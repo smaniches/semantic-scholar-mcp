@@ -72,9 +72,10 @@ class TransportConfig:
     host: str = DEFAULT_HOST
     port: int = DEFAULT_PORT
     path: str = DEFAULT_PATH
-    allowed_hosts: tuple[str, ...] = ()
     stateless: bool = True
     json_response: bool = True
+    allowed_hosts: tuple[str, ...] = ()
+    allowed_origins: tuple[str, ...] = ()
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -116,7 +117,7 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         description="Semantic Scholar MCP server (stdio by default; --transport http "
         "serves MCP Streamable HTTP for remote clients).",
         epilog="Environment fallbacks: MCP_TRANSPORT, MCP_HOST, MCP_PORT (or PORT), "
-        "MCP_PATH, MCP_ALLOWED_HOSTS, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, "
+        "MCP_PATH, MCP_ALLOWED_HOSTS, MCP_ALLOWED_ORIGINS, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, "
         "SEMANTIC_SCHOLAR_API_KEY.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -153,6 +154,16 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
             "MCP_ALLOWED_HOSTS comma-separated)"
         ),
     )
+    parser.add_argument(
+        "--allowed-origin",
+        action="append",
+        default=None,
+        help=(
+            "additional Origin header allowed by the HTTP transport DNS-rebinding "
+            "guard; repeat for multiple public origins (env: "
+            "MCP_ALLOWED_ORIGINS comma-separated)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     # argparse validates `choices` only for CLI-provided values, so an env-var
@@ -168,27 +179,36 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         host=args.host,
         port=_resolve_port(args.port, parser),
         path=args.path,
-        allowed_hosts=_resolve_allowed_hosts(args.allowed_host),
         stateless=_env_flag("MCP_STATELESS_HTTP", default=True),
         json_response=_env_flag("MCP_JSON_RESPONSE", default=True),
+        allowed_hosts=_resolve_allowed_hosts(args.allowed_host),
+        allowed_origins=_resolve_allowlist(args.allowed_origin, "MCP_ALLOWED_ORIGINS"),
     )
 
 
 def _resolve_allowed_hosts(cli_hosts: Sequence[str] | None) -> tuple[str, ...]:
     """Resolve additional DNS-rebinding Host allow-list entries."""
-    raw_hosts = (
-        cli_hosts if cli_hosts is not None else os.environ.get("MCP_ALLOWED_HOSTS", "").split(",")
-    )
-    return tuple(host.strip() for host in raw_hosts if host.strip())
+    return _resolve_allowlist(cli_hosts, "MCP_ALLOWED_HOSTS")
+
+
+def _resolve_allowlist(cli_values: Sequence[str] | None, env_name: str) -> tuple[str, ...]:
+    """Resolve repeatable CLI values or a comma-separated environment fallback."""
+    raw_values = cli_values if cli_values is not None else os.environ.get(env_name, "").split(",")
+    return tuple(value.strip() for value in raw_values if value.strip())
 
 
 def _with_configured_hosts(
-    settings: TransportSecuritySettings | None, hosts: Sequence[str]
+    settings: TransportSecuritySettings | None,
+    hosts: Sequence[str],
+    origins: Sequence[str] = (),
 ) -> TransportSecuritySettings:
-    """Return transport security settings extended with explicit public hosts."""
+    """Return transport security settings extended with explicit hosts and origins."""
     base_settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=True)
     merged_hosts = list(dict.fromkeys([*base_settings.allowed_hosts, *hosts]))
-    return base_settings.model_copy(update={"allowed_hosts": merged_hosts})
+    merged_origins = list(dict.fromkeys([*base_settings.allowed_origins, *origins]))
+    return base_settings.model_copy(
+        update={"allowed_hosts": merged_hosts, "allowed_origins": merged_origins}
+    )
 
 
 def extract_api_key(scope: Scope) -> str:
@@ -300,7 +320,7 @@ def run_http(
     server.settings.stateless_http = config.stateless
     server.settings.json_response = config.json_response
     server.settings.transport_security = _with_configured_hosts(
-        server.settings.transport_security, config.allowed_hosts
+        server.settings.transport_security, config.allowed_hosts, config.allowed_origins
     )
 
     app = build_http_app(server, resource_lifespan)
