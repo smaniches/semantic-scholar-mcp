@@ -442,12 +442,14 @@ class TestAuthorBatchErrorAndMarkdown:
         respx.post(url).mock(
             return_value=Response(200, json=[{"authorId": "1", "name": "Grace Hopper"}, None])
         )
-        params = AuthorBatchInput(author_ids=["1", "999"], response_format=ResponseFormat.MARKDOWN)
+        params = AuthorBatchInput(
+            author_ids=["1", "999999999"], response_format=ResponseFormat.MARKDOWN
+        )
         result = await get_author_batch(params)
         assert "Batch Author Retrieval" in result
         assert "Requested:** 2 | **Retrieved:** 1" in result
         assert "Not found (1)" in result
-        assert "999" in result
+        assert "999999999" in result
         assert "Grace Hopper" in result
 
     @respx.mock
