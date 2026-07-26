@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from urllib.parse import parse_qs
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -73,6 +74,8 @@ class TransportConfig:
     path: str = DEFAULT_PATH
     stateless: bool = True
     json_response: bool = True
+    allowed_hosts: tuple[str, ...] = ()
+    allowed_origins: tuple[str, ...] = ()
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -114,7 +117,8 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         description="Semantic Scholar MCP server (stdio by default; --transport http "
         "serves MCP Streamable HTTP for remote clients).",
         epilog="Environment fallbacks: MCP_TRANSPORT, MCP_HOST, MCP_PORT (or PORT), "
-        "MCP_PATH, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, SEMANTIC_SCHOLAR_API_KEY.",
+        "MCP_PATH, MCP_ALLOWED_HOSTS, MCP_ALLOWED_ORIGINS, MCP_STATELESS_HTTP, MCP_JSON_RESPONSE, "
+        "SEMANTIC_SCHOLAR_API_KEY.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
@@ -140,6 +144,26 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         default=os.environ.get("MCP_PATH", DEFAULT_PATH),
         help=f"URL path the MCP endpoint is served on (default: {DEFAULT_PATH})",
     )
+    parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        help=(
+            "additional Host header allowed by the HTTP transport DNS-rebinding "
+            "guard; repeat for multiple public hostnames/IPs (env: "
+            "MCP_ALLOWED_HOSTS comma-separated)"
+        ),
+    )
+    parser.add_argument(
+        "--allowed-origin",
+        action="append",
+        default=None,
+        help=(
+            "additional Origin header allowed by the HTTP transport DNS-rebinding "
+            "guard; repeat for multiple public origins (env: "
+            "MCP_ALLOWED_ORIGINS comma-separated)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     # argparse validates `choices` only for CLI-provided values, so an env-var
@@ -157,6 +181,33 @@ def parse_transport_config(argv: Sequence[str] | None = None) -> TransportConfig
         path=args.path,
         stateless=_env_flag("MCP_STATELESS_HTTP", default=True),
         json_response=_env_flag("MCP_JSON_RESPONSE", default=True),
+        allowed_hosts=_resolve_allowed_hosts(args.allowed_host),
+        allowed_origins=_resolve_allowlist(args.allowed_origin, "MCP_ALLOWED_ORIGINS"),
+    )
+
+
+def _resolve_allowed_hosts(cli_hosts: Sequence[str] | None) -> tuple[str, ...]:
+    """Resolve additional DNS-rebinding Host allow-list entries."""
+    return _resolve_allowlist(cli_hosts, "MCP_ALLOWED_HOSTS")
+
+
+def _resolve_allowlist(cli_values: Sequence[str] | None, env_name: str) -> tuple[str, ...]:
+    """Resolve repeatable CLI values or a comma-separated environment fallback."""
+    raw_values = cli_values if cli_values is not None else os.environ.get(env_name, "").split(",")
+    return tuple(value.strip() for value in raw_values if value.strip())
+
+
+def _with_configured_hosts(
+    settings: TransportSecuritySettings | None,
+    hosts: Sequence[str],
+    origins: Sequence[str] = (),
+) -> TransportSecuritySettings:
+    """Return transport security settings extended with explicit hosts and origins."""
+    base_settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=True)
+    merged_hosts = list(dict.fromkeys([*base_settings.allowed_hosts, *hosts]))
+    merged_origins = list(dict.fromkeys([*base_settings.allowed_origins, *origins]))
+    return base_settings.model_copy(
+        update={"allowed_hosts": merged_hosts, "allowed_origins": merged_origins}
     )
 
 
@@ -268,6 +319,9 @@ def run_http(
     server.settings.streamable_http_path = config.path
     server.settings.stateless_http = config.stateless
     server.settings.json_response = config.json_response
+    server.settings.transport_security = _with_configured_hosts(
+        server.settings.transport_security, config.allowed_hosts, config.allowed_origins
+    )
 
     app = build_http_app(server, resource_lifespan)
     logger.info(
@@ -287,6 +341,8 @@ __all__ = [
     "DEFAULT_PORT",
     "RequestApiKeyMiddleware",
     "TransportConfig",
+    "_resolve_allowed_hosts",
+    "_with_configured_hosts",
     "build_http_app",
     "extract_api_key",
     "parse_transport_config",

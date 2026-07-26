@@ -30,6 +30,7 @@ from semantic_scholar_mcp.server import (
     _format_paper_markdown,
     _get_client,
     _handle_error,
+    _validate_author_id,
     _validate_paper_id,
 )
 
@@ -296,6 +297,38 @@ class TestFormatPaperMarkdown:
 # ===============================================================================
 # PAPER ID VALIDATION TESTS
 # ===============================================================================
+
+
+class TestValidateAuthorId:
+    def test_valid_numeric_author_id(self):
+        _validate_author_id("1741101")
+
+    def test_author_id_strips_whitespace(self):
+        _validate_author_id("  40348417  ")
+
+    def test_rejects_empty_author_id(self):
+        with pytest.raises(ValidationError, match="Author ID cannot be empty"):
+            _validate_author_id("")
+
+    def test_rejects_whitespace_only_author_id(self):
+        with pytest.raises(
+            ValidationError,
+            match="Author ID cannot be empty",
+        ):
+            _validate_author_id("   ")
+
+    def test_rejects_non_numeric_author_id(self):
+        with pytest.raises(ValidationError, match="Invalid author ID format"):
+            _validate_author_id("ORCID:0009-0005-6480-1987")
+
+    @pytest.mark.parametrize("author_id", ["\u0661\u0662\u0663", "\uff11\uff12\uff13"])
+    def test_rejects_unicode_digits(self, author_id):
+        with pytest.raises(ValidationError, match="Invalid author ID format"):
+            _validate_author_id(author_id)
+
+    def test_rejects_author_path_injection(self):
+        with pytest.raises(ValidationError, match="Invalid author ID format"):
+            _validate_author_id("123/../../paper/search")
 
 
 class TestValidatePaperId:
@@ -1031,6 +1064,14 @@ class TestGetAuthorDetailsTool:
         _ssm_client_mod._client = None
         yield
         _ssm_client_mod._client = old_client
+
+    @pytest.mark.asyncio
+    async def test_get_author_details_rejects_invalid_author_id(self):
+        from semantic_scholar_mcp.server import AuthorDetailsInput, get_author_details
+
+        params = AuthorDetailsInput(author_id="123?fields=name", include_papers=False)
+        with pytest.raises(ToolError, match="Invalid author ID format"):
+            await get_author_details(params)
 
     @respx.mock
     @pytest.mark.asyncio
@@ -1914,6 +1955,14 @@ class TestAuthorBatchTool:
         _ssm_client_mod._client = None
         yield
         _ssm_client_mod._client = old_client
+
+    @pytest.mark.asyncio
+    async def test_author_batch_rejects_invalid_author_id(self):
+        from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
+
+        params = AuthorBatchInput(author_ids=["1", "ORCID:0009-0005-6480-1987"])
+        with pytest.raises(ToolError, match="Invalid author ID format"):
+            await get_author_batch(params)
 
     @respx.mock
     @pytest.mark.asyncio

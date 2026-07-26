@@ -22,6 +22,23 @@ _PAPER_ID_PATTERNS = [
 ]
 
 
+_AUTHOR_ID_PATTERN = re.compile(r"^[0-9]+$")
+
+
+def validate_author_id(author_id: str) -> None:
+    """Raise :class:`ValidationError` if ``author_id`` is not a numeric S2 author ID."""
+    if not author_id or not author_id.strip():
+        raise ValidationError("Author ID cannot be empty.", status_code=400)
+    if not _AUTHOR_ID_PATTERN.match(author_id.strip()):
+        raise ValidationError(
+            (
+                f"Invalid author ID format: '{author_id}'. "
+                "Accepted format: numeric Semantic Scholar author ID"
+            ),
+            status_code=400,
+        )
+
+
 def validate_paper_id(paper_id: str) -> None:
     """Raise :class:`ValidationError` if ``paper_id`` is unparseable.
 
@@ -59,4 +76,4 @@ def is_valid_paper_id(paper_id: str) -> bool:
     return any(p.match(paper_id) for p in _PAPER_ID_PATTERNS)
 
 
-__all__ = ["is_valid_paper_id", "validate_paper_id"]
+__all__ = ["is_valid_paper_id", "validate_author_id", "validate_paper_id"]
