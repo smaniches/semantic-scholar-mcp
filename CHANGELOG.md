@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.0...semantic-scholar-mcp-v1.7.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **transport:** preserve Host validation for configured HTTP access and validate author IDs ([#135](https://github.com/smaniches/semantic-scholar-mcp/issues/135)) ([e85c443](https://github.com/smaniches/semantic-scholar-mcp/commit/e85c443c72bc5670b185980a03964494c19ace59))
+
 ## [1.7.0](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.6.0...semantic-scholar-mcp-v1.7.0) (2026-07-16)
 
 
