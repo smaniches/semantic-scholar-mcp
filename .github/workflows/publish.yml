@@ -95,3 +95,40 @@ jobs:
         # Sigstore-backed PEP 740 attestations are on by default under trusted
         # publishing; set explicitly to make the supply-chain posture obvious.
         attestations: true
+
+  # ── Publish server.json to the official MCP Registry ─────────────────────
+  # (registry.modelcontextprotocol.io) so the public listing tracks every
+  # release automatically, instead of drifting behind PyPI. Runs after
+  # publish-pypi because the registry's package-ownership check reads the
+  # just-published PyPI release. Ownership is proven two ways, no secret/PAT
+  # required:
+  #   - package: the ``mcp-name: io.github.smaniches/semantic-scholar-mcp``
+  #     marker in README.md (which is the PyPI long description).
+  #   - namespace ``io.github.smaniches``: GitHub OIDC (id-token below).
+  # server.json already carries the released version (release-please bumps
+  # it via extra-files), so no version rewrite step is needed.
+  publish-mcp-registry:
+    name: Publish to MCP Registry
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # GitHub OIDC -> MCP Registry (io.github.* namespace)
+      contents: read
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ inputs.tag || github.ref }}
+    - name: Install mcp-publisher
+      # Intentionally tracks ``latest`` rather than a SHA/version pin. The
+      # MCP Registry is in preview and rotates its OIDC audience between
+      # deployments; an older binary fails with "invalid audience", and the
+      # official GitHub Actions guide instructs re-installing latest for
+      # exactly this reason. Fetched over HTTPS from the official
+      # modelcontextprotocol/registry releases.
+      run: |
+        curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+    - name: Authenticate to MCP Registry (GitHub OIDC)
+      run: ./mcp-publisher login github-oidc
+    - name: Publish server.json to MCP Registry
+      run: ./mcp-publisher publish
