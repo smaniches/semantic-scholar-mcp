@@ -855,7 +855,7 @@ for vulnerability reporting and the known-limitations list.
 
 ## Related MCP servers by the same author
 
-- [`alphafold-sovereign-mcp`](https://github.com/smaniches/alphafold-sovereign-mcp) — Model Context Protocol server for AlphaFold DB and other public biomedical data sources, with a local SQLite knowledge graph (`pip install --pre alphafold-sovereign-mcp`).
+- [`alphafold-sovereign-mcp`](https://github.com/smaniches/alphafold-sovereign-mcp) — Model Context Protocol server for AlphaFold DB and other public biomedical data sources, with a local SQLite knowledge graph (`pip install alphafold-sovereign-mcp`).
 - [`uniprot-mcp`](https://github.com/smaniches/uniprot-mcp) — Model Context Protocol server for UniProt Swiss-Prot and TrEMBL (`pip install uniprot-mcp-server`).
 
 ---
