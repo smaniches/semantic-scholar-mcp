@@ -5,6 +5,7 @@
 [![CI](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/smaniches/semantic-scholar-mcp/graph/badge.svg)](https://codecov.io/gh/smaniches/semantic-scholar-mcp)
 [![PyPI version](https://img.shields.io/pypi/v/s2-mcp-server)](https://pypi.org/project/s2-mcp-server/)
+[![PyPI downloads/30d](https://img.shields.io/pypi/dm/s2-mcp-server?label=downloads%2F30d)](https://pypistats.org/packages/s2-mcp-server)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19324159-3C5A99?logo=zenodo&logoColor=white)](https://doi.org/10.5281/zenodo.19324159)
 [![Provenance: SLSA + SBOM](https://img.shields.io/badge/provenance-SLSA_+_SBOM-blue)](#provenance--supply-chain)
 [![Docker](https://img.shields.io/badge/ghcr.io-semantic--scholar--mcp-blue?logo=docker)](https://ghcr.io/smaniches/semantic-scholar-mcp)
@@ -13,6 +14,7 @@
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Glama score](https://glama.ai/mcp/servers/smaniches/semantic-scholar-mcp/badges/score.svg)](https://glama.ai/mcp/servers/smaniches/semantic-scholar-mcp)
+[![Awesome MCP Servers](https://img.shields.io/badge/Awesome_MCP-Listed-blue?logo=github)](https://github.com/punkpeye/awesome-mcp-servers#research)
 
 **A 14-tool Semantic Scholar MCP server for academic research workflows.** Direct access to 200M+ papers from [Semantic Scholar](https://www.semanticscholar.org/) — paper search, citation graph traversal, author profiles, and recommendations — from any [Model Context Protocol](https://modelcontextprotocol.io) client (e.g., Claude Desktop, Claude Code, Cursor, Cline, Continue, and others).
 
