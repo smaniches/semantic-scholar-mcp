@@ -19,11 +19,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 LOCK="requirements-dev.lock"
-if [ ! -f "$LOCK" ]; then
-    echo "ERROR: $LOCK not found. Generate it with:" >&2
-    echo "  uv pip compile pyproject.toml --extra dev --universal --generate-hashes -o $LOCK" >&2
-    exit 1
-fi
+BUILD_LOCK="requirements-build.lock"
+for required in "$LOCK" "$BUILD_LOCK"; do
+    if [ ! -f "$required" ]; then
+        echo "ERROR: $required not found. Regenerate the locks with:" >&2
+        echo "  scripts/regenerate-locks.sh" >&2
+        exit 1
+    fi
+done
 
 WORK="$(mktemp -d)"
 VENV="$WORK/venv"
@@ -44,21 +47,22 @@ echo ">> [1/8] creating clean venv: $VENV"
 if command -v uv >/dev/null 2>&1; then
     uv venv "$VENV" >/dev/null
     activate
-    echo ">> [2/8] installing dev deps from $LOCK (hash-checked)"
+    echo ">> [2/8] installing locked build + dev closures (hash-checked)"
+    uv pip install --require-hashes -r "$BUILD_LOCK" >/dev/null
     uv pip install --require-hashes -r "$LOCK" >/dev/null
-    echo ">> [3/8] installing package (no deps; already locked)"
-    uv pip install --no-deps -e . >/dev/null
+    echo ">> [3/8] installing package offline (editable, no deps, no build isolation)"
+    uv pip install --offline --no-deps --no-build-isolation -e . >/dev/null
 else
     # Prefer python3: on many distros `python` is absent or points at python2.
     PYTHON="python3"
     command -v python3 >/dev/null 2>&1 || PYTHON="python"
     "$PYTHON" -m venv "$VENV"
     activate
-    python -m pip install --upgrade pip >/dev/null
-    echo ">> [2/8] installing dev deps from $LOCK (hash-checked)"
+    echo ">> [2/8] installing locked build + dev closures (hash-checked)"
+    python -m pip install --require-hashes -r "$BUILD_LOCK" >/dev/null
     python -m pip install --require-hashes -r "$LOCK" >/dev/null
-    echo ">> [3/8] installing package (no deps; already locked)"
-    python -m pip install --no-deps -e . >/dev/null
+    echo ">> [3/8] installing package offline (editable, no deps, no build isolation)"
+    PIP_NO_INDEX=1 python -m pip install --no-deps --no-build-isolation -e . >/dev/null
 fi
 
 echo ">> [4/8] lint + format (ruff)"
@@ -80,34 +84,24 @@ echo ">> [7/8] SAST (bandit) + CVE audit (pip-audit)"
 bandit -c pyproject.toml -r src/ -q
 pip-audit -r "$LOCK" --strict
 
-echo ">> [8/8] lock freshness (advisory: committed pins == fresh resolve)"
-# Advisory only: this re-resolves the '>=' ranges against live PyPI, so it can
-# legitimately report drift the moment any upstream dependency publishes a new
-# release, with no local change. It therefore WARNS and never fails the run; the
-# authoritative gates are steps 1-7. We compare only name==version + --hash
-# content: ALL comment lines (including indented '# via' provenance, whose graph
-# varies by resolver Python) and blank/whitespace-only lines are stripped, so a
-# comment- or whitespace-only difference is not flagged.
-if command -v uv >/dev/null 2>&1; then
-    FRESH="$WORK/fresh.lock"
-    if uv pip compile pyproject.toml --extra dev --universal --generate-hashes \
-            --quiet -o "$FRESH" 2>/dev/null; then
-        # Strip CR (CRLF/LF differences), comments, and blank lines so only
-        # name==version + --hash content is compared; none of those can spuriously
-        # trip the advisory warning across uv versions or platforms.
-        if diff -q <(tr -d '\r' < "$LOCK" | grep -vE '^[[:space:]]*(#|$)') \
-                   <(tr -d '\r' < "$FRESH" | grep -vE '^[[:space:]]*(#|$)') >/dev/null 2>&1; then
-            echo "   lock is current."
-        else
-            echo "   WARNING: $LOCK differs from a fresh resolve (likely an upstream"
-            echo "   release). If intentional, regenerate and commit the lock:"
-            echo "     uv pip compile pyproject.toml --extra dev --universal --generate-hashes -o $LOCK"
-        fi
-    else
-        echo "   freshness check skipped (fresh resolve failed; e.g. offline)."
-    fi
+echo ">> [8/8] deterministic lock check (committed locks == fresh resolve)"
+# Not advisory. The regeneration is pinned to one resolver version and one index
+# cutoff, so a fresh resolve is expected to reproduce the committed locks
+# byte-for-byte; any difference is a real defect rather than upstream drift.
+# It needs network access and exactly uv 0.11.29, so it is skipped (loudly)
+# rather than failed when that resolver is unavailable.
+deterministic_lock_check_available() {
+    command -v uv >/dev/null 2>&1 || return 1
+    case "$(uv --version)" in
+        "uv 0.11.29"|"uv 0.11.29 "*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+if deterministic_lock_check_available; then
+    "$ROOT/scripts/regenerate-locks.sh" --check
 else
-    echo "   skipped (uv not installed)."
+    echo "   skipped (requires uv 0.11.29; see CONTRIBUTING.md)."
 fi
 
 echo ""

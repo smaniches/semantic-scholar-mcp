@@ -11,6 +11,11 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
+    # pyproject.toml constrains mcp to >=1.28.1,<2. A semver-major proposal
+    # could not satisfy that range, so it would only produce an unmergeable PR.
+    ignore:
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
     groups:
       production-dependencies:
         dependency-type: "production"
