@@ -36,6 +36,7 @@ compile_dev() {
     local args=(
         pip compile pyproject.toml
         --extra dev
+        --python-version 3.10
         --universal
         --generate-hashes
         --no-header
