@@ -38,10 +38,19 @@ REGENERATE_SCRIPT = ROOT / "scripts" / "regenerate-locks.sh"
 SEMANTIC_CHANGES = frozenset(
     {
         "backports-asyncio-runner",
+        "cryptography",
         "exceptiongroup",
         "rpds-py",
     }
 )
+
+# Packages the development lock must pin at an exact version. cryptography is
+# held at 50.0.0 because 49.0.0 (the version the authoritative-base seed would
+# otherwise carry forward) is affected by CVE-2026-69247. The pin is produced by
+# the --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
+REQUIRED_DEV_VERSIONS = {
+    "cryptography": "50.0.0",
+}
 
 PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
     "tomli": (
@@ -264,6 +273,26 @@ def test_provenance_only_packages_change_by_added_comments_alone(name: str) -> N
     )
 
 
+@pytest.mark.parametrize("name", sorted(REQUIRED_DEV_VERSIONS))
+def test_dev_lock_pins_required_security_versions(
+    dev_lock: dict[str, list[Requirement]], name: str
+) -> None:
+    """A security-critical pin must not drift back to a vulnerable version."""
+    requirements = dev_lock[name]
+    assert len(requirements) == 1, f"{name}: expected exactly one pin"
+    assert requirements[0].version == REQUIRED_DEV_VERSIONS[name]
+
+
+def test_regeneration_script_selects_the_required_security_versions() -> None:
+    """The pin must be reproducible, not hand-applied to the generated lock."""
+    script = REGENERATE_SCRIPT.read_text(encoding="utf-8")
+    for name in REQUIRED_DEV_VERSIONS:
+        assert f"--upgrade-package {name}" in script, (
+            f"{name} is pinned in the lock but nothing in the regeneration "
+            f"script selects it; --check would resolve it back to the seed"
+        )
+
+
 def test_build_and_release_locks_pin_editables(
     build_lock: dict[str, list[Requirement]],
     release_lock: dict[str, list[Requirement]],
@@ -308,7 +337,11 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
     assert "--constraint requirements-build.lock" in script
     assert "cmp -s" in script, "committed locks must be compared byte-for-byte"
     assert "diff -u" in script, "drift must be printed as a diff"
-    assert "--upgrade" not in script, "regeneration must never upgrade pins"
+    # A bare --upgrade would re-resolve every pin and defeat the seed. Targeted
+    # --upgrade-package exemptions are allowed and are asserted separately.
+    assert re.search(r"--upgrade(?!-package)", script) is None, (
+        "regeneration must never blanket-upgrade pins"
+    )
 
 
 def test_no_changed_workflow_can_write_to_the_repository() -> None:
