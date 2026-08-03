@@ -35,19 +35,18 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
-    - name: Install build tools
-      run: python -m pip install --upgrade pip build
+    # One hash-pinned closure supplies every release tool: the build backend,
+    # twine, and cyclonedx-py. Nothing below installs from the network.
+    - name: Install locked release closure
+      run: python -m pip install --require-hashes -r requirements-release.lock
     - name: Build package
-      run: python -m build
+      run: python -m build --no-isolation
     - name: Verify package
-      run: |
-        pip install twine
-        twine check dist/*
+      run: python -m twine check dist/*
     - name: Generate CycloneDX SBOM
       run: |
         python -m venv /tmp/sbom-venv
         /tmp/sbom-venv/bin/pip install --quiet dist/*.whl
-        python -m pip install --quiet cyclonedx-bom
         cyclonedx-py environment /tmp/sbom-venv/bin/python \
           --pyproject pyproject.toml \
           --output-format JSON \
@@ -120,14 +119,15 @@ jobs:
       with:
         ref: ${{ inputs.tag || github.ref }}
     - name: Install mcp-publisher
-      # Intentionally tracks ``latest`` rather than a SHA/version pin. The
-      # MCP Registry is in preview and rotates its OIDC audience between
-      # deployments; an older binary fails with "invalid audience", and the
-      # official GitHub Actions guide instructs re-installing latest for
-      # exactly this reason. Fetched over HTTPS from the official
-      # modelcontextprotocol/registry releases.
-      run: |
-        curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      # Pinned to an exact release and verified by digest, archive membership,
+      # and self-reported version, so this step cannot silently execute a
+      # different binary than the one reviewed here. This replaces tracking
+      # ``latest``: an unpinned download is the one unreviewed executable in
+      # the release path. The MCP Registry is in preview and rotates its OIDC
+      # audience between deployments, so if authentication ever fails with
+      # "invalid audience", bump the pinned version in the installer rather
+      # than reverting to ``latest``.
+      run: scripts/install-mcp-publisher.sh
     - name: Authenticate to MCP Registry (GitHub OIDC)
       run: ./mcp-publisher login github-oidc
     - name: Publish server.json to MCP Registry

@@ -34,7 +34,9 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
-    - name: Install pip-audit (pinned to requirements-dev.lock)
-      run: pip install "pip-audit==2.10.1"
+    # pip-audit itself comes from the hash-pinned closure it audits, so the
+    # auditor and the audited set are the same reviewed artifact.
+    - name: Install locked development closure
+      run: python -m pip install --require-hashes -r requirements-dev.lock
     - name: Audit the hash-pinned dev lock
-      run: pip-audit -r requirements-dev.lock --strict
+      run: python -m pip_audit -r requirements-dev.lock --strict
