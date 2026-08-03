@@ -19,10 +19,14 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
-    - name: Install dependencies
+    - name: Install locked dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        python -m pip install --require-hashes -r requirements-build.lock
+        python -m pip install --require-hashes -r requirements-dev.lock
+    - name: Install package without dependency resolution
+      env:
+        PIP_NO_INDEX: "1"
+      run: python -m pip install --no-deps --no-build-isolation -e .
     - name: Lint with ruff
       run: ruff check src/ tests/
     - name: Format check with ruff
@@ -52,10 +56,14 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Install locked dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        python -m pip install --require-hashes -r requirements-build.lock
+        python -m pip install --require-hashes -r requirements-dev.lock
+    - name: Install package without dependency resolution
+      env:
+        PIP_NO_INDEX: "1"
+      run: python -m pip install --no-deps --no-build-isolation -e .
     - name: Test with coverage
       run: pytest --cov=src/semantic_scholar_mcp --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=100 --tb=short -q
     - name: Upload coverage to Codecov
@@ -65,6 +73,27 @@ jobs:
         files: coverage.xml
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
+
+  package:
+    name: Offline Package Build
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.12"
+    - name: Install locked release tools
+      run: python -m pip install --require-hashes -r requirements-release.lock
+    - name: Build package without index access
+      env:
+        PIP_NO_INDEX: "1"
+      run: python -m build --no-isolation
+    - name: Verify package metadata
+      run: python -m twine check dist/*
+    - name: Verify pinned MCP publisher
+      run: scripts/install-mcp-publisher.sh "$RUNNER_TEMP/mcp-publisher"
 
   security:
     name: Security Scan
@@ -98,10 +127,7 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
-    # Pin bandit to the locked version so a new release adding a check cannot
-    # turn main red with no code change. bandit reads source files directly, so
-    # the package itself does not need to be installed here.
-    - name: Install bandit (pinned to requirements-dev.lock)
-      run: pip install "bandit[toml]==1.9.4"
+    - name: Install locked security tools
+      run: python -m pip install --require-hashes -r requirements-dev.lock
     - name: SAST scan
       run: bandit -c pyproject.toml -r src/

@@ -1,0 +1,3 @@
+# Release verification composes the exact build environment and adds Twine.
+-r requirements-build.in
+twine==7.0.0

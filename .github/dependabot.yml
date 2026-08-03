@@ -11,6 +11,12 @@ updates:
       - "dependencies"
     commit-message:
       prefix: "deps"
+    ignore:
+      # MCP 2.x removes the FastMCP import surface used by this server. Keep the
+      # compatibility ceiling until a separately reviewed migration is ready.
+      - dependency-name: "mcp"
+        update-types:
+          - "version-update:semver-major"
     groups:
       production-dependencies:
         dependency-type: "production"

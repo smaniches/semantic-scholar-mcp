@@ -1,0 +1,3 @@
+# Exact direct inputs for the package build environment.
+build==1.5.0
+hatchling==1.31.0
