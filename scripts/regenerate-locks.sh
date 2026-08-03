@@ -48,20 +48,36 @@ compile_dev() {
     uv "${args[@]}"
 }
 
-compile_input() {
-    local input="$1"
-    local lock="$2"
-    local output="$3"
+compile_build() {
+    local output="$1"
     local args=(
-        pip compile "$input"
+        pip compile requirements-build.in
         --python-version 3.10
         --universal
         --generate-hashes
         --no-header
         --output-file "$output"
     )
-    if [[ "$MODE" != "--upgrade" && -f "$lock" ]]; then
-        args+=(--constraint "$lock")
+    if [[ "$MODE" != "--upgrade" && -f requirements-build.lock ]]; then
+        args+=(--constraint requirements-build.lock)
+    fi
+    uv "${args[@]}"
+}
+
+compile_release() {
+    local build_constraint="$1"
+    local output="$2"
+    local args=(
+        pip compile requirements-release.in
+        --python-version 3.10
+        --universal
+        --generate-hashes
+        --no-header
+        --constraint "$build_constraint"
+        --output-file "$output"
+    )
+    if [[ "$MODE" != "--upgrade" && -f requirements-release.lock ]]; then
+        args+=(--constraint requirements-release.lock)
     fi
     uv "${args[@]}"
 }
@@ -90,15 +106,17 @@ render_all() {
     write_lock "$destination/requirements-dev.lock" \
         'pyproject.toml --extra dev' "$raw/requirements-dev.lock"
 
-    compile_input requirements-build.in requirements-build.lock \
-        "$raw/requirements-build.lock"
+    compile_build "$raw/requirements-build.lock"
     write_lock "$destination/requirements-build.lock" \
         requirements-build.in "$raw/requirements-build.lock"
 
-    compile_input requirements-release.in requirements-release.lock \
+    # Constrain release resolution to the newly generated build closure. This
+    # guarantees shared tooling stays identical rather than being re-resolved.
+    compile_release "$destination/requirements-build.lock" \
         "$raw/requirements-release.lock"
     write_lock "$destination/requirements-release.lock" \
-        requirements-release.in "$raw/requirements-release.lock"
+        'requirements-release.in + requirements-build.lock constraint' \
+        "$raw/requirements-release.lock"
 }
 
 if [[ "$MODE" == "--check" ]]; then
