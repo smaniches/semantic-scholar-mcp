@@ -1,4 +1,4 @@
 # Release verification composes the exact build environment and adds release/SBOM tools.
 -r requirements-build.in
-cyclonedx-bom==7.3.0
+cyclonedx-bom==7.3.1
 twine==7.0.0
