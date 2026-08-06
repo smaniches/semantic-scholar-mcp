@@ -1,0 +1,227 @@
+name: Verify Official MCP Registry Metadata
+
+on:
+  pull_request:
+    paths:
+      - "server.json"
+      - ".github/workflows/verify-mcp-registry.yml"
+  workflow_run:
+    workflows:
+      - "Publish to PyPI"
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-registry-verify-${{ github.repository }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.workflow_run.head_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Validate manifest and registry state
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      EXPECTED_SERVER_NAME: io.github.smaniches/semantic-scholar-mcp
+      EXPECTED_PACKAGE_ID: s2-mcp-server
+      EXPECTED_REPOSITORY_URL: https://github.com/smaniches/semantic-scholar-mcp
+
+    steps:
+      - name: Fetch immutable manifest snapshots
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name || github.repository }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+          BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+        run: |
+          set -euo pipefail
+
+          curl --fail --silent --show-error --location \
+            --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 60 \
+            --retry 4 --retry-delay 2 \
+            --output server.json \
+            "https://raw.githubusercontent.com/${HEAD_REPOSITORY}/${HEAD_SHA}/server.json"
+
+          if [[ -n "$BASE_SHA" ]]; then
+            curl --fail --silent --show-error --location \
+              --proto '=https' --tlsv1.2 \
+              --connect-timeout 10 --max-time 60 \
+              --retry 4 --retry-delay 2 \
+              --output server.base.json \
+              "https://raw.githubusercontent.com/${BASE_REPOSITORY}/${BASE_SHA}/server.json"
+          fi
+
+      - name: Validate complete manifest with the Official MCP Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_name="$(jq -er '.name | select(type == "string" and length > 0)' server.json)"
+          server_version="$(jq -er '.version | select(type == "string" and length > 0)' server.json)"
+          package_version="$(jq -er '.packages[0].version | select(type == "string" and length > 0)' server.json)"
+          semver_re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+
+          [[ "$server_name" == "$EXPECTED_SERVER_NAME" ]]
+          [[ "$server_version" =~ $semver_re ]]
+          [[ "$server_version" == "$package_version" ]]
+
+          jq -e \
+            --arg name "$EXPECTED_SERVER_NAME" \
+            --arg package "$EXPECTED_PACKAGE_ID" \
+            --arg repository "$EXPECTED_REPOSITORY_URL" '
+              .name == $name
+              and .repository.url == $repository
+              and .repository.source == "github"
+              and (.packages | type == "array" and length == 1)
+              and .packages[0].registryType == "pypi"
+              and .packages[0].identifier == $package
+              and .packages[0].transport.type == "stdio"
+            ' server.json >/dev/null
+
+          http_code="$(
+            curl --silent --show-error --location \
+              --proto '=https' --tlsv1.2 \
+              --connect-timeout 10 --max-time 60 \
+              --retry 4 --retry-delay 2 \
+              --fail-with-body \
+              --request POST \
+              --header 'Content-Type: application/json' \
+              --data-binary @server.json \
+              --output /tmp/validation.json \
+              --write-out '%{http_code}' \
+              'https://registry.modelcontextprotocol.io/v0/validate' \
+              || true
+          )"
+
+          if [[ "$http_code" != "200" ]]; then
+            cat /tmp/validation.json >&2 || true
+            echo "Official registry validation returned HTTP $http_code" >&2
+            exit 1
+          fi
+
+          if ! jq -e '.valid == true' /tmp/validation.json >/dev/null; then
+            jq . /tmp/validation.json >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$server_name" > /tmp/mcp-server-name
+          printf '%s\n' "$server_version" > /tmp/mcp-server-version
+
+      - name: Verify immutable registry record
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_name="$(cat /tmp/mcp-server-name)"
+          server_version="$(cat /tmp/mcp-server-version)"
+          encoded_name="$(jq -rn --arg value "$server_name" '$value | @uri')"
+          encoded_version="$(jq -rn --arg value "$server_version" '$value | @uri')"
+          registry_url="https://registry.modelcontextprotocol.io/v0.1/servers/${encoded_name}/versions/${encoded_version}"
+
+          attempts=1
+          if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+            attempts=12
+          fi
+
+          http_code=000
+          for attempt in $(seq 1 "$attempts"); do
+            http_code="$(
+              curl --silent --show-error --location \
+                --proto '=https' --tlsv1.2 \
+                --connect-timeout 10 --max-time 60 \
+                --retry 3 --retry-delay 2 \
+                --fail-with-body \
+                --output /tmp/registry-record.json \
+                --write-out '%{http_code}' \
+                "$registry_url" \
+                || true
+            )"
+
+            if [[ "$http_code" == "200" ]]; then
+              break
+            fi
+
+            if [[ "$attempt" -lt "$attempts" && ( "$http_code" == "404" || "$http_code" == "429" || "$http_code" == "000" || "$http_code" == 5?? ) ]]; then
+              sleep 5
+              continue
+            fi
+
+            break
+          done
+
+          if [[ "$http_code" == "404" ]]; then
+            printf '%s\n' missing > /tmp/mcp-registry-state
+            if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+              echo "::error title=Registry record missing::${server_name} ${server_version} is not published after the release workflow."
+              exit 1
+            fi
+            echo "::notice title=Pending publication::${server_name} ${server_version} is valid and will be published by the release workflow."
+            exit 0
+          fi
+
+          if [[ "$http_code" != "200" ]]; then
+            cat /tmp/registry-record.json >&2 || true
+            echo "Registry lookup returned HTTP $http_code" >&2
+            exit 1
+          fi
+
+          if jq -e --slurpfile expected server.json '
+            def registry_projection:
+              with_entries(select(.key as $key
+                | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+                | index($key)));
+            .server as $actual
+            | ($expected[0] | registry_projection) as $wanted
+            | $actual | contains($wanted)
+          ' /tmp/registry-record.json >/dev/null; then
+            printf '%s\n' exact > /tmp/mcp-registry-state
+            exit 0
+          fi
+
+          manifest_changed=true
+          if [[ -f server.base.json ]]; then
+            jq -S . server.base.json > /tmp/server-base.canonical.json
+            jq -S . server.json > /tmp/server-head.canonical.json
+            if cmp -s /tmp/server-base.canonical.json /tmp/server-head.canonical.json; then
+              manifest_changed=false
+            fi
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$manifest_changed" == "false" ]]; then
+            printf '%s\n' legacy-drift > /tmp/mcp-registry-state
+            echo "::warning title=Immutable legacy metadata::The published ${server_name} ${server_version} record predates the current manifest. This pull request does not change server.json; a patch release will create an exact record."
+            exit 0
+          fi
+
+          printf '%s\n' drift > /tmp/mcp-registry-state
+          echo "::error title=Registry metadata drift::The immutable registry record differs from the current server.json. Publish a new version rather than overwriting this version."
+          diff -u \
+            <(jq -S 'with_entries(select(.key as $key | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' server.json) \
+            <(jq -S '.server' /tmp/registry-record.json) || true
+          exit 1
+
+      - name: Write verification summary
+        if: always()
+        shell: bash
+        run: |
+          state=unknown
+          [[ -f /tmp/mcp-registry-state ]] && state="$(cat /tmp/mcp-registry-state)"
+          server_name=unresolved
+          server_version=unresolved
+          [[ -f /tmp/mcp-server-name ]] && server_name="$(cat /tmp/mcp-server-name)"
+          [[ -f /tmp/mcp-server-version ]] && server_version="$(cat /tmp/mcp-server-version)"
+          {
+            echo "### Official MCP Registry verification"
+            echo
+            echo "- Server: \`${server_name}\`"
+            echo "- Version: \`${server_version}\`"
+            echo "- Registry state: \`${state}\`"
+            echo "- Event: \`${GITHUB_EVENT_NAME}\`"
+            echo "- Final job status: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
