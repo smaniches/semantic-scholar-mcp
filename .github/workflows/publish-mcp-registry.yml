@@ -23,8 +23,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Fetch server manifest at the triggering commit
+        shell: bash
+        env:
+          MANIFEST_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --location --retry 4 --retry-all-errors \
+            --output server.json \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${MANIFEST_REF}/server.json"
 
       - name: Validate manifest identity and version coherence
         shell: bash
@@ -60,11 +67,9 @@ jobs:
           case "$HTTP_CODE" in
             200)
               echo "publish_required=false" >> "$GITHUB_OUTPUT"
-              echo "result=verified" >> "$GITHUB_OUTPUT"
               ;;
             404)
               echo "publish_required=true" >> "$GITHUB_OUTPUT"
-              echo "result=publish-required" >> "$GITHUB_OUTPUT"
               ;;
             *)
               cat /tmp/registry-before.json >&2 || true
@@ -93,7 +98,7 @@ jobs:
         shell: bash
         run: ./mcp-publisher publish
 
-      - name: Verify exact registry record
+      - name: Verify exact registry record and package identity
         shell: bash
         run: |
           set -euo pipefail
@@ -102,8 +107,17 @@ jobs:
           REGISTRY_URL="https://registry.modelcontextprotocol.io/v0.1/servers/${ENCODED_NAME}/versions/${ENCODED_VERSION}"
           curl --fail --show-error --location --retry 6 --retry-all-errors \
             --retry-delay 5 --output /tmp/registry-after.json "$REGISTRY_URL"
-          jq -e --arg name "$SERVER_NAME" --arg version "$SERVER_VERSION" \
-            '.server.name == $name and .server.version == $version' \
+          jq -e \
+            --arg name "$SERVER_NAME" \
+            --arg version "$SERVER_VERSION" \
+            --arg package_type "$PACKAGE_TYPE" \
+            --arg package_id "$PACKAGE_ID" \
+            '.server.name == $name
+             and .server.version == $version
+             and any(.server.packages[]?;
+               .registryType == $package_type
+               and .identifier == $package_id
+               and .version == $version)' \
             /tmp/registry-after.json >/dev/null
 
       - name: Write verification summary
