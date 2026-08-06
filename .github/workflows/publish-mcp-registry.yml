@@ -2,11 +2,17 @@ name: Reconcile Official MCP Registry
 
 on:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/publish-mcp-registry.yml"
+      - "server.json"
+      - "scripts/install-mcp-publisher.sh"
   pull_request:
     paths:
       - ".github/workflows/publish-mcp-registry.yml"
+      - "server.json"
+      - "scripts/install-mcp-publisher.sh"
   workflow_dispatch:
 
 permissions:
@@ -14,24 +20,38 @@ permissions:
   id-token: write
 
 concurrency:
-  group: mcp-registry-${{ github.repository }}-${{ github.event_name }}
+  group: mcp-registry-${{ github.repository }}-${{ github.event_name == 'pull_request' && 'verify' || 'publish' }}
   cancel-in-progress: true
 
 jobs:
   reconcile:
     name: Verify or publish current server.json
     runs-on: ubuntu-latest
+    env:
+      EXPECTED_SERVER_NAME: io.github.smaniches/semantic-scholar-mcp
 
     steps:
-      - name: Fetch server manifest at the triggering commit
+      - name: Enforce trusted publication ref
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+
+      - name: Fetch manifest and verified publisher installer
         shell: bash
         env:
           MANIFEST_REF: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          raw_base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${MANIFEST_REF}"
           curl --fail --show-error --location --retry 4 --retry-all-errors \
-            --output server.json \
-            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${MANIFEST_REF}/server.json"
+            --proto '=https' --tlsv1.2 --output server.json \
+            "${raw_base}/server.json"
+          curl --fail --show-error --location --retry 4 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --output /tmp/install-mcp-publisher.sh \
+            "${raw_base}/scripts/install-mcp-publisher.sh"
+          bash -n /tmp/install-mcp-publisher.sh
 
       - name: Validate manifest identity and version coherence
         shell: bash
@@ -40,21 +60,14 @@ jobs:
           SERVER_NAME="$(jq -er '.name | select(type == "string" and length > 0)' server.json)"
           SERVER_VERSION="$(jq -er '.version | select(type == "string" and length > 0)' server.json)"
           PACKAGE_VERSION="$(jq -er '.packages[0].version | select(type == "string" and length > 0)' server.json)"
-          PACKAGE_TYPE="$(jq -er '.packages[0].registryType | select(type == "string" and length > 0)' server.json)"
-          PACKAGE_ID="$(jq -er '.packages[0].identifier | select(type == "string" and length > 0)' server.json)"
 
+          test "$SERVER_NAME" = "$EXPECTED_SERVER_NAME"
           test "$SERVER_VERSION" = "$PACKAGE_VERSION"
-          case "$SERVER_NAME" in
-            io.github.smaniches/*) ;;
-            *) echo "Unexpected registry namespace: $SERVER_NAME" >&2; exit 1 ;;
-          esac
 
           echo "SERVER_NAME=$SERVER_NAME" >> "$GITHUB_ENV"
           echo "SERVER_VERSION=$SERVER_VERSION" >> "$GITHUB_ENV"
-          echo "PACKAGE_TYPE=$PACKAGE_TYPE" >> "$GITHUB_ENV"
-          echo "PACKAGE_ID=$PACKAGE_ID" >> "$GITHUB_ENV"
 
-      - name: Check whether the exact version already exists
+      - name: Check exact registry version
         id: preflight
         shell: bash
         run: |
@@ -65,12 +78,8 @@ jobs:
           HTTP_CODE="$(curl --silent --show-error --location --output /tmp/registry-before.json --write-out '%{http_code}' "$REGISTRY_URL")"
 
           case "$HTTP_CODE" in
-            200)
-              echo "publish_required=false" >> "$GITHUB_OUTPUT"
-              ;;
-            404)
-              echo "publish_required=true" >> "$GITHUB_OUTPUT"
-              ;;
+            200) echo "publish_required=false" >> "$GITHUB_OUTPUT" ;;
+            404) echo "publish_required=true" >> "$GITHUB_OUTPUT" ;;
             *)
               cat /tmp/registry-before.json >&2 || true
               echo "Unexpected registry HTTP status: $HTTP_CODE" >&2
@@ -78,27 +87,30 @@ jobs:
               ;;
           esac
 
-      - name: Install official mcp-publisher
-        if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
+      - name: Report version pending publication
+        if: github.event_name == 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          curl --fail --show-error --location \
-            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
-            | tar xz mcp-publisher
-          ./mcp-publisher --help >/dev/null
+          echo "::notice::${SERVER_NAME} ${SERVER_VERSION} is not published yet. The main-branch run will publish and verify it after merge."
+
+      - name: Install pinned and digest-verified mcp-publisher
+        if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
+        shell: bash
+        run: bash /tmp/install-mcp-publisher.sh /tmp/mcp-publisher
 
       - name: Authenticate with GitHub OIDC
         if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
-        run: ./mcp-publisher login github-oidc
+        run: /tmp/mcp-publisher/mcp-publisher login github-oidc
 
       - name: Publish current server.json
         if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
-        run: ./mcp-publisher publish
+        run: /tmp/mcp-publisher/mcp-publisher publish
 
-      - name: Verify exact registry record and package identity
+      - name: Verify immutable registry record against current manifest
+        id: verify
+        if: steps.preflight.outputs.publish_required == 'false' || github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -107,20 +119,15 @@ jobs:
           REGISTRY_URL="https://registry.modelcontextprotocol.io/v0.1/servers/${ENCODED_NAME}/versions/${ENCODED_VERSION}"
           curl --fail --show-error --location --retry 6 --retry-all-errors \
             --retry-delay 5 --output /tmp/registry-after.json "$REGISTRY_URL"
-          jq -e \
-            --arg name "$SERVER_NAME" \
-            --arg version "$SERVER_VERSION" \
-            --arg package_type "$PACKAGE_TYPE" \
-            --arg package_id "$PACKAGE_ID" \
-            '.server.name == $name
-             and .server.version == $version
-             and any(.server.packages[]?;
-               .registryType == $package_type
-               and .identifier == $package_id
-               and .version == $version)' \
-            /tmp/registry-after.json >/dev/null
 
-      - name: Write verification summary
+          jq -e --slurpfile expected server.json '
+            .server as $actual
+            | ($expected[0] | del(."$schema")) as $wanted
+            | $actual | contains($wanted)
+          ' /tmp/registry-after.json >/dev/null
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+
+      - name: Write reconciliation summary
         if: always()
         shell: bash
         run: |
@@ -129,8 +136,8 @@ jobs:
             echo ""
             echo "- Server: \`${SERVER_NAME:-unresolved}\`"
             echo "- Version: \`${SERVER_VERSION:-unresolved}\`"
-            echo "- Package: \`${PACKAGE_TYPE:-unresolved}:${PACKAGE_ID:-unresolved}\`"
             echo "- Event: \`${{ github.event_name }}\`"
-            echo "- Publish required before this run: \`${{ steps.preflight.outputs.publish_required || 'unknown' }}\`"
+            echo "- Publication required at preflight: \`${{ steps.preflight.outputs.publish_required || 'unknown' }}\`"
+            echo "- Exact manifest verified: \`${{ steps.verify.outputs.verified || 'not-run' }}\`"
             echo "- Final job status: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
