@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "server.json"
+      - "scripts/verify-mcp-registry-record.sh"
       - ".github/workflows/publish-mcp-registry.yml"
   schedule:
     - cron: "17 9 * * *"
@@ -26,7 +27,7 @@ jobs:
       EXPECTED_REPOSITORY_URL: https://github.com/smaniches/semantic-scholar-mcp
 
     steps:
-      - name: Fetch immutable manifest snapshots
+      - name: Fetch immutable verification inputs
         shell: bash
         env:
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
@@ -35,140 +36,32 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
           set -euo pipefail
+          head_base="https://raw.githubusercontent.com/${HEAD_REPOSITORY}/${HEAD_SHA}"
           curl --fail --show-error --location --retry 4 --retry-all-errors \
-            --proto '=https' --tlsv1.2 \
-            --output server.json \
-            "https://raw.githubusercontent.com/${HEAD_REPOSITORY}/${HEAD_SHA}/server.json"
+            --proto '=https' --tlsv1.2 --output server.json \
+            "${head_base}/server.json"
+          curl --fail --show-error --location --retry 4 --retry-all-errors \
+            --proto '=https' --tlsv1.2 --output /tmp/verify-mcp-registry-record.sh \
+            "${head_base}/scripts/verify-mcp-registry-record.sh"
+          bash -n /tmp/verify-mcp-registry-record.sh
 
           if [[ -n "$BASE_SHA" ]]; then
             curl --fail --show-error --location --retry 4 --retry-all-errors \
-              --proto '=https' --tlsv1.2 \
-              --output server.base.json \
+              --proto '=https' --tlsv1.2 --output server.base.json \
               "https://raw.githubusercontent.com/${BASE_REPOSITORY}/${BASE_SHA}/server.json"
           fi
 
-      - name: Validate complete manifest with the official registry
+      - name: Verify Official MCP Registry state
         shell: bash
         run: |
           set -euo pipefail
-
-          server_name="$(jq -er '.name | select(type == "string" and length > 0)' server.json)"
-          server_version="$(jq -er '.version | select(type == "string" and length > 0)' server.json)"
-          package_version="$(jq -er '.packages[0].version | select(type == "string" and length > 0)' server.json)"
-          semver_re='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
-
-          [[ "$server_name" == "$EXPECTED_SERVER_NAME" ]]
-          [[ "$server_version" =~ $semver_re ]]
-          [[ "$server_version" == "$package_version" ]]
-
-          jq -e \
-            --arg name "$EXPECTED_SERVER_NAME" \
-            --arg package "$EXPECTED_PACKAGE_ID" \
-            --arg repository "$EXPECTED_REPOSITORY_URL" '
-              .name == $name
-              and .repository.url == $repository
-              and .repository.source == "github"
-              and (.packages | type == "array" and length == 1)
-              and .packages[0].registryType == "pypi"
-              and .packages[0].identifier == $package
-              and .packages[0].transport.type == "stdio"
-            ' server.json >/dev/null
-
-          http_code="$(curl --silent --show-error --location --retry 4 --retry-all-errors \
-            --request POST \
-            --header 'Content-Type: application/json' \
-            --data-binary @server.json \
-            --output /tmp/validation.json \
-            --write-out '%{http_code}' \
-            'https://registry.modelcontextprotocol.io/v0/validate')"
-
-          if [[ "$http_code" != "200" ]]; then
-            cat /tmp/validation.json >&2 || true
-            echo "Official registry validation returned HTTP $http_code" >&2
-            exit 1
-          fi
-
-          if ! jq -e '.valid == true' /tmp/validation.json >/dev/null; then
-            jq . /tmp/validation.json >&2
-            exit 1
-          fi
-
-          printf '%s\n' "$server_name" > /tmp/mcp-server-name
-          printf '%s\n' "$server_version" > /tmp/mcp-server-version
-
-      - name: Verify immutable registry record
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          server_name="$(cat /tmp/mcp-server-name)"
-          server_version="$(cat /tmp/mcp-server-version)"
-          encoded_name="$(jq -rn --arg value "$server_name" '$value | @uri')"
-          encoded_version="$(jq -rn --arg value "$server_version" '$value | @uri')"
-          registry_url="https://registry.modelcontextprotocol.io/v0.1/servers/${encoded_name}/versions/${encoded_version}"
-          http_code="$(curl --silent --show-error --location --retry 4 --retry-all-errors \
-            --output /tmp/registry-record.json \
-            --write-out '%{http_code}' \
-            "$registry_url")"
-
-          version_changed=false
           if [[ -f server.base.json ]]; then
-            base_version="$(jq -er '.version | select(type == "string" and length > 0)' server.base.json)"
-            if [[ "$base_version" != "$server_version" ]]; then
-              version_changed=true
-            fi
+            bash /tmp/verify-mcp-registry-record.sh server.json \
+              --base-manifest server.base.json \
+              --allow-missing-new-version
+          else
+            bash /tmp/verify-mcp-registry-record.sh server.json
           fi
-
-          if [[ "$http_code" == "404" ]]; then
-            printf '%s\n' missing > /tmp/mcp-registry-state
-            if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$version_changed" == "true" ]]; then
-              echo "::notice title=Pending publication::${server_name} ${server_version} is a new valid version and will be published by the existing release workflow after the package release."
-              exit 0
-            fi
-            echo "::error title=Registry record missing::${server_name} ${server_version} is absent from the official MCP Registry."
-            exit 1
-          fi
-
-          if [[ "$http_code" != "200" ]]; then
-            cat /tmp/registry-record.json >&2 || true
-            echo "Registry lookup returned HTTP $http_code" >&2
-            exit 1
-          fi
-
-          if jq -e --slurpfile expected server.json '
-            def registry_projection:
-              with_entries(select(.key as $key
-                | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
-                | index($key)));
-            (.server | registry_projection) == ($expected[0] | registry_projection)
-          ' /tmp/registry-record.json >/dev/null; then
-            printf '%s\n' exact > /tmp/mcp-registry-state
-            exit 0
-          fi
-
-          manifest_changed=true
-          if [[ -f server.base.json ]]; then
-            jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' \
-              server.base.json > /tmp/server-base.registry.json
-            jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' \
-              server.json > /tmp/server-head.registry.json
-            if cmp -s /tmp/server-base.registry.json /tmp/server-head.registry.json; then
-              manifest_changed=false
-            fi
-          fi
-
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$manifest_changed" == "false" ]]; then
-            printf '%s\n' legacy-drift > /tmp/mcp-registry-state
-            echo "::warning title=Immutable legacy metadata::The published ${server_name} ${server_version} record predates the current manifest. This PR does not change Registry-persisted metadata. A patch release will create an exact new record."
-            exit 0
-          fi
-
-          printf '%s\n' drift > /tmp/mcp-registry-state
-          echo "::error title=Registry metadata drift::The immutable registry record differs from the current server.json. Publish a new version rather than overwriting this version."
-          diff -u \
-            <(jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' server.json) \
-            <(jq -S '.server | with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' /tmp/registry-record.json) || true
-          exit 1
 
       - name: Write verification summary
         if: always()
@@ -176,10 +69,8 @@ jobs:
         run: |
           state="unknown"
           [[ -f /tmp/mcp-registry-state ]] && state="$(cat /tmp/mcp-registry-state)"
-          server_name="unresolved"
-          server_version="unresolved"
-          [[ -f /tmp/mcp-server-name ]] && server_name="$(cat /tmp/mcp-server-name)"
-          [[ -f /tmp/mcp-server-version ]] && server_version="$(cat /tmp/mcp-server-version)"
+          server_name="$(jq -r '.name // "unresolved"' server.json 2>/dev/null || echo unresolved)"
+          server_version="$(jq -r '.version // "unresolved"' server.json 2>/dev/null || echo unresolved)"
           {
             echo "### Official MCP Registry verification"
             echo ""
