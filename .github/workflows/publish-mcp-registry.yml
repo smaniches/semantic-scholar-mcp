@@ -120,11 +120,18 @@ jobs:
           curl --fail --show-error --location --retry 6 --retry-all-errors \
             --retry-delay 5 --output /tmp/registry-after.json "$REGISTRY_URL"
 
-          jq -e --slurpfile expected server.json '
+          if ! jq -e --slurpfile expected server.json '
             .server as $actual
             | ($expected[0] | del(."$schema")) as $wanted
             | $actual | contains($wanted)
-          ' /tmp/registry-after.json >/dev/null
+          ' /tmp/registry-after.json >/dev/null; then
+            echo "::error::The immutable registry record does not contain the current manifest. A new server version is required."
+            echo "--- expected manifest without schema ---"
+            jq -S 'del(."$schema")' server.json
+            echo "--- registry server record ---"
+            jq -S '.server' /tmp/registry-after.json
+            exit 1
+          fi
           echo "verified=true" >> "$GITHUB_OUTPUT"
 
       - name: Write reconciliation summary
