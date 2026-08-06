@@ -64,6 +64,11 @@ jobs:
           test "$SERVER_NAME" = "$EXPECTED_SERVER_NAME"
           test "$SERVER_VERSION" = "$PACKAGE_VERSION"
 
+          NON_REGISTRY_KEYS="$(jq -r 'keys - ["$schema", "_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | join(", ")' server.json)"
+          if [ -n "$NON_REGISTRY_KEYS" ]; then
+            echo "::notice::Top-level fields not persisted by the official Registry API are excluded from immutable-record comparison: ${NON_REGISTRY_KEYS}"
+          fi
+
           echo "SERVER_NAME=$SERVER_NAME" >> "$GITHUB_ENV"
           echo "SERVER_VERSION=$SERVER_VERSION" >> "$GITHUB_ENV"
 
@@ -108,7 +113,7 @@ jobs:
         shell: bash
         run: /tmp/mcp-publisher/mcp-publisher publish
 
-      - name: Verify immutable registry record against current manifest
+      - name: Verify immutable Registry fields against current manifest
         id: verify
         if: steps.preflight.outputs.publish_required == 'false' || github.event_name != 'pull_request'
         shell: bash
@@ -121,14 +126,18 @@ jobs:
             --retry-delay 5 --output /tmp/registry-after.json "$REGISTRY_URL"
 
           if ! jq -e --slurpfile expected server.json '
+            def registry_projection:
+              with_entries(select(.key as $key
+                | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+                | index($key)));
             .server as $actual
-            | ($expected[0] | del(."$schema")) as $wanted
+            | ($expected[0] | registry_projection) as $wanted
             | $actual | contains($wanted)
           ' /tmp/registry-after.json >/dev/null; then
-            echo "::error::The immutable registry record does not contain the current manifest. A new server version is required."
-            echo "--- expected manifest without schema ---"
-            jq -S 'del(."$schema")' server.json
-            echo "--- registry server record ---"
+            echo "::error::The immutable Registry fields differ from the current manifest. Publish a new server version rather than mutating this version."
+            echo "--- expected Registry projection ---"
+            jq -S 'with_entries(select(.key as $key | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' server.json
+            echo "--- Registry server record ---"
             jq -S '.server' /tmp/registry-after.json
             exit 1
           fi
@@ -145,6 +154,6 @@ jobs:
             echo "- Version: \`${SERVER_VERSION:-unresolved}\`"
             echo "- Event: \`${{ github.event_name }}\`"
             echo "- Publication required at preflight: \`${{ steps.preflight.outputs.publish_required || 'unknown' }}\`"
-            echo "- Exact manifest verified: \`${{ steps.verify.outputs.verified || 'not-run' }}\`"
+            echo "- Immutable Registry fields verified: \`${{ steps.verify.outputs.verified || 'not-run' }}\`"
             echo "- Final job status: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
