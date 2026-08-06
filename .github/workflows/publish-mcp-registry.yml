@@ -1,0 +1,118 @@
+name: Reconcile Official MCP Registry
+
+on:
+  push:
+    paths:
+      - ".github/workflows/publish-mcp-registry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: mcp-registry-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Verify or publish current server.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate manifest identity and version coherence
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVER_NAME="$(jq -er '.name | select(type == "string" and length > 0)' server.json)"
+          SERVER_VERSION="$(jq -er '.version | select(type == "string" and length > 0)' server.json)"
+          PACKAGE_VERSION="$(jq -er '.packages[0].version | select(type == "string" and length > 0)' server.json)"
+          PACKAGE_TYPE="$(jq -er '.packages[0].registryType | select(type == "string" and length > 0)' server.json)"
+          PACKAGE_ID="$(jq -er '.packages[0].identifier | select(type == "string" and length > 0)' server.json)"
+
+          test "$SERVER_VERSION" = "$PACKAGE_VERSION"
+          case "$SERVER_NAME" in
+            io.github.smaniches/*) ;;
+            *) echo "Unexpected registry namespace: $SERVER_NAME" >&2; exit 1 ;;
+          esac
+
+          echo "SERVER_NAME=$SERVER_NAME" >> "$GITHUB_ENV"
+          echo "SERVER_VERSION=$SERVER_VERSION" >> "$GITHUB_ENV"
+          echo "PACKAGE_TYPE=$PACKAGE_TYPE" >> "$GITHUB_ENV"
+          echo "PACKAGE_ID=$PACKAGE_ID" >> "$GITHUB_ENV"
+
+      - name: Check whether the exact version already exists
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENCODED_NAME="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SERVER_NAME"], safe=""))')"
+          ENCODED_VERSION="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SERVER_VERSION"], safe=""))')"
+          REGISTRY_URL="https://registry.modelcontextprotocol.io/v0.1/servers/${ENCODED_NAME}/versions/${ENCODED_VERSION}"
+          HTTP_CODE="$(curl --silent --show-error --location --output /tmp/registry-before.json --write-out '%{http_code}' "$REGISTRY_URL")"
+
+          case "$HTTP_CODE" in
+            200)
+              echo "publish_required=false" >> "$GITHUB_OUTPUT"
+              echo "result=verified" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "publish_required=true" >> "$GITHUB_OUTPUT"
+              echo "result=publish-required" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              cat /tmp/registry-before.json >&2 || true
+              echo "Unexpected registry HTTP status: $HTTP_CODE" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Install official mcp-publisher
+        if: steps.preflight.outputs.publish_required == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --location \
+            "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --help >/dev/null
+
+      - name: Authenticate with GitHub OIDC
+        if: steps.preflight.outputs.publish_required == 'true'
+        shell: bash
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish current server.json
+        if: steps.preflight.outputs.publish_required == 'true'
+        shell: bash
+        run: ./mcp-publisher publish
+
+      - name: Verify exact registry record
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENCODED_NAME="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SERVER_NAME"], safe=""))')"
+          ENCODED_VERSION="$(python -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["SERVER_VERSION"], safe=""))')"
+          REGISTRY_URL="https://registry.modelcontextprotocol.io/v0.1/servers/${ENCODED_NAME}/versions/${ENCODED_VERSION}"
+          curl --fail --show-error --location --retry 6 --retry-all-errors \
+            --retry-delay 5 --output /tmp/registry-after.json "$REGISTRY_URL"
+          jq -e --arg name "$SERVER_NAME" --arg version "$SERVER_VERSION" \
+            '.server.name == $name and .server.version == $version' \
+            /tmp/registry-after.json >/dev/null
+
+      - name: Write verification summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Official MCP Registry reconciliation"
+            echo ""
+            echo "- Server: \`${SERVER_NAME:-unresolved}\`"
+            echo "- Version: \`${SERVER_VERSION:-unresolved}\`"
+            echo "- Package: \`${PACKAGE_TYPE:-unresolved}:${PACKAGE_ID:-unresolved}\`"
+            echo "- Publish required before this run: \`${{ steps.preflight.outputs.publish_required || 'unknown' }}\`"
+            echo "- Final job status: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
