@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: mcp-registry-${{ github.repository }}-${{ github.event_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   reconcile:
