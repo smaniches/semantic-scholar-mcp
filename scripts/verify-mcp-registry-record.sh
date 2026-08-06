@@ -92,7 +92,7 @@ registry_url="https://registry.modelcontextprotocol.io/v0.1/servers/${encoded_na
 
 http_code=""
 for ((attempt = 1; attempt <= retry_attempts; attempt++)); do
-    http_code="$(curl --silent --show-error --location \
+    http_code="$(curl --silent --show-error --location --retry 4 --retry-all-errors \
         --output "$record_file" \
         --write-out '%{http_code}' \
         "$registry_url")"
@@ -126,13 +126,13 @@ if [[ "$http_code" != "200" ]]; then
     exit 1
 fi
 
-registry_projection='with_entries(select(.key as $key
-  | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
-  | index($key)))'
-
-if jq -e --slurpfile expected "$manifest" \
-    "(.server | $registry_projection) == (\$expected[0] | $registry_projection)" \
-    "$record_file" >/dev/null; then
+if jq -e --slurpfile expected "$manifest" '
+    def registry_projection:
+      with_entries(select(.key as $key
+        | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+        | index($key)));
+    (.server | registry_projection) == ($expected[0] | registry_projection)
+  ' "$record_file" >/dev/null; then
     printf '%s\n' exact > "$state_file"
     echo "Verified exact Official MCP Registry record: $server_name $server_version"
     exit 0
@@ -140,8 +140,16 @@ fi
 
 manifest_changed=true
 if [[ -n "$base_manifest" && -f "$base_manifest" ]]; then
-    jq -S "$registry_projection" "$base_manifest" > /tmp/mcp-registry-base-projection.json
-    jq -S "$registry_projection" "$manifest" > /tmp/mcp-registry-head-projection.json
+    jq -S '
+      with_entries(select(.key as $key
+        | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+        | index($key)))
+    ' "$base_manifest" > /tmp/mcp-registry-base-projection.json
+    jq -S '
+      with_entries(select(.key as $key
+        | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+        | index($key)))
+    ' "$manifest" > /tmp/mcp-registry-head-projection.json
     cmp -s /tmp/mcp-registry-base-projection.json /tmp/mcp-registry-head-projection.json \
         && manifest_changed=false
 fi
@@ -155,6 +163,15 @@ fi
 printf '%s\n' drift > "$state_file"
 echo "ERROR: immutable Registry metadata differs from $manifest; publish a new version." >&2
 diff -u \
-    <(jq -S "$registry_projection" "$manifest") \
-    <(jq -S ".server | $registry_projection" "$record_file") || true
+    <(jq -S '
+      with_entries(select(.key as $key
+        | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+        | index($key)))
+    ' "$manifest") \
+    <(jq -S '
+      .server
+      | with_entries(select(.key as $key
+          | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+          | index($key)))
+    ' "$record_file") || true
 exit 1
