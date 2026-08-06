@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - ".github/workflows/publish-mcp-registry.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/publish-mcp-registry.yml"
   workflow_dispatch:
 
 permissions:
@@ -11,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: mcp-registry-${{ github.repository }}
+  group: mcp-registry-${{ github.repository }}-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
@@ -71,7 +74,7 @@ jobs:
           esac
 
       - name: Install official mcp-publisher
-        if: steps.preflight.outputs.publish_required == 'true'
+        if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -81,12 +84,12 @@ jobs:
           ./mcp-publisher --help >/dev/null
 
       - name: Authenticate with GitHub OIDC
-        if: steps.preflight.outputs.publish_required == 'true'
+        if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
         run: ./mcp-publisher login github-oidc
 
       - name: Publish current server.json
-        if: steps.preflight.outputs.publish_required == 'true'
+        if: github.event_name != 'pull_request' && steps.preflight.outputs.publish_required == 'true'
         shell: bash
         run: ./mcp-publisher publish
 
@@ -113,6 +116,7 @@ jobs:
             echo "- Server: \`${SERVER_NAME:-unresolved}\`"
             echo "- Version: \`${SERVER_VERSION:-unresolved}\`"
             echo "- Package: \`${PACKAGE_TYPE:-unresolved}:${PACKAGE_ID:-unresolved}\`"
+            echo "- Event: \`${{ github.event_name }}\`"
             echo "- Publish required before this run: \`${{ steps.preflight.outputs.publish_required || 'unknown' }}\`"
             echo "- Final job status: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
