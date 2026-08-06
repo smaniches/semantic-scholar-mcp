@@ -5,24 +5,20 @@ on:
     paths:
       - "server.json"
       - ".github/workflows/publish-mcp-registry.yml"
-  workflow_run:
-    workflows:
-      - "Publish to PyPI"
-    types:
-      - completed
+  schedule:
+    - cron: "17 9 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: mcp-registry-verify-${{ github.repository }}-${{ github.ref }}-${{ github.event_name }}
+  group: mcp-registry-verify-${{ github.repository }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   verify:
     name: Validate manifest and registry state
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     env:
       EXPECTED_SERVER_NAME: io.github.smaniches/semantic-scholar-mcp
@@ -33,8 +29,8 @@ jobs:
       - name: Fetch immutable manifest snapshots
         shell: bash
         env:
-          HEAD_REPOSITORY: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name || github.repository }}
-          HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           BASE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: |
@@ -115,14 +111,22 @@ jobs:
             --write-out '%{http_code}' \
             "$registry_url")"
 
+          version_changed=false
+          if [[ -f server.base.json ]]; then
+            base_version="$(jq -er '.version | select(type == "string" and length > 0)' server.base.json)"
+            if [[ "$base_version" != "$server_version" ]]; then
+              version_changed=true
+            fi
+          fi
+
           if [[ "$http_code" == "404" ]]; then
             printf '%s\n' missing > /tmp/mcp-registry-state
-            if [[ "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
-              echo "::error title=Registry record missing::${server_name} ${server_version} is not published after the release workflow."
-              exit 1
+            if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$version_changed" == "true" ]]; then
+              echo "::notice title=Pending publication::${server_name} ${server_version} is a new valid version and will be published by the existing release workflow after the package release."
+              exit 0
             fi
-            echo "::notice title=Pending publication::${server_name} ${server_version} is valid and will be published by the release workflow after the package release."
-            exit 0
+            echo "::error title=Registry record missing::${server_name} ${server_version} is absent from the official MCP Registry."
+            exit 1
           fi
 
           if [[ "$http_code" != "200" ]]; then
@@ -134,11 +138,9 @@ jobs:
           if jq -e --slurpfile expected server.json '
             def registry_projection:
               with_entries(select(.key as $key
-                | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
+                | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"]
                 | index($key)));
-            .server as $actual
-            | ($expected[0] | registry_projection) as $wanted
-            | $actual | contains($wanted)
+            (.server | registry_projection) == ($expected[0] | registry_projection)
           ' /tmp/registry-record.json >/dev/null; then
             printf '%s\n' exact > /tmp/mcp-registry-state
             exit 0
@@ -146,24 +148,26 @@ jobs:
 
           manifest_changed=true
           if [[ -f server.base.json ]]; then
-            jq -S . server.base.json > /tmp/server-base.canonical.json
-            jq -S . server.json > /tmp/server-head.canonical.json
-            if cmp -s /tmp/server-base.canonical.json /tmp/server-head.canonical.json; then
+            jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' \
+              server.base.json > /tmp/server-base.registry.json
+            jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' \
+              server.json > /tmp/server-head.registry.json
+            if cmp -s /tmp/server-base.registry.json /tmp/server-head.registry.json; then
               manifest_changed=false
             fi
           fi
 
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" && "$manifest_changed" == "false" ]]; then
             printf '%s\n' legacy-drift > /tmp/mcp-registry-state
-            echo "::warning title=Immutable legacy metadata::The published ${server_name} ${server_version} record predates the current manifest. This PR does not change server.json. A patch release will create an exact new record."
+            echo "::warning title=Immutable legacy metadata::The published ${server_name} ${server_version} record predates the current manifest. This PR does not change Registry-persisted metadata. A patch release will create an exact new record."
             exit 0
           fi
 
           printf '%s\n' drift > /tmp/mcp-registry-state
           echo "::error title=Registry metadata drift::The immutable registry record differs from the current server.json. Publish a new version rather than overwriting this version."
           diff -u \
-            <(jq -S 'with_entries(select(.key as $key | ["_meta", "description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' server.json) \
-            <(jq -S '.server' /tmp/registry-record.json) || true
+            <(jq -S 'with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' server.json) \
+            <(jq -S '.server | with_entries(select(.key as $key | ["description", "icons", "name", "packages", "remotes", "repository", "title", "version", "websiteUrl"] | index($key)))' /tmp/registry-record.json) || true
           exit 1
 
       - name: Write verification summary
