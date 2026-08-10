@@ -22,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write       # OIDC for Sigstore-backed attestations
-      attestations: write   # persist provenance + SBOM attestations
+      id-token: write       # OIDC for the Sigstore-backed build provenance
+      attestations: write   # persist the build-provenance attestation
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,46 +35,120 @@ jobs:
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: "3.12"
-    # One hash-pinned closure supplies every release tool: the build backend,
-    # twine, and cyclonedx-py. Nothing below installs from the network.
+    # One hash-pinned closure supplies every release tool this job uses: the
+    # build backend and twine. Nothing below it installs from the network; the
+    # wheel's runtime dependency graph is intentionally resolved only in the
+    # unprivileged `sbom` job, never next to attestation authority.
     - name: Install locked release closure
       run: python -m pip install --require-hashes -r requirements-release.lock
     - name: Build package
       run: python -m build --no-isolation
     - name: Verify package
       run: python -m twine check dist/*
-    - name: Generate CycloneDX SBOM
-      run: |
-        python -m venv /tmp/sbom-venv
-        /tmp/sbom-venv/bin/pip install --quiet dist/*.whl
-        cyclonedx-py environment /tmp/sbom-venv/bin/python \
-          --pyproject pyproject.toml \
-          --output-format JSON \
-          --spec-version 1.5 \
-          --output-file sbom.cdx.json
     - name: Attest build provenance for the distributions
       uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
       with:
         subject-path: dist/*
-    - name: Attest the CycloneDX SBOM
-      uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4
-      with:
-        subject-path: dist/*
-        sbom-path: sbom.cdx.json
     - name: Upload distribution artifacts
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: dist
         path: dist/
+
+  # ── Generate the CycloneDX SBOM in an unprivileged job ───────────────────
+  # Resolving the wheel's runtime dependency graph necessarily installs from
+  # the network, so it must not share a job with OIDC or attestation
+  # authority. This job holds contents: read and nothing else: a malicious
+  # package resolved here could taint the SBOM document, but it cannot mint
+  # an attestation. cyclonedx-py itself still comes from the hash-pinned
+  # release closure; only the wheel's runtime graph resolves live.
+  sbom:
+    name: Generate SBOM
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # The same release source identity as the build job.
+        ref: ${{ inputs.tag || github.ref }}
+    - name: Set up Python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: "3.12"
+    - name: Install locked release closure
+      run: python -m pip install --require-hashes -r requirements-release.lock
+    - name: Download distribution artifacts
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: dist
+        path: dist/
+    - name: Assert exactly one built wheel
+      run: |
+        shopt -s nullglob
+        wheels=(dist/*.whl)
+        if [ "${#wheels[@]}" -ne 1 ]; then
+          echo "expected exactly one wheel in dist/, found ${#wheels[@]}: ${wheels[*]}" >&2
+          exit 1
+        fi
+    - name: Install the exact wheel into a clean runtime environment
+      run: |
+        python -m venv /tmp/sbom-runtime
+        /tmp/sbom-runtime/bin/pip install --quiet dist/*.whl
+    - name: Generate CycloneDX SBOM from the runtime environment
+      run: |
+        cyclonedx-py environment /tmp/sbom-runtime/bin/python \
+          --pyproject pyproject.toml \
+          --output-format JSON \
+          --spec-version 1.5 \
+          --output-file sbom.cdx.json
+    - name: Bind the SBOM root component to the exact wheel
+      run: python scripts/release_sbom.py bind --sbom sbom.cdx.json --dist dist
+    - name: Independently verify the SBOM/wheel binding
+      run: python scripts/release_sbom.py verify --sbom sbom.cdx.json --dist dist
     - name: Upload SBOM
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: sbom
         path: sbom.cdx.json
 
+  # ── Attest the verified SBOM with minimal privilege ──────────────────────
+  # This job downloads two finished artifacts and signs one against the
+  # other. It checks out nothing, installs nothing, and resolves no
+  # dependencies, so attestation authority never coexists with live
+  # dependency resolution. The subject is the wheel alone: the SBOM was
+  # measured from the wheel's runtime environment, so attesting it against
+  # the sdist would assert a relationship that was never measured.
+  attest-sbom:
+    name: Attest SBOM
+    needs: [build, sbom]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write       # OIDC for the Sigstore-backed SBOM attestation
+      attestations: write   # persist the SBOM attestation
+
+    steps:
+    - name: Download distribution artifacts
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: dist
+        path: dist/
+    - name: Download SBOM
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        name: sbom
+    - name: Attest the CycloneDX SBOM against the wheel
+      uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4
+      with:
+        subject-path: dist/*.whl
+        sbom-path: sbom.cdx.json
+
   publish-pypi:
     name: Publish to PyPI
-    needs: build
+    needs: [build, sbom, attest-sbom]
     runs-on: ubuntu-latest
     environment:
       name: pypi
