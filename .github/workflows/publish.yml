@@ -129,9 +129,10 @@ jobs:
   # This job downloads two finished artifacts and signs one against the
   # other. It checks out nothing, installs nothing, and resolves no
   # dependencies, so attestation authority never coexists with live
-  # dependency resolution. The subject is the wheel alone: the SBOM was
-  # measured from the wheel's runtime environment, so attesting it against
-  # the sdist would assert a relationship that was never measured.
+  # dependency resolution. The subject is the wheel alone: the SBOM
+  # describes the wheel's statically resolved runtime dependency graph, so
+  # attesting it against the sdist would assert a relationship that was
+  # never established.
   attest-sbom:
     name: Attest SBOM
     needs: [build, sbom]
