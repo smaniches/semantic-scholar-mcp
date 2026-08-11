@@ -2,6 +2,14 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.1...semantic-scholar-mcp-v1.7.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* **release:** construct the SBOM without executing resolved dependencies ([#151](https://github.com/smaniches/semantic-scholar-mcp/issues/151)) ([0b44031](https://github.com/smaniches/semantic-scholar-mcp/commit/0b44031b5acd019c5401eda1af43482a4401ee06))
+* **release:** isolate SBOM resolution from attestation authority ([#149](https://github.com/smaniches/semantic-scholar-mcp/issues/149)) ([66fe39e](https://github.com/smaniches/semantic-scholar-mcp/commit/66fe39e96cbb6819a786606d0502bd91fe291a17))
+
 ## [1.7.1](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.0...semantic-scholar-mcp-v1.7.1) (2026-07-26)
 
 
