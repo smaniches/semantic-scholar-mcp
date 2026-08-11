@@ -56,12 +56,17 @@ jobs:
         path: dist/
 
   # ── Generate the CycloneDX SBOM in an unprivileged job ───────────────────
-  # Resolving the wheel's runtime dependency graph necessarily installs from
+  # Resolving the wheel's runtime dependency graph necessarily downloads from
   # the network, so it must not share a job with OIDC or attestation
-  # authority. This job holds contents: read and nothing else: a malicious
-  # package resolved here could taint the SBOM document, but it cannot mint
-  # an attestation. cyclonedx-py itself still comes from the hash-pinned
-  # release closure; only the wheel's runtime graph resolves live.
+  # authority. This job holds contents: read and nothing else. Beyond that
+  # privilege boundary, the resolved graph is data, never code: pip download
+  # --only-binary=:all: fails closed on any source distribution (so no build
+  # backend can run), nothing from the wheelhouse is installed or imported,
+  # and no interpreter populated with dependency code is ever started (so no
+  # .pth or sitecustomize hook can run either). The document that attest-sbom
+  # later signs is derived purely from static wheel METADATA by
+  # scripts/release_sbom.py plus cyclonedx-py from the hash-pinned release
+  # closure.
   sbom:
     name: Generate SBOM
     needs: build
@@ -93,13 +98,17 @@ jobs:
           echo "expected exactly one wheel in dist/, found ${#wheels[@]}: ${wheels[*]}" >&2
           exit 1
         fi
-    - name: Install the exact wheel into a clean runtime environment
+    - name: Resolve the runtime dependency graph as wheels only (no execution)
+      run: >-
+        python -m pip download --only-binary=:all:
+        --dest /tmp/sbom-wheelhouse dist/*.whl
+    - name: Derive the static dependency manifest from wheel metadata
+      run: >-
+        python scripts/release_sbom.py lock --dist dist
+        --wheelhouse /tmp/sbom-wheelhouse --output sbom-requirements.txt
+    - name: Generate CycloneDX SBOM from the static manifest
       run: |
-        python -m venv /tmp/sbom-runtime
-        /tmp/sbom-runtime/bin/pip install --quiet dist/*.whl
-    - name: Generate CycloneDX SBOM from the runtime environment
-      run: |
-        cyclonedx-py environment /tmp/sbom-runtime/bin/python \
+        cyclonedx-py requirements sbom-requirements.txt \
           --pyproject pyproject.toml \
           --output-format JSON \
           --spec-version 1.5 \
@@ -107,7 +116,9 @@ jobs:
     - name: Bind the SBOM root component to the exact wheel
       run: python scripts/release_sbom.py bind --sbom sbom.cdx.json --dist dist
     - name: Independently verify the SBOM/wheel binding
-      run: python scripts/release_sbom.py verify --sbom sbom.cdx.json --dist dist
+      run: >-
+        python scripts/release_sbom.py verify --sbom sbom.cdx.json --dist dist
+        --requirements sbom-requirements.txt
     - name: Upload SBOM
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
