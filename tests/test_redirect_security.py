@@ -12,9 +12,7 @@ from semantic_scholar_mcp.errors import SemanticScholarError
 
 @pytest.mark.asyncio
 async def test_trusted_semantic_scholar_origin_is_allowed():
-    request = httpx.Request(
-        "GET", "https://api.semanticscholar.org/graph/v1/paper/search"
-    )
+    request = httpx.Request("GET", "https://api.semanticscholar.org/graph/v1/paper/search")
 
     await client._enforce_trusted_api_origin(request)
 
