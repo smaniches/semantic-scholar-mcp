@@ -82,11 +82,7 @@ async def _enforce_trusted_api_origin(request: httpx.Request) -> None:
     plaintext HTTP, or escape through a non-standard port.
     """
     url = request.url
-    if (
-        url.scheme != "https"
-        or url.host != _TRUSTED_API_HOST
-        or url.port not in (None, 443)
-    ):
+    if url.scheme != "https" or url.host != _TRUSTED_API_HOST or url.port not in (None, 443):
         raise SemanticScholarError(
             "Refusing outbound request outside the trusted Semantic Scholar HTTPS origin"
         )
