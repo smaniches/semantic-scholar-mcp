@@ -42,6 +42,7 @@ from .logging_config import get_logger
 SEMANTIC_SCHOLAR_API_KEY: str = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 SEMANTIC_SCHOLAR_API_BASE: str = "https://api.semanticscholar.org/graph/v1"
 RECOMMENDATIONS_BASE: str = "https://api.semanticscholar.org/recommendations/v1"
+_TRUSTED_API_HOST = httpx.URL(SEMANTIC_SCHOLAR_API_BASE).host
 
 # Request-scoped API key, bound per HTTP request by the Streamable HTTP
 # transport middleware. Contextvars are copied into the per-request server
@@ -71,6 +72,22 @@ _client: httpx.AsyncClient | None = None
 logger = get_logger()
 
 
+async def _enforce_trusted_api_origin(request: httpx.Request) -> None:
+    """Reject any outbound request outside the exact Semantic Scholar API origin.
+
+    ``httpx`` strips ``Authorization`` on cross-origin redirects but does not
+    strip arbitrary credential headers such as Semantic Scholar's ``x-api-key``.
+    This request hook runs before every dispatch, including redirect hops, so an
+    upstream 3xx can never forward the API key to another host, downgrade to
+    plaintext HTTP, or escape through a non-standard port.
+    """
+    url = request.url
+    if url.scheme != "https" or url.host != _TRUSTED_API_HOST or url.port not in (None, 443):
+        raise SemanticScholarError(
+            "Refusing outbound request outside the trusted Semantic Scholar HTTPS origin"
+        )
+
+
 async def get_client() -> httpx.AsyncClient:
     """Return the shared :class:`httpx.AsyncClient`, creating it if needed."""
     global _client
@@ -81,9 +98,10 @@ async def get_client() -> httpx.AsyncClient:
                 max_connections=10, max_keepalive_connections=5, keepalive_expiry=30
             ),
             headers={"Accept": "application/json", "Content-Type": "application/json"},
-            # Follow 3xx so an endpoint move or HTTP→HTTPS upgrade doesn't
-            # surface as a phantom error from raise_for_status().
+            # Redirects remain transparent only while every hop stays on the
+            # exact trusted HTTPS API origin enforced by the request hook.
             follow_redirects=True,
+            event_hooks={"request": [_enforce_trusted_api_origin]},
         )
     return _client
 
