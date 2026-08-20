@@ -7,6 +7,11 @@
 .gitignore
 .gitattributes
 
+# Local secrets
+.env
+*.pem
+*.key
+
 # Python build / cache artifacts
 __pycache__
 *.py[cod]
