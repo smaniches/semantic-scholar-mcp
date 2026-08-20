@@ -2,6 +2,18 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.3](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.2...semantic-scholar-mcp-v1.7.3) (2026-08-20)
+
+
+### Bug Fixes
+
+* **security:** close Docker context and release security changes ([4688f29](https://github.com/smaniches/semantic-scholar-mcp/commit/4688f297b56c1c50d5a82ae6dc416d124ad4b60e))
+
+
+### Security
+
+* constrain redirects to Semantic Scholar API origin ([#155](https://github.com/smaniches/semantic-scholar-mcp/issues/155)) ([2cd9c35](https://github.com/smaniches/semantic-scholar-mcp/commit/2cd9c3514e53749ff5b6c5c82ca78a779c48e577))
+
 ## [1.7.2](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.1...semantic-scholar-mcp-v1.7.2) (2026-08-11)
 
 
