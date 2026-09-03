@@ -31,7 +31,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
-CUTOFF=2026-08-03T15:29:41Z
+# One second after hatchling 1.32.0 was published (2026-08-11T05:03:42Z),
+# the newest exact pin declared in requirements-build.in. The cutoff must
+# never predate a pin in a *.in file: uv would fail to resolve it.
+CUTOFF=2026-08-11T05:03:43Z
 
 MODE=write
 case "${1:-}" in
@@ -92,8 +95,8 @@ uv_compile() {
 # above, so each is re-resolved to the newest release allowed by the cutoff while
 # every other pin stays pinned by the seed:
 #   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
-#   * pip          -> 26.2, which resolves PYSEC-2026-3721 (seed carried 26.1.2;
-#                     26.2 was released 2026-07-29, inside the cutoff).
+#   * pip          -> 26.2.1, which resolves PYSEC-2026-3721 (seed carried
+#                     26.1.2; the fix landed in 26.2, inside the cutoff).
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.

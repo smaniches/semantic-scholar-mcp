@@ -26,12 +26,13 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
-CUTOFF = "2026-08-03T15:29:41Z"
+CUTOFF = "2026-08-11T05:03:43Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
 RELEASE_LOCK = ROOT / "requirements-release.lock"
 REGENERATE_SCRIPT = ROOT / "scripts" / "regenerate-locks.sh"
+BUILD_IN = ROOT / "requirements-build.in"
 
 # Packages whose development-lock block may change relative to the authoritative
 # base, and the only way each is allowed to change.
@@ -47,12 +48,12 @@ SEMANTIC_CHANGES = frozenset(
 
 # Packages the development lock must pin at an exact version. cryptography is
 # held at 50.0.0 because 49.0.0 (the version the authoritative-base seed would
-# otherwise carry forward) is affected by CVE-2026-69247; pip is held at 26.2
+# otherwise carry forward) is affected by CVE-2026-69247; pip is held at 26.2.1
 # because the seeded 26.1.2 is affected by PYSEC-2026-3721. Each pin is produced
 # by an --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
 REQUIRED_DEV_VERSIONS = {
     "cryptography": "50.0.0",
-    "pip": "26.2",
+    "pip": "26.2.1",
 }
 
 PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
@@ -293,6 +294,39 @@ def test_regeneration_script_selects_the_required_security_versions() -> None:
         assert f"--upgrade-package {name}" in script, (
             f"{name} is pinned in the lock but nothing in the regeneration "
             f"script selects it; --check would resolve it back to the seed"
+        )
+
+
+def test_build_lock_honours_every_exact_pin_declared_in_build_in(
+    build_lock: dict[str, list[Requirement]],
+) -> None:
+    """An exact pin in requirements-build.in must reach the committed build lock.
+
+    requirements-build.in once pinned hatchling==1.32.0 while the committed
+    build lock still carried 1.31.0, because the resolver cutoff predated that
+    release. Nothing compared the declared input against the generated lock, so
+    the two disagreed silently and `regenerate-locks.sh --check` could not run.
+    """
+    declared = {}
+    for raw in BUILD_IN.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        match = REQUIREMENT_RE.match(line)
+        assert match, f"requirements-build.in line is not an exact pin: {raw!r}"
+        declared[canonical(match.group(1))] = match.group(2)
+
+    assert declared, "requirements-build.in declares no pins"
+
+    for name, version in sorted(declared.items()):
+        requirements = build_lock.get(name)
+        assert requirements, (
+            f"{name} is declared in requirements-build.in but is absent from the build lock"
+        )
+        locked = {requirement.version for requirement in requirements}
+        assert locked == {version}, (
+            f"{name}: requirements-build.in declares {version} but the committed "
+            f"build lock carries {sorted(locked)}; regenerate the locks"
         )
 
 
