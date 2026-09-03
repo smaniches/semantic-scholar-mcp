@@ -320,7 +320,9 @@ def test_build_lock_honours_every_exact_pin_declared_in_build_in(
 
     for name, version in sorted(declared.items()):
         requirements = build_lock.get(name)
-        assert requirements, f"{name} is declared in requirements-build.in but absent from the build lock"
+        assert requirements, (
+            f"{name} is declared in requirements-build.in but is absent from the build lock"
+        )
         locked = {requirement.version for requirement in requirements}
         assert locked == {version}, (
             f"{name}: requirements-build.in declares {version} but the committed "
