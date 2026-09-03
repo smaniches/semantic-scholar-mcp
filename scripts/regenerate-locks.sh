@@ -88,12 +88,15 @@ uv_compile() {
         "$UV" --no-config pip compile "$@" > /dev/null
 }
 
-# --upgrade-package exempts exactly one package from the preference seed above,
-# so cryptography is re-resolved to the newest release allowed by the cutoff
-# (50.0.0, which resolves CVE-2026-69247) while every other pin stays pinned by
-# the seed. Note that uv does NOT echo --upgrade-package into the generated
-# header, so this line is the only record of why the lock carries 50.0.0 —
-# removing it would silently resolve cryptography back down to the seeded 49.0.0.
+# --upgrade-package exempts exactly the named packages from the preference seed
+# above, so each is re-resolved to the newest release allowed by the cutoff while
+# every other pin stays pinned by the seed:
+#   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
+#   * pip          -> 26.2, which resolves PYSEC-2026-3721 (seed carried 26.1.2;
+#                     26.2 was released 2026-07-29, inside the cutoff).
+# Note that uv does NOT echo --upgrade-package into the generated header, so
+# these lines are the only record of why the lock carries those versions —
+# removing one would silently resolve that package back down to the seed.
 uv_compile pyproject.toml \
     --extra dev \
     --python-version 3.10 \
@@ -101,6 +104,7 @@ uv_compile pyproject.toml \
     --generate-hashes \
     --exclude-newer "$CUTOFF" \
     --upgrade-package cryptography \
+    --upgrade-package pip \
     --default-index https://pypi.org/simple \
     --output-file requirements-dev.lock
 

@@ -40,16 +40,19 @@ SEMANTIC_CHANGES = frozenset(
         "backports-asyncio-runner",
         "cryptography",
         "exceptiongroup",
+        "pip",
         "rpds-py",
     }
 )
 
 # Packages the development lock must pin at an exact version. cryptography is
 # held at 50.0.0 because 49.0.0 (the version the authoritative-base seed would
-# otherwise carry forward) is affected by CVE-2026-69247. The pin is produced by
-# the --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
+# otherwise carry forward) is affected by CVE-2026-69247; pip is held at 26.2
+# because the seeded 26.1.2 is affected by PYSEC-2026-3721. Each pin is produced
+# by an --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
 REQUIRED_DEV_VERSIONS = {
     "cryptography": "50.0.0",
+    "pip": "26.2",
 }
 
 PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
