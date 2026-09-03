@@ -362,6 +362,7 @@ def test_no_changed_workflow_can_write_to_the_repository() -> None:
         "ci.yml",
         "dependency-audit.yml",
         "publish.yml",
+        "release-verify.yml",
         "test-api-compat.yml",
     ):
         text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
