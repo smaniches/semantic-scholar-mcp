@@ -94,5 +94,6 @@ README advertises a tool the server does not register.
 | `ci.yml` | push/PR to main | lint, format, mypy, tests (3.10-3.13, Linux/macOS/Windows), CodeQL, dependency review |
 | `test-api-compat.yml` | push/PR/weekly | live API compatibility (requires `SEMANTIC_SCHOLAR_API_KEY` secret) |
 | `publish.yml` | release published | build + trusted PyPI publish; SLSA provenance + PEP 740 attestations; CycloneDX SBOM |
+| `release-verify.yml` | dispatched by `publish.yml`/manual/6-hourly | PyPI read-back for the tag: exactly one wheel + one sdist; served wheel matches the SLSA provenance attested at `refs/tags/<tag>` |
 | `docker.yml` | release/push to main | build + push to ghcr.io; SLSA build-provenance attestation |
 | `release-please.yml` | push to main | automated release PR |

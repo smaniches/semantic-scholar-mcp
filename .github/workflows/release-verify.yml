@@ -1,0 +1,204 @@
+name: Immediate release verification
+
+# Reads a published release back from PyPI and checks it against this
+# repository, so the wheel PyPI serves under a released version is provably
+# the one publish.yml built AT THE TAG. Runs (a) when publish.yml dispatches
+# it after publish-pypi, (b) on manual dispatch with a tag, and (c) on a
+# schedule against the latest published release, age-gated so it never races
+# the in-pipeline run. There is deliberately no `release:` trigger: a
+# GITHUB_TOKEN-authored release never fans out, and a hand-made release is
+# covered by publish.yml's own dispatch after the upload. It asserts:
+#
+#   1. PyPI existence      — https://pypi.org/pypi/<name>/<version>/json exists,
+#                            reports that version, and lists exactly one wheel
+#                            and exactly one sdist
+#   2. PyPI wheel identity — the served wheel's SHA-256 matches PyPI's digest,
+#                            and `gh attestation verify` finds SLSA build
+#                            provenance for that digest whose source is
+#                            refs/tags/<tag> at the tag's commit. This is what
+#                            separates a wheel built from the tag from one
+#                            published by a manual workflow run on a branch.
+#
+# On failure a `release-drift` issue is opened (deduplicated by title).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to verify (e.g. semantic-scholar-mcp-v1.7.3); empty = latest published release"
+        required: false
+        type: string
+  schedule:
+    - cron: "41 */6 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  PYPI_NAME: "s2-mcp-server"
+  # A scheduled run skips a release younger than this, so it never races the
+  # verification that publish.yml dispatches for the same tag.
+  MIN_RELEASE_AGE_HOURS: "2"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Resolve the release to verify
+      id: target
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EVENT_NAME: ${{ github.event_name }}
+        INPUT_TAG: ${{ inputs.tag || '' }}
+      run: |
+        set -euo pipefail
+        skip=false
+        case "$EVENT_NAME" in
+          workflow_dispatch) tag="$INPUT_TAG" ;;
+          *) tag="" ;;
+        esac
+        if [ -z "$tag" ]; then
+          # releases/latest excludes drafts and prereleases.
+          tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
+          echo "Latest published release: $tag"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            published_at="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .published_at)"
+            now_epoch="$(date -u +%s)"
+            published_epoch="$(date -u -d "$published_at" +%s)"
+            age_hours=$(( (now_epoch - published_epoch) / 3600 ))
+            if [ "$age_hours" -lt "$MIN_RELEASE_AGE_HOURS" ]; then
+              echo "::notice::Release $tag is ${age_hours}h old (< ${MIN_RELEASE_AGE_HOURS}h); the in-pipeline verification owns it, skipping this scheduled run"
+              skip=true
+            fi
+          fi
+        fi
+        if [ -z "$tag" ]; then
+          echo "::error::could not resolve a release tag to verify"
+          exit 1
+        fi
+        # Tags are `semantic-scholar-mcp-vX.Y.Z` (release-please component
+        # prefix) or, for the legacy releases v1.0.0-v1.2.2, bare `vX.Y.Z`.
+        version="${tag##*-v}"
+        version="${version#v}"
+        {
+          echo "tag=$tag"
+          echo "version=$version"
+          echo "skip=$skip"
+        } >> "$GITHUB_OUTPUT"
+        echo "Verifying tag $tag as $PYPI_NAME $version (skip=$skip)"
+
+    - name: Verify PyPI release (exactly one wheel and one sdist)
+      id: pypi
+      if: steps.target.outputs.skip != 'true'
+      env:
+        VERSION: ${{ steps.target.outputs.version }}
+      run: |
+        set -euo pipefail
+        # Exact per-version endpoint, not a substring match over an index
+        # listing. Poll for PyPI propagation, then fail closed.
+        url="https://pypi.org/pypi/${PYPI_NAME}/${VERSION}/json"
+        json="$RUNNER_TEMP/pypi-release.json"
+        wheel_filter='.urls[] | select(.packagetype == "bdist_wheel")'
+        for attempt in 1 2 3 4 5 6; do
+          if curl -fsS -o "$json" "$url"; then
+            seen="$(jq -r '.info.version' "$json")"
+            wheels="$(jq "[$wheel_filter] | length" "$json")"
+            sdists="$(jq '[.urls[] | select(.packagetype == "sdist")] | length' "$json")"
+            if [ "$seen" = "$VERSION" ] && [ "$wheels" -eq 1 ] && [ "$sdists" -eq 1 ]; then
+              echo "PyPI: $PYPI_NAME $VERSION present with exactly one wheel and one sdist"
+              {
+                echo "wheel_url=$(jq -r "$wheel_filter | .url" "$json")"
+                echo "wheel_sha256=$(jq -r "$wheel_filter | .digests.sha256" "$json")"
+                echo "wheel_filename=$(jq -r "$wheel_filter | .filename" "$json")"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "PyPI JSON for $VERSION is incomplete: version=$seen wheels=$wheels sdists=$sdists"
+          else
+            echo "PyPI has no JSON for $PYPI_NAME $VERSION yet"
+          fi
+          if [ "$attempt" -lt 6 ]; then
+            echo "attempt $attempt/6; sleeping 30s"
+            sleep 30
+          fi
+        done
+        echo "PyPI: $PYPI_NAME $VERSION NOT FOUND (or not exactly one wheel + one sdist) after 6 attempts"
+        exit 1
+
+    - name: Check out the tag
+      if: steps.target.outputs.skip != 'true'
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ steps.target.outputs.tag }}
+        persist-credentials: false
+
+    - name: Verify PyPI wheel identity against the tag (provenance)
+      if: steps.target.outputs.skip != 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ steps.target.outputs.tag }}
+        WHEEL_URL: ${{ steps.pypi.outputs.wheel_url }}
+        WHEEL_SHA256: ${{ steps.pypi.outputs.wheel_sha256 }}
+        WHEEL_FILENAME: ${{ steps.pypi.outputs.wheel_filename }}
+      run: |
+        set -euo pipefail
+        # The commit the tag points at is the source identity the build
+        # provenance must carry: publish.yml checks out the tag, and
+        # actions/attest-build-provenance records refs/tags/<tag> plus that
+        # commit as the source. A wheel published by a manual run from a
+        # branch carries refs/heads/<branch> instead and fails here.
+        tag_sha="$(git rev-parse "HEAD^{commit}")"
+        echo "tag $TAG resolves to commit $tag_sha"
+        mkdir -p "$RUNNER_TEMP/relverify"
+        cd "$RUNNER_TEMP/relverify"
+        wheel="$(basename "$WHEEL_FILENAME")"
+        curl -fsS -o "$wheel" "$WHEEL_URL"
+        actual="$(sha256sum "$wheel" | cut -d ' ' -f 1)"
+        if [ "$actual" != "$WHEEL_SHA256" ]; then
+          echo "downloaded wheel sha256 $actual does not match PyPI's digest $WHEEL_SHA256"
+          exit 1
+        fi
+        echo "wheel $wheel sha256 matches PyPI's digest: $actual"
+        # The attestation is keyed by the wheel digest; --source-ref and
+        # --source-digest bind it to the tag, not merely to the repository.
+        gh attestation verify "$wheel" \
+          --repo "$GITHUB_REPOSITORY" \
+          --predicate-type https://slsa.dev/provenance/v1 \
+          --source-ref "refs/tags/$TAG" \
+          --source-digest "$tag_sha"
+
+    - name: Open release-drift issue on immediate failure
+      # Only a resolved tag is reported as drift. A failure of the target step
+      # itself (a transient GitHub API error on a scheduled run) still fails
+      # the run visibly, but must not claim that a release is missing.
+      if: failure() && steps.target.outcome == 'success'
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        TAG: ${{ steps.target.outputs.tag || '(unresolved)' }}
+      with:
+        script: |
+          const tag = process.env.TAG;
+          const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          const title = `Release verification failed for ${tag}`;
+          const body = [
+            `Immediate release verification (\`release-verify.yml\`) failed for tag \`${tag}\`.`,
+            ``,
+            `Run: ${runUrl}`,
+            ``,
+            `One or more of {PyPI existence (exactly one wheel + one sdist),`,
+            `PyPI wheel identity against the tag (SLSA provenance at refs/tags/<tag>)}`,
+            `did not hold. Inspect the failing step and repair the release chain`,
+            `before the next tag.`,
+          ].join("\n");
+          const existing = await github.rest.issues.listForRepo({
+            owner: context.repo.owner, repo: context.repo.repo,
+            labels: "release-drift", state: "open",
+          });
+          const dup = existing.data.find(i => i.title === title);
+          if (!dup) {
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title, body, labels: ["release-drift"],
+            });
+          }

@@ -218,3 +218,35 @@ jobs:
       run: ./mcp-publisher login github-oidc
     - name: Publish server.json to MCP Registry
       run: ./mcp-publisher publish
+
+  # ── Chain release verification AFTER PyPI publication ────────────────────
+  # release-verify.yml reads the release back from PyPI and checks the served
+  # wheel against the build provenance attested at the tag, so it must start
+  # only after publish-pypi has completed. release-verify.yml has no
+  # `release:` trigger of its own (a GITHUB_TOKEN-authored release never fans
+  # out to other workflows), so this dispatch is the only in-pipeline path
+  # that starts it; its scheduled run covers a publish that never started.
+  # The dispatched file is the one at the released tag, so re-running this
+  # workflow for a tag that predates release-verify.yml fails here; verify
+  # such a tag by dispatching release-verify.yml from main with tag=<tag>.
+  dispatch-verify:
+    name: Dispatch release verification
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write  # gh workflow run (workflow_dispatch)
+
+    steps:
+    - name: Dispatch release verification
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # On the release-please dispatch path inputs.tag is the released tag;
+        # on the native release: published path inputs.tag is empty and
+        # github.ref_name is the tag. Either way the value is non-empty.
+        VERIFY_TAG: ${{ inputs.tag || github.ref_name }}
+      run: |
+        set -euo pipefail
+        gh workflow run release-verify.yml \
+          --repo "$GITHUB_REPOSITORY" \
+          --ref "$VERIFY_TAG" \
+          --field tag="$VERIFY_TAG"

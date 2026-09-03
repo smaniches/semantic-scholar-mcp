@@ -40,6 +40,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "publish.yml"
+VERIFY_WORKFLOW = ROOT / ".github" / "workflows" / "release-verify.yml"
 SBOM_TOOL = ROOT / "scripts" / "release_sbom.py"
 PUBLISHER_INSTALLER = ROOT / "scripts" / "install-mcp-publisher.sh"
 
@@ -226,6 +227,26 @@ def test_pinned_publisher_path_remains_unchanged(jobs: dict[str, Any]) -> None:
     digest = hashlib.sha256(PUBLISHER_INSTALLER.read_bytes()).hexdigest()
     assert digest == PUBLISHER_INSTALLER_SHA256
     assert "scripts/install-mcp-publisher.sh" in run_text(jobs["publish-mcp-registry"])
+
+
+def test_dispatch_verify_chains_release_verification_after_pypi_publish(
+    jobs: dict[str, Any],
+) -> None:
+    job = jobs["dispatch-verify"]
+    assert needs(job) == {"publish-pypi"}
+    assert job["permissions"] == {"actions": "write"}
+    assert "gh workflow run release-verify.yml" in run_text(job)
+
+
+def test_release_verify_workflow_reads_pypi_back_against_the_tag() -> None:
+    workflow = yaml.safe_load(VERIFY_WORKFLOW.read_text(encoding="utf-8"))
+    # PyYAML reads the bare ``on`` key as the boolean ``True``.
+    triggers = workflow.get("on") or workflow[True]
+    assert set(triggers) == {"workflow_dispatch", "schedule"}
+    text = "\n".join(run_text(job) for job in workflow["jobs"].values())
+    assert "pypi.org/pypi/" in text
+    assert "--source-ref" in text
+    assert "--source-digest" in text
 
 
 # ── Binding tool behavior: the SBOM must prove it describes the exact wheel ──
