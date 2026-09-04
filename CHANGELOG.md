@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.3...semantic-scholar-mcp-v1.7.4) (2026-09-03)
+
+
+### Bug Fixes
+
+* **deps:** align the resolver cutoff with the hatchling pin it must resolve ([#162](https://github.com/smaniches/semantic-scholar-mcp/issues/162)) ([054feeb](https://github.com/smaniches/semantic-scholar-mcp/commit/054feeb12eb69a71b5d33b2d3f07375bff7e2b96))
+
 ## [1.7.3](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.2...semantic-scholar-mcp-v1.7.3) (2026-08-20)
 
 
