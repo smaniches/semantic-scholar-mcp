@@ -94,6 +94,9 @@ uv_compile() {
 # --upgrade-package exempts exactly the named packages from the preference seed
 # above, so each is re-resolved to the newest release allowed by the cutoff while
 # every other pin stays pinned by the seed:
+#   * anyio       -> 4.14.2, which resolves CVE-2026-63374, CVE-2026-64847,
+#                     and CVE-2026-63349 (seed carried 4.14.0; 4.14.2 was
+#                     published before the frozen index cutoff);
 #   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
 #   * pip          -> 26.2.1, which resolves PYSEC-2026-3721 (seed carried
 #                     26.1.2; the fix landed in 26.2, inside the cutoff).
@@ -106,6 +109,7 @@ uv_compile pyproject.toml \
     --universal \
     --generate-hashes \
     --exclude-newer "$CUTOFF" \
+    --upgrade-package anyio \
     --upgrade-package cryptography \
     --upgrade-package pip \
     --default-index https://pypi.org/simple \
