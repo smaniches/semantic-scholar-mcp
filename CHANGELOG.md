@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.5](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.4...semantic-scholar-mcp-v1.7.5) (2026-09-28)
+
+
+### Bug Fixes
+
+* upgrade AnyIO to 4.14.2 for newly disclosed CVEs ([#168](https://github.com/smaniches/semantic-scholar-mcp/issues/168)) ([36677be](https://github.com/smaniches/semantic-scholar-mcp/commit/36677be65c6791f425b4f955d3a75a5ba6372643))
+
 ## [1.7.4](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.3...semantic-scholar-mcp-v1.7.4) (2026-09-03)
 
 
