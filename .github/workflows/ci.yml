@@ -167,3 +167,9 @@ jobs:
           requirements-dev.lock
           requirements-release.lock
         if-no-files-found: error
+    - name: Emit release lock for connector transfer
+      shell: bash
+      run: |
+        echo "RELEASE_LOCK_B64_BEGIN"
+        base64 requirements-release.lock
+        echo "RELEASE_LOCK_B64_END"
