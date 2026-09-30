@@ -31,10 +31,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
-# One second after hatchling 1.32.0 was published (2026-08-11T05:03:42Z),
-# the newest exact pin declared in requirements-build.in. The cutoff must
-# never predate a pin in a *.in file: uv would fail to resolve it.
-CUTOFF=2026-08-11T05:03:43Z
+# One second after hatchling 1.32.4's final distribution was published
+# (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
+# The cutoff must never predate a pin in a *.in file: uv would fail to resolve it.
+CUTOFF=2026-09-20T22:48:46Z
 
 MODE=write
 case "${1:-}" in
