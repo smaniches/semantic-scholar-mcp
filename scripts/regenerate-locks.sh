@@ -31,10 +31,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
+# Keep the development closure on its previously reviewed index snapshot so a
+# build/release-tool bump cannot silently re-resolve unrelated dev dependencies.
+DEV_CUTOFF=2026-08-11T05:03:43Z
 # One second after hatchling 1.32.4's final distribution was published
 # (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
-# The cutoff must never predate a pin in a *.in file: uv would fail to resolve it.
-CUTOFF=2026-09-20T22:48:46Z
+# This cutoff must never predate a pin in a build/release *.in file.
+BUILD_RELEASE_CUTOFF=2026-09-20T22:48:46Z
 
 MODE=write
 case "${1:-}" in
@@ -108,7 +111,7 @@ uv_compile pyproject.toml \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$DEV_CUTOFF" \
     --upgrade-package anyio \
     --upgrade-package cryptography \
     --upgrade-package pip \
@@ -119,7 +122,7 @@ uv_compile requirements-build.in \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$BUILD_RELEASE_CUTOFF" \
     --default-index https://pypi.org/simple \
     --output-file requirements-build.lock
 
@@ -127,7 +130,7 @@ uv_compile requirements-release.in \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$BUILD_RELEASE_CUTOFF" \
     --default-index https://pypi.org/simple \
     --constraint requirements-build.lock \
     --output-file requirements-release.lock
