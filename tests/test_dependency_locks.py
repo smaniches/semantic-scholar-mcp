@@ -26,7 +26,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
-CUTOFF = "2026-08-11T05:03:43Z"
+CUTOFF = "2026-09-20T22:48:46Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
