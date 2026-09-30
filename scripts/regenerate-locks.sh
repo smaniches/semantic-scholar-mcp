@@ -97,18 +97,19 @@ uv_compile() {
 # --upgrade-package exempts exactly the named packages from the preference seed
 # above, so each is re-resolved to the newest release allowed by the cutoff while
 # every other pin stays pinned by the seed:
-#   * anyio       -> 4.14.2, which resolves CVE-2026-63374, CVE-2026-64847,
-#                     and CVE-2026-63349 (seed carried 4.14.0; 4.14.2 was
-#                     published before the frozen index cutoff);
-#   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
+#   * anyio       -> newest <= DEV_CUTOFF (4.15.1 in this snapshot), preserving
+#                     the fixes for CVE-2026-63374/CVE-2026-64847/CVE-2026-63349;
+#   * cryptography -> newest <= DEV_CUTOFF (50.0.2 here), preserving the
+#                     CVE-2026-69247 fix;
 #   * pip          -> 26.2.1, which resolves PYSEC-2026-3721 (seed carried
-#                     26.1.2; the fix landed in 26.2, inside the cutoff);
-#   * pyjwt        -> newest <= DEV_CUTOFF, at least 2.15.0, resolving the
+#                     26.1.2; no newer compatible release exists at this cutoff);
+#   * pyjwt        -> newest <= DEV_CUTOFF (2.15.1 here), resolving the
 #                     September 2026 JWT advisory set caught by pip-audit;
-#   * urllib3      -> newest <= DEV_CUTOFF, at least 2.8.0, resolving
+#   * urllib3      -> newest <= DEV_CUTOFF (2.8.0 here), resolving
 #                     CVE-2026-97687/97688/97689;
-#   * virtualenv   -> newest <= DEV_CUTOFF, at least 21.7.13, resolving
-#                     PYSEC-2026-4011/4012/4013/4014.
+#   * virtualenv   -> newest <= DEV_CUTOFF (21.14.1 here), resolving
+#                     PYSEC-2026-4011/4012/4013/4014 and requiring
+#                     python-discovery>=1.6 (resolved to 1.6.1).
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.
