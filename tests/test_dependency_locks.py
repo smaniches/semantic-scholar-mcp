@@ -26,7 +26,8 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
-CUTOFF = "2026-09-20T22:48:46Z"
+DEV_CUTOFF = "2026-08-11T05:03:43Z"
+BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
@@ -82,17 +83,17 @@ EXPECTED_HEADERS = {
     DEV_LOCK: (
         "uv --no-config pip compile pyproject.toml --extra dev "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --output-file requirements-dev.lock"
+        f"--exclude-newer {DEV_CUTOFF} --output-file requirements-dev.lock"
     ),
     BUILD_LOCK: (
         "uv --no-config pip compile requirements-build.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --output-file requirements-build.lock"
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --output-file requirements-build.lock"
     ),
     RELEASE_LOCK: (
         "uv --no-config pip compile requirements-release.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --constraint requirements-build.lock "
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --constraint requirements-build.lock "
         "--output-file requirements-release.lock"
     ),
 }
@@ -369,7 +370,8 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
     script = REGENERATE_SCRIPT.read_text(encoding="utf-8")
 
     assert f"BASE={AUTHORITATIVE_BASE}" in script
-    assert f"CUTOFF={CUTOFF}" in script
+    assert f"DEV_CUTOFF={DEV_CUTOFF}" in script
+    assert f"BUILD_RELEASE_CUTOFF={BUILD_RELEASE_CUTOFF}" in script
     assert '"uv 0.11.29"|"uv 0.11.29 "*' in script, "version gate must accept build metadata"
     assert 'git show "$BASE:requirements-dev.lock"' in script, "dev lock must be seeded from git"
     assert 'test ! -e "$WORK/requirements-build.lock"' in script
