@@ -33,7 +33,7 @@ cd "$ROOT"
 BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
 # Keep the development closure on its previously reviewed index snapshot so a
 # build/release-tool bump cannot silently re-resolve unrelated dev dependencies.
-DEV_CUTOFF=2026-08-11T05:03:43Z
+DEV_CUTOFF=2026-09-30T23:45:48Z
 # One second after hatchling 1.32.4's final distribution was published
 # (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
 # This cutoff must never predate a pin in a build/release *.in file.
@@ -102,7 +102,13 @@ uv_compile() {
 #                     published before the frozen index cutoff);
 #   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
 #   * pip          -> 26.2.1, which resolves PYSEC-2026-3721 (seed carried
-#                     26.1.2; the fix landed in 26.2, inside the cutoff).
+#                     26.1.2; the fix landed in 26.2, inside the cutoff);
+#   * pyjwt        -> newest <= DEV_CUTOFF, at least 2.15.0, resolving the
+#                     September 2026 JWT advisory set caught by pip-audit;
+#   * urllib3      -> newest <= DEV_CUTOFF, at least 2.8.0, resolving
+#                     CVE-2026-97687/97688/97689;
+#   * virtualenv   -> newest <= DEV_CUTOFF, at least 21.7.13, resolving
+#                     PYSEC-2026-4011/4012/4013/4014.
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.
@@ -115,6 +121,9 @@ uv_compile pyproject.toml \
     --upgrade-package anyio \
     --upgrade-package cryptography \
     --upgrade-package pip \
+    --upgrade-package pyjwt \
+    --upgrade-package urllib3 \
+    --upgrade-package virtualenv \
     --default-index https://pypi.org/simple \
     --output-file requirements-dev.lock
 
