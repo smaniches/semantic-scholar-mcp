@@ -26,7 +26,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
-DEV_CUTOFF = "2026-08-11T05:03:43Z"
+DEV_CUTOFF = "2026-09-30T23:45:48Z"
 BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
@@ -44,20 +44,25 @@ SEMANTIC_CHANGES = frozenset(
         "cryptography",
         "exceptiongroup",
         "pip",
+        "pyjwt",
+        "python-discovery",
         "rpds-py",
+        "typing-extensions",
+        "urllib3",
+        "virtualenv",
     }
 )
 
-# Packages the development lock must pin at an exact version. anyio is held at
-# 4.14.2 because the seeded 4.14.0 is affected by CVE-2026-63374,
-# CVE-2026-64847, and CVE-2026-63349; cryptography is held at 50.0.0 because
-# seeded 49.0.0 is affected by CVE-2026-69247; pip is held at 26.2.1 because
-# seeded 26.1.2 is affected by PYSEC-2026-3721. Each pin is produced by an
-# --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
+# Packages the development lock must pin at an exact security-reviewed version.
+# Each pin is produced by a targeted --upgrade-package instruction in
+# scripts/regenerate-locks.sh, never by hand-editing the generated lock.
 REQUIRED_DEV_VERSIONS = {
-    "anyio": "4.14.2",
-    "cryptography": "50.0.0",
+    "anyio": "4.15.1",
+    "cryptography": "50.0.2",
     "pip": "26.2.1",
+    "pyjwt": "2.15.1",
+    "urllib3": "2.8.0",
+    "virtualenv": "21.14.1",
 }
 
 PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
@@ -65,13 +70,6 @@ PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
         "    #   bandit\n",
         "    #   mypy\n",
         "    #   pytest\n",
-    ),
-    "typing-extensions": (
-        "    #   cryptography\n",
-        "    #   exceptiongroup\n",
-        "    #   pyjwt\n",
-        "    #   uvicorn\n",
-        "    #   virtualenv\n",
     ),
 }
 
