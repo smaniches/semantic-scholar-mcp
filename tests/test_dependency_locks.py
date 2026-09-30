@@ -65,12 +65,23 @@ REQUIRED_DEV_VERSIONS = {
     "virtualenv": "21.14.1",
 }
 
-PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
-    "tomli": (
-        "    #   bandit\n",
-        "    #   mypy\n",
-        "    #   pytest\n",
-    ),
+PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
+    "packaging": {
+        "added": ("    #   virtualenv\n",),
+        "removed": (),
+    },
+    "platformdirs": {
+        "added": (),
+        "removed": ("    #   python-discovery\n",),
+    },
+    "tomli": {
+        "added": (
+            "    #   bandit\n",
+            "    #   mypy\n",
+            "    #   pytest\n",
+        ),
+        "removed": (),
+    },
 }
 
 EXPECTED_CHANGED_PACKAGES = SEMANTIC_CHANGES | set(PROVENANCE_ONLY_CHANGES)
@@ -251,7 +262,7 @@ def test_every_other_dev_package_is_byte_for_byte_unchanged() -> None:
 
 
 @pytest.mark.parametrize("name", sorted(PROVENANCE_ONLY_CHANGES))
-def test_provenance_only_packages_change_by_added_comments_alone(name: str) -> None:
+def test_provenance_only_packages_change_by_approved_comments_alone(name: str) -> None:
     base = parse_lock(require_base())
     current = parse_lock(DEV_LOCK.read_text(encoding="utf-8"))
 
@@ -267,15 +278,24 @@ def test_provenance_only_packages_change_by_added_comments_alone(name: str) -> N
     after_lines = after.block.splitlines(keepends=True)
     assert after_lines[0] == before_lines[0], f"{name}: requirement line changed"
 
-    residual = list(after_lines)
-    for approved in PROVENANCE_ONLY_CHANGES[name]:
-        assert residual.count(approved) == before_lines.count(approved) + 1, (
-            f"{name}: {approved.strip()!r} was not added exactly once"
-        )
-        residual.remove(approved)
+    expected_before = list(before_lines)
+    residual_after = list(after_lines)
+    approved = PROVENANCE_ONLY_CHANGES[name]
 
-    assert residual == before_lines, (
-        f"{name}: removing the approved provenance lines does not restore the base block"
+    for line in approved["added"]:
+        assert residual_after.count(line) == expected_before.count(line) + 1, (
+            f"{name}: {line.strip()!r} was not added exactly once"
+        )
+        residual_after.remove(line)
+
+    for line in approved["removed"]:
+        assert expected_before.count(line) == residual_after.count(line) + 1, (
+            f"{name}: {line.strip()!r} was not removed exactly once"
+        )
+        expected_before.remove(line)
+
+    assert residual_after == expected_before, (
+        f"{name}: applying the approved provenance-only edits does not restore the base block"
     )
 
 
