@@ -26,7 +26,8 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
-CUTOFF = "2026-08-11T05:03:43Z"
+DEV_CUTOFF = "2026-09-30T23:45:48Z"
+BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
@@ -43,35 +44,44 @@ SEMANTIC_CHANGES = frozenset(
         "cryptography",
         "exceptiongroup",
         "pip",
+        "pyjwt",
+        "python-discovery",
         "rpds-py",
+        "typing-extensions",
+        "urllib3",
+        "virtualenv",
     }
 )
 
-# Packages the development lock must pin at an exact version. anyio is held at
-# 4.14.2 because the seeded 4.14.0 is affected by CVE-2026-63374,
-# CVE-2026-64847, and CVE-2026-63349; cryptography is held at 50.0.0 because
-# seeded 49.0.0 is affected by CVE-2026-69247; pip is held at 26.2.1 because
-# seeded 26.1.2 is affected by PYSEC-2026-3721. Each pin is produced by an
-# --upgrade-package instruction in scripts/regenerate-locks.sh, not by hand.
+# Packages the development lock must pin at an exact security-reviewed version.
+# Each pin is produced by a targeted --upgrade-package instruction in
+# scripts/regenerate-locks.sh, never by hand-editing the generated lock.
 REQUIRED_DEV_VERSIONS = {
-    "anyio": "4.14.2",
-    "cryptography": "50.0.0",
+    "anyio": "4.15.1",
+    "cryptography": "50.0.2",
     "pip": "26.2.1",
+    "pyjwt": "2.15.1",
+    "urllib3": "2.8.0",
+    "virtualenv": "21.14.1",
 }
 
-PROVENANCE_ONLY_CHANGES: dict[str, tuple[str, ...]] = {
-    "tomli": (
-        "    #   bandit\n",
-        "    #   mypy\n",
-        "    #   pytest\n",
-    ),
-    "typing-extensions": (
-        "    #   cryptography\n",
-        "    #   exceptiongroup\n",
-        "    #   pyjwt\n",
-        "    #   uvicorn\n",
-        "    #   virtualenv\n",
-    ),
+PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
+    "packaging": {
+        "added": ("    #   virtualenv\n",),
+        "removed": (),
+    },
+    "platformdirs": {
+        "added": (),
+        "removed": ("    #   python-discovery\n",),
+    },
+    "tomli": {
+        "added": (
+            "    #   bandit\n",
+            "    #   mypy\n",
+            "    #   pytest\n",
+        ),
+        "removed": (),
+    },
 }
 
 EXPECTED_CHANGED_PACKAGES = SEMANTIC_CHANGES | set(PROVENANCE_ONLY_CHANGES)
@@ -82,17 +92,17 @@ EXPECTED_HEADERS = {
     DEV_LOCK: (
         "uv --no-config pip compile pyproject.toml --extra dev "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --output-file requirements-dev.lock"
+        f"--exclude-newer {DEV_CUTOFF} --output-file requirements-dev.lock"
     ),
     BUILD_LOCK: (
         "uv --no-config pip compile requirements-build.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --output-file requirements-build.lock"
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --output-file requirements-build.lock"
     ),
     RELEASE_LOCK: (
         "uv --no-config pip compile requirements-release.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {CUTOFF} --constraint requirements-build.lock "
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --constraint requirements-build.lock "
         "--output-file requirements-release.lock"
     ),
 }
@@ -252,7 +262,7 @@ def test_every_other_dev_package_is_byte_for_byte_unchanged() -> None:
 
 
 @pytest.mark.parametrize("name", sorted(PROVENANCE_ONLY_CHANGES))
-def test_provenance_only_packages_change_by_added_comments_alone(name: str) -> None:
+def test_provenance_only_packages_change_by_approved_comments_alone(name: str) -> None:
     base = parse_lock(require_base())
     current = parse_lock(DEV_LOCK.read_text(encoding="utf-8"))
 
@@ -268,15 +278,24 @@ def test_provenance_only_packages_change_by_added_comments_alone(name: str) -> N
     after_lines = after.block.splitlines(keepends=True)
     assert after_lines[0] == before_lines[0], f"{name}: requirement line changed"
 
-    residual = list(after_lines)
-    for approved in PROVENANCE_ONLY_CHANGES[name]:
-        assert residual.count(approved) == before_lines.count(approved) + 1, (
-            f"{name}: {approved.strip()!r} was not added exactly once"
-        )
-        residual.remove(approved)
+    expected_before = list(before_lines)
+    residual_after = list(after_lines)
+    approved = PROVENANCE_ONLY_CHANGES[name]
 
-    assert residual == before_lines, (
-        f"{name}: removing the approved provenance lines does not restore the base block"
+    for line in approved["added"]:
+        assert residual_after.count(line) == expected_before.count(line) + 1, (
+            f"{name}: {line.strip()!r} was not added exactly once"
+        )
+        residual_after.remove(line)
+
+    for line in approved["removed"]:
+        assert expected_before.count(line) == residual_after.count(line) + 1, (
+            f"{name}: {line.strip()!r} was not removed exactly once"
+        )
+        expected_before.remove(line)
+
+    assert residual_after == expected_before, (
+        f"{name}: applying the approved provenance-only edits does not restore the base block"
     )
 
 
@@ -369,7 +388,8 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
     script = REGENERATE_SCRIPT.read_text(encoding="utf-8")
 
     assert f"BASE={AUTHORITATIVE_BASE}" in script
-    assert f"CUTOFF={CUTOFF}" in script
+    assert f"DEV_CUTOFF={DEV_CUTOFF}" in script
+    assert f"BUILD_RELEASE_CUTOFF={BUILD_RELEASE_CUTOFF}" in script
     assert '"uv 0.11.29"|"uv 0.11.29 "*' in script, "version gate must accept build metadata"
     assert 'git show "$BASE:requirements-dev.lock"' in script, "dev lock must be seeded from git"
     assert 'test ! -e "$WORK/requirements-build.lock"' in script

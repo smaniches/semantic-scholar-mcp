@@ -31,10 +31,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
-# One second after hatchling 1.32.0 was published (2026-08-11T05:03:42Z),
-# the newest exact pin declared in requirements-build.in. The cutoff must
-# never predate a pin in a *.in file: uv would fail to resolve it.
-CUTOFF=2026-08-11T05:03:43Z
+# Keep the development closure on its previously reviewed index snapshot so a
+# build/release-tool bump cannot silently re-resolve unrelated dev dependencies.
+DEV_CUTOFF=2026-09-30T23:45:48Z
+# One second after hatchling 1.32.4's final distribution was published
+# (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
+# This cutoff must never predate a pin in a build/release *.in file.
+BUILD_RELEASE_CUTOFF=2026-09-20T22:48:46Z
 
 MODE=write
 case "${1:-}" in
@@ -94,12 +97,19 @@ uv_compile() {
 # --upgrade-package exempts exactly the named packages from the preference seed
 # above, so each is re-resolved to the newest release allowed by the cutoff while
 # every other pin stays pinned by the seed:
-#   * anyio       -> 4.14.2, which resolves CVE-2026-63374, CVE-2026-64847,
-#                     and CVE-2026-63349 (seed carried 4.14.0; 4.14.2 was
-#                     published before the frozen index cutoff);
-#   * cryptography -> 50.0.0, which resolves CVE-2026-69247 (seed carried 49.0.0);
+#   * anyio       -> newest <= DEV_CUTOFF (4.15.1 in this snapshot), preserving
+#                     the fixes for CVE-2026-63374/CVE-2026-64847/CVE-2026-63349;
+#   * cryptography -> newest <= DEV_CUTOFF (50.0.2 here), preserving the
+#                     CVE-2026-69247 fix;
 #   * pip          -> 26.2.1, which resolves PYSEC-2026-3721 (seed carried
-#                     26.1.2; the fix landed in 26.2, inside the cutoff).
+#                     26.1.2; no newer compatible release exists at this cutoff);
+#   * pyjwt        -> newest <= DEV_CUTOFF (2.15.1 here), resolving the
+#                     September 2026 JWT advisory set caught by pip-audit;
+#   * urllib3      -> newest <= DEV_CUTOFF (2.8.0 here), resolving
+#                     CVE-2026-97687/97688/97689;
+#   * virtualenv   -> newest <= DEV_CUTOFF (21.14.1 here), resolving
+#                     PYSEC-2026-4011/4012/4013/4014 and requiring
+#                     python-discovery>=1.6 (resolved to 1.6.1).
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.
@@ -108,10 +118,13 @@ uv_compile pyproject.toml \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$DEV_CUTOFF" \
     --upgrade-package anyio \
     --upgrade-package cryptography \
     --upgrade-package pip \
+    --upgrade-package pyjwt \
+    --upgrade-package urllib3 \
+    --upgrade-package virtualenv \
     --default-index https://pypi.org/simple \
     --output-file requirements-dev.lock
 
@@ -119,7 +132,7 @@ uv_compile requirements-build.in \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$BUILD_RELEASE_CUTOFF" \
     --default-index https://pypi.org/simple \
     --output-file requirements-build.lock
 
@@ -127,7 +140,7 @@ uv_compile requirements-release.in \
     --python-version 3.10 \
     --universal \
     --generate-hashes \
-    --exclude-newer "$CUTOFF" \
+    --exclude-newer "$BUILD_RELEASE_CUTOFF" \
     --default-index https://pypi.org/simple \
     --constraint requirements-build.lock \
     --output-file requirements-release.lock
