@@ -133,6 +133,34 @@ class TestRateLimiting:
 
     @respx.mock
     @pytest.mark.asyncio
+    async def test_retry_attempts_obey_configured_interval(self, reset_all, monkeypatch):
+        """Retries must not bypass the assigned client-side request interval."""
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
+        monkeypatch.setattr(_ssm_client_mod.random, "uniform", lambda *_: 0.0)
+
+        url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+        call_times: list[float] = []
+
+        async def mock_response(request: httpx.Request) -> Response:
+            call_times.append(time.monotonic())
+            if len(call_times) == 1:
+                return Response(429, headers={"Retry-After": "0"})
+            return Response(200, json={"data": []})
+
+        respx.get(url).mock(side_effect=mock_response)
+
+        result = await _make_request(
+            "GET", "paper/search", params={"query": "retry"}, api_key="test-key"
+        )
+
+        assert result == {"data": []}
+        assert len(call_times) == 2
+        assert call_times[1] - call_times[0] >= 0.04
+
+    @respx.mock
+    @pytest.mark.asyncio
     async def test_rate_limiting_keyed_uses_configured_interval(self, reset_all, monkeypatch):
         """Authenticated requests honor the configured key-specific interval."""
         monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
