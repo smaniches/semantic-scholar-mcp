@@ -7,6 +7,10 @@ startCommand:
         type: string
         description: "Semantic Scholar API key (optional, get free at https://www.semanticscholar.org/product/api)"
         default: ""
+      SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS:
+        type: string
+        description: "Minimum seconds between authenticated requests; default 1.1. Lower only if S2 explicitly granted a higher quota."
+        default: "1.1"
     required: []
   commandFunction:
     |-
@@ -14,6 +18,7 @@ startCommand:
       command: "uvx",
       args: ["s2-mcp-server"],
       env: {
-        SEMANTIC_SCHOLAR_API_KEY: config.SEMANTIC_SCHOLAR_API_KEY || ""
+        SEMANTIC_SCHOLAR_API_KEY: config.SEMANTIC_SCHOLAR_API_KEY || "",
+        SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS: config.SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS || "1.1"
       }
     })

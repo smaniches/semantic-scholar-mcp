@@ -2142,10 +2142,59 @@ class TestUXHardening:
 
             parsed = json.loads(result)
             assert "tip" in parsed
-            assert "public (1 req/sec)" in parsed["rate_tier"]
+            assert parsed["rate_tier"] == "public"
+            assert parsed["min_seconds_between_requests"] == 1.0
+            assert parsed["effective_client_max_requests_per_second"] == 1.0
         finally:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
             _ssm_client_mod._client = old_client
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_status_with_key_reports_configured_rate(self, monkeypatch):
+        """server_status should expose the effective configured client-side rate."""
+        import semantic_scholar_mcp.server as srv
+        from semantic_scholar_mcp import client as _ssm_client_mod
+        from semantic_scholar_mcp.server import server_status
+
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = "test_key"
+        old_client = _ssm_client_mod._client
+        _ssm_client_mod._client = None
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.25")
+        try:
+            url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
+            respx.get(url).mock(return_value=Response(200, json={"data": []}))
+
+            result = await server_status()
+            import json
+
+            parsed = json.loads(result)
+            assert parsed["rate_tier"] == "authenticated"
+            assert parsed["min_seconds_between_requests"] == 0.25
+            assert parsed["effective_client_max_requests_per_second"] == 4.0
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original
+            _ssm_client_mod._client = old_client
+
+    @pytest.mark.asyncio
+    async def test_status_invalid_rate_config_returns_diagnostic(self, monkeypatch):
+        """Invalid rate configuration should be reported instead of crashing status."""
+        import json
+
+        import semantic_scholar_mcp.server as srv
+
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = "test_key"
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "invalid")
+        try:
+            parsed = json.loads(await srv.server_status())
+            assert parsed["configuration_valid"] is False
+            assert parsed["api_reachable"] is None
+            assert parsed["rate_limited"] is False
+            assert "SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS" in parsed["configuration_error"]
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original
 
     @respx.mock
     @pytest.mark.asyncio
@@ -2168,7 +2217,9 @@ class TestUXHardening:
 
             parsed = json.loads(result)
             assert "tip" not in parsed
-            assert "authenticated (10 req/sec)" in parsed["rate_tier"]
+            assert parsed["rate_tier"] == "authenticated"
+            assert parsed["min_seconds_between_requests"] == 1.1
+            assert parsed["effective_client_max_requests_per_second"] == pytest.approx(0.909091)
         finally:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
             _ssm_client_mod._client = old_client

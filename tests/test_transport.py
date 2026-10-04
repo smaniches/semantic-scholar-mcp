@@ -424,7 +424,9 @@ class TestRequestScopedKeyResolution:
         )
         status = json.loads(await server_mod.server_status())
         assert status["api_key_configured"] is True
-        assert status["rate_tier"] == "authenticated (10 req/sec)"
+        assert status["rate_tier"] == "authenticated"
+        assert status["min_seconds_between_requests"] == 1.1
+        assert status["effective_client_max_requests_per_second"] == pytest.approx(0.909091)
 
 
 # ===============================================================================

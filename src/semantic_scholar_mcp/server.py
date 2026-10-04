@@ -54,6 +54,7 @@ from .client import (
     close_client,
     get_client,
     get_headers,
+    get_min_request_interval,
     get_request_api_key,
     handle_error,
     make_request,
@@ -246,8 +247,9 @@ mcp = _S2FastMCP(
     semantic_scholar_status for connectivity and rate-tier checks.
 
     Paper IDs accept: 40-char S2 hex ID, DOI:..., ARXIV:..., PMID:...,
-    CorpusId:..., ACL:..., URL:... All tools are read-only. Without
-    SEMANTIC_SCHOLAR_API_KEY requests share a 1 req/s budget (10 req/s keyed).
+    CorpusId:..., ACL:..., URL:... All tools are read-only. Client-side
+    throttling follows Semantic Scholar's assigned API-key quota; introductory
+    keys default to a conservative 1.1 seconds between requests.
 
     Created by Santiago Maniches (TOPOLOGICA LLC - https://topologica.ai).
     """,
@@ -337,9 +339,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
     and open-access PDF link for one paper, e.g. paper_id='ARXIV:1706.03762'.
     Set include_citations / include_references to also list citing and
     referenced papers (fetched in parallel, 1-100 each). Results are cached
-    in memory for 5 minutes; an unknown ID raises a not-found error. Unkeyed
-    requests are throttled to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY)
-    and 429/502/503 responses retry automatically with backoff. Returns
+    in memory for 5 minutes; an unknown ID raises a not-found error. Client-side
+    requests use a 1.0-second unkeyed interval and a conservative 1.1-second
+    authenticated default; explicitly higher S2-assigned quotas can be configured.
+    429/502/503 responses retry automatically with backoff. Returns
     Markdown by default, response_format='json' for raw JSON. To fetch many
     papers at once use semantic_scholar_bulk_papers.
     """
@@ -527,8 +530,9 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
     'recent' (default, recently published papers from all fields) or 'all-cs'
     (computer-science papers of any age). When steering with several positive
     or negative examples, use semantic_scholar_multi_recommend instead. An
-    unknown seed ID raises a not-found error; unkeyed requests are throttled
-    to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY) and 429/502/503
+    unknown seed ID raises a not-found error. Client-side requests use a
+    1.0-second unkeyed interval and a conservative 1.1-second authenticated
+    default; explicitly higher S2-assigned quotas can be configured. 429/502/503
     responses retry automatically with backoff. Returns Markdown by default,
     response_format='json' for raw JSON.
     """
@@ -989,12 +993,35 @@ async def server_status() -> str:
         "server": "semantic-scholar-mcp",
         "version": __version__,
         "api_key_configured": has_key,
-        "rate_tier": "authenticated (10 req/sec)" if has_key else "public (1 req/sec)",
+        "rate_tier": "authenticated" if has_key else "public",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    try:
+        min_interval = get_min_request_interval(has_key)
+    except SemanticScholarError as e:
+        status.update(
+            {
+                "configuration_valid": False,
+                "configuration_error": str(e),
+                "api_reachable": None,
+                "rate_limited": False,
+                "retry_after": None,
+            }
+        )
+        return json.dumps(status, indent=2)
+
+    status.update(
+        {
+            "configuration_valid": True,
+            "min_seconds_between_requests": min_interval,
+            "effective_client_max_requests_per_second": round(1.0 / min_interval, 6),
+        }
+    )
     if not has_key:
         status["tip"] = (
-            "Get a free API key for 10x speed: https://www.semanticscholar.org/product/api"
+            "An API key avoids the shared unauthenticated pool. Semantic Scholar "
+            "currently assigns introductory keys a 1 request/second limit: "
+            "https://www.semanticscholar.org/product/api"
         )
     try:
         # Route health check through make_request for retry/rate-limit protection.
@@ -1046,8 +1073,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not SEMANTIC_SCHOLAR_API_KEY:
         logger.warning(
             "SEMANTIC_SCHOLAR_API_KEY not set. "
-            "Running with rate-limited public access (1 req/sec). "
-            "Get a free API key at https://www.semanticscholar.org/product/api"
+            "Using shared unauthenticated Semantic Scholar access with a local "
+            "1 second minimum request interval. Get a free API key at "
+            "https://www.semanticscholar.org/product/api"
         )
     if config.transport == "http":
         run_http(mcp, config, _lifespan)

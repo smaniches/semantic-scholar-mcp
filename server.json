@@ -27,9 +27,15 @@
       "environmentVariables": [
         {
           "name": "SEMANTIC_SCHOLAR_API_KEY",
-          "description": "Semantic Scholar API key for higher rate limits (free at semanticscholar.org/product/api)",
+          "description": "Semantic Scholar API key; introductory keys are currently assigned 1 request/second across all endpoints",
           "isRequired": false,
           "isSecret": true
+        },
+        {
+          "name": "SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS",
+          "description": "Minimum seconds between authenticated requests. Default 1.1; lower only when Semantic Scholar has explicitly assigned the key a higher quota.",
+          "isRequired": false,
+          "isSecret": false
         }
       ]
     }

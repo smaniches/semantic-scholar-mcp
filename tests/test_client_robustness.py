@@ -189,6 +189,31 @@ class TestRedirectFollowing:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+class TestEffectiveApiKeyContext:
+    @pytest.mark.asyncio
+    async def test_env_key_is_forwarded_to_retry_error_context(self, monkeypatch, reset_rate_limit):
+        """429/auth errors must know when an env key actually authenticated the request."""
+        captured: dict[str, object] = {}
+
+        async def _capture_execute(
+            method, url, params, json_body, headers, api_key, min_request_interval=0.0
+        ):
+            captured["headers"] = headers
+            captured["api_key"] = api_key
+            captured["min_request_interval"] = min_request_interval
+            return {"data": []}
+
+        monkeypatch.setattr(client, "SEMANTIC_SCHOLAR_API_KEY", "env-key")
+        monkeypatch.setattr(client, "_execute_request_with_retry", _capture_execute)
+
+        result = await make_request("GET", "paper/search", params={"query": "x"})
+
+        assert result == {"data": []}
+        assert captured["headers"]["x-api-key"] == "env-key"
+        assert captured["api_key"] == "env-key"
+        assert captured["min_request_interval"] == 1.1
+
+
 class TestApiKeyDeprecationWarning:
     def test_warns_when_api_key_provided(self):
         with pytest.warns(DeprecationWarning, match="deprecated"):
