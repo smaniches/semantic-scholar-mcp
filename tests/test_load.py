@@ -87,9 +87,7 @@ class TestBurstLoad:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_burst_with_api_key_uses_configured_interval(
-        self, reset_all, monkeypatch
-    ):
+    async def test_burst_with_api_key_uses_configured_interval(self, reset_all, monkeypatch):
         """Burst traffic honors an authenticated interval explicitly granted by S2."""
         monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
