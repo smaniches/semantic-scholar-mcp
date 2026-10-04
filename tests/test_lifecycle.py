@@ -97,10 +97,47 @@ class TestRateLimiting:
         # Use a small tolerance for timing
         assert elapsed >= _ssm_client_mod._MIN_REQUEST_INTERVAL * 0.8
 
+    def test_public_interval_ignores_authenticated_override(self, monkeypatch):
+        """Public requests keep their conservative local interval."""
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "not-a-number")
+        assert _ssm_client_mod.get_min_request_interval(False) == 1.0
+
+    def test_authenticated_interval_defaults_below_one_rps(self, monkeypatch):
+        """Introductory API keys default below Semantic Scholar's 1 RPS ceiling."""
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        monkeypatch.delenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", raising=False)
+        assert _ssm_client_mod.get_min_request_interval(True) == 1.1
+
+    def test_authenticated_interval_can_be_configured(self, monkeypatch):
+        """Higher reviewed quotas can opt into a shorter interval."""
+        from semantic_scholar_mcp import client as _ssm_client_mod
+
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.25")
+        assert _ssm_client_mod.get_min_request_interval(True) == 0.25
+
+    @pytest.mark.parametrize("value", ["not-a-number", "inf", "0", "-0.5"])
+    def test_authenticated_interval_rejects_invalid_values(self, monkeypatch, value):
+        """Invalid rate-limit configuration must fail explicitly."""
+        from semantic_scholar_mcp import client as _ssm_client_mod
+        from semantic_scholar_mcp.errors import SemanticScholarError
+
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", value)
+        with pytest.raises(
+            SemanticScholarError,
+            match="SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS",
+        ):
+            _ssm_client_mod.get_min_request_interval(True)
+
     @respx.mock
     @pytest.mark.asyncio
-    async def test_rate_limiting_keyed_faster(self, reset_all):
-        """Keyed requests should use shorter interval."""
+    async def test_rate_limiting_keyed_uses_configured_interval(
+        self, reset_all, monkeypatch
+    ):
+        """Authenticated requests honor the configured key-specific interval."""
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
 
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(200, json={"data": []}))
@@ -110,8 +147,8 @@ class TestRateLimiting:
         await _make_request("GET", "paper/search", params={"query": "t2"}, api_key="test-key")
         elapsed = time.monotonic() - start
 
-        # Keyed interval is 0.1s, so two requests should be much faster than 1s
-        assert elapsed < 1.5
+        assert elapsed >= 0.04
+        assert elapsed < 1.0
 
 
 # ===============================================================================
