@@ -339,9 +339,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
     and open-access PDF link for one paper, e.g. paper_id='ARXIV:1706.03762'.
     Set include_citations / include_references to also list citing and
     referenced papers (fetched in parallel, 1-100 each). Results are cached
-    in memory for 5 minutes; an unknown ID raises a not-found error. Unkeyed
-    requests are throttled to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY)
-    and 429/502/503 responses retry automatically with backoff. Returns
+    in memory for 5 minutes; an unknown ID raises a not-found error. Client-side
+    requests use a 1.0-second unkeyed interval and a conservative 1.1-second
+    authenticated default; explicitly higher S2-assigned quotas can be configured.
+    429/502/503 responses retry automatically with backoff. Returns
     Markdown by default, response_format='json' for raw JSON. To fetch many
     papers at once use semantic_scholar_bulk_papers.
     """
@@ -529,8 +530,9 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
     'recent' (default, recently published papers from all fields) or 'all-cs'
     (computer-science papers of any age). When steering with several positive
     or negative examples, use semantic_scholar_multi_recommend instead. An
-    unknown seed ID raises a not-found error; unkeyed requests are throttled
-    to 1 req/s (10 req/s with SEMANTIC_SCHOLAR_API_KEY) and 429/502/503
+    unknown seed ID raises a not-found error. Client-side requests use a
+    1.0-second unkeyed interval and a conservative 1.1-second authenticated
+    default; explicitly higher S2-assigned quotas can be configured. 429/502/503
     responses retry automatically with backoff. Returns Markdown by default,
     response_format='json' for raw JSON.
     """
@@ -987,16 +989,34 @@ async def server_status() -> str:
     # A key can come from the env var or, on the Streamable HTTP transport,
     # be bound to this request by the key-extraction middleware.
     has_key = bool(SEMANTIC_SCHOLAR_API_KEY or get_request_api_key())
-    min_interval = get_min_request_interval(has_key)
     status: dict[str, Any] = {
         "server": "semantic-scholar-mcp",
         "version": __version__,
         "api_key_configured": has_key,
         "rate_tier": "authenticated" if has_key else "public",
-        "min_seconds_between_requests": min_interval,
-        "effective_client_max_requests_per_second": round(1.0 / min_interval, 6),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    try:
+        min_interval = get_min_request_interval(has_key)
+    except SemanticScholarError as e:
+        status.update(
+            {
+                "configuration_valid": False,
+                "configuration_error": str(e),
+                "api_reachable": None,
+                "rate_limited": False,
+                "retry_after": None,
+            }
+        )
+        return json.dumps(status, indent=2)
+
+    status.update(
+        {
+            "configuration_valid": True,
+            "min_seconds_between_requests": min_interval,
+            "effective_client_max_requests_per_second": round(1.0 / min_interval, 6),
+        }
+    )
     if not has_key:
         status["tip"] = (
             "An API key avoids the shared unauthenticated pool. Semantic Scholar "
