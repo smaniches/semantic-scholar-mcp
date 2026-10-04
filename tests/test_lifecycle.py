@@ -133,9 +133,7 @@ class TestRateLimiting:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_rate_limiting_keyed_uses_configured_interval(
-        self, reset_all, monkeypatch
-    ):
+    async def test_rate_limiting_keyed_uses_configured_interval(self, reset_all, monkeypatch):
         """Authenticated requests honor the configured key-specific interval."""
         monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
 
