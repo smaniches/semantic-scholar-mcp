@@ -31,9 +31,11 @@ uvx s2-mcp-server                                      # run instantly, no insta
 claude mcp add semantic-scholar -- uvx s2-mcp-server   # or register it in Claude Code
 ```
 
-No API key is needed to start (public rate limit: 1 req/sec); set
-`SEMANTIC_SCHOLAR_API_KEY` for 10 req/sec. Claude Desktop, Docker, pip, and
-remote (Streamable HTTP) setups are in [Installation](#installation).
+No API key is needed to start. Set `SEMANTIC_SCHOLAR_API_KEY` to use your
+assigned Semantic Scholar quota and avoid the shared unauthenticated pool.
+Semantic Scholar currently assigns introductory API keys a 1 request/second
+limit across all endpoints. Claude Desktop, Docker, pip, and remote
+(Streamable HTTP) setups are in [Installation](#installation).
 
 ---
 
@@ -85,7 +87,7 @@ and the caller would otherwise reimplement.
 | Bulk operations | papers (≤500) and authors (≤1000) in one call | caller batches and paginates |
 | Full-text snippet search | `snippet_search` with surrounding context | separate endpoint, caller-assembled |
 | Paper-ID resolution | seven formats — Semantic Scholar ID, DOI, ArXiv, PubMed, Corpus ID, ACL, URL — validated pre-flight ([`validators.py`](src/semantic_scholar_mcp/validators.py)) | caller normalizes and validates IDs |
-| Rate limiting | client-side per-tier limiter, never exceeds the interval ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller throttles by hand |
+| Rate limiting | client-side limiter with a conservative S2-compatible authenticated default and configurable assigned quota ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller throttles by hand |
 | Retry / backoff | bounded, jittered retry on 429/502/503/timeout, honors `Retry-After` ([`client.py`](src/semantic_scholar_mcp/client.py)) | caller implements retry |
 | Errors | typed exception hierarchy, branchable by caller ([`errors.py`](src/semantic_scholar_mcp/errors.py)) | parse HTTP status strings |
 | Output | chat-tuned Markdown or JSON per call ([`formatters.py`](src/semantic_scholar_mcp/formatters.py)) | raw JSON |
@@ -209,7 +211,7 @@ flowchart LR
 | --- | --- |
 | `server.py` | FastMCP instance, 14 `@mcp.tool` registrations, lifespan, `main()` entry. Re-exports the helper surface for back-compat. |
 | `transport.py` | Streamable HTTP transport: CLI/env parsing (`--transport http`), uvicorn wiring, and per-request API-key extraction (header / query param / Smithery config) into a request-scoped contextvar. |
-| `client.py` | Shared `httpx.AsyncClient` singleton, per-tier rate limiter (1 req/s public, 10 req/s keyed), retry loop with exponential backoff + jitter on 429/502/503/timeout, HTTP→typed-exception mapping. |
+| `client.py` | Shared `httpx.AsyncClient` singleton, client-side rate limiter (1.0 s public; 1.1 s authenticated default, configurable for assigned quotas), retry loop with exponential backoff + jitter on 429/502/503/timeout, HTTP→typed-exception mapping. |
 | `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the four tiered field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`, `AUTHOR_FIELDS`). |
 | `validators.py` | Pre-flight paper-ID validation. Rejects NUL bytes, `?`, `#`, path traversal; accepts the seven canonical ID formats. |
 | `cache.py` | In-memory TTL cache (5 min, 200 entries, oldest-first eviction) for paper/author lookups within a session. |
@@ -787,7 +789,9 @@ Check Semantic Scholar API status
   "server": "semantic-scholar-mcp",
   "version": "<current package version>",
   "api_key_configured": true,
-  "rate_tier": "authenticated (10 req/sec)",
+  "rate_tier": "authenticated",
+  "min_seconds_between_requests": 1.1,
+  "effective_client_max_requests_per_second": 0.909091,
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
   "api_reachable": true,
   "rate_limited": false,
@@ -799,13 +803,24 @@ Check Semantic Scholar API status
 
 ## Rate Limits
 
-| Tier | Requests/Second | How to Get |
-|------|-----------------|------------|
-| No API Key | 1 req/sec | Default |
-| API Key | 10 req/sec | [Sign up](https://www.semanticscholar.org/product/api) (free) |
-| Academic Partner | 10-100 req/sec | Apply via S2 |
+Semantic Scholar's current API guidance says introductory API keys receive
+**1 request/second across all endpoints**, while some keys may receive a higher
+rate after review. Unauthenticated requests share upstream capacity and may be
+throttled during heavy use.
 
-> **Note:** The client-side rate limiter enforces the intervals above. The upstream Semantic Scholar API may impose stricter limits during high-traffic periods.
+The server therefore uses these conservative client-side defaults:
+
+| Access | Client minimum interval | Effective client maximum |
+|------|-------------------------|--------------------------|
+| No API key | 1.0 seconds | 1 req/sec |
+| API key | 1.1 seconds | ~0.91 req/sec |
+
+If Semantic Scholar has explicitly assigned your key a different quota, set
+`SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS` to an interval that stays
+below that ceiling. For example, a reviewed 10 RPS quota should use an interval
+slightly greater than 0.1 seconds rather than assuming every API key has that
+rate. The setting is process-wide, so remote deployments accepting multiple
+user-provided keys should configure it for the slowest accepted quota.
 
 The server automatically handles rate limiting with:
 - Request serialization to enforce minimum intervals
