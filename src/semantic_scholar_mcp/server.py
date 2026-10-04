@@ -54,6 +54,7 @@ from .client import (
     close_client,
     get_client,
     get_headers,
+    get_min_request_interval,
     get_request_api_key,
     handle_error,
     make_request,
@@ -246,8 +247,9 @@ mcp = _S2FastMCP(
     semantic_scholar_status for connectivity and rate-tier checks.
 
     Paper IDs accept: 40-char S2 hex ID, DOI:..., ARXIV:..., PMID:...,
-    CorpusId:..., ACL:..., URL:... All tools are read-only. Without
-    SEMANTIC_SCHOLAR_API_KEY requests share a 1 req/s budget (10 req/s keyed).
+    CorpusId:..., ACL:..., URL:... All tools are read-only. Client-side
+    throttling follows Semantic Scholar's assigned API-key quota; introductory
+    keys default to a conservative 1.1 seconds between requests.
 
     Created by Santiago Maniches (TOPOLOGICA LLC - https://topologica.ai).
     """,
@@ -985,16 +987,21 @@ async def server_status() -> str:
     # A key can come from the env var or, on the Streamable HTTP transport,
     # be bound to this request by the key-extraction middleware.
     has_key = bool(SEMANTIC_SCHOLAR_API_KEY or get_request_api_key())
+    min_interval = get_min_request_interval(has_key)
     status: dict[str, Any] = {
         "server": "semantic-scholar-mcp",
         "version": __version__,
         "api_key_configured": has_key,
-        "rate_tier": "authenticated (10 req/sec)" if has_key else "public (1 req/sec)",
+        "rate_tier": "authenticated" if has_key else "public",
+        "min_seconds_between_requests": min_interval,
+        "effective_client_max_requests_per_second": round(1.0 / min_interval, 6),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     if not has_key:
         status["tip"] = (
-            "Get a free API key for 10x speed: https://www.semanticscholar.org/product/api"
+            "An API key avoids the shared unauthenticated pool. Semantic Scholar "
+            "currently assigns introductory keys a 1 request/second limit: "
+            "https://www.semanticscholar.org/product/api"
         )
     try:
         # Route health check through make_request for retry/rate-limit protection.
