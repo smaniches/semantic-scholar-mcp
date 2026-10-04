@@ -195,9 +195,12 @@ class TestEffectiveApiKeyContext:
         """429/auth errors must know when an env key actually authenticated the request."""
         captured: dict[str, object] = {}
 
-        async def _capture_execute(method, url, params, json_body, headers, api_key):
+        async def _capture_execute(
+            method, url, params, json_body, headers, api_key, min_request_interval=0.0
+        ):
             captured["headers"] = headers
             captured["api_key"] = api_key
+            captured["min_request_interval"] = min_request_interval
             return {"data": []}
 
         monkeypatch.setattr(client, "SEMANTIC_SCHOLAR_API_KEY", "env-key")
@@ -208,6 +211,7 @@ class TestEffectiveApiKeyContext:
         assert result == {"data": []}
         assert captured["headers"]["x-api-key"] == "env-key"
         assert captured["api_key"] == "env-key"
+        assert captured["min_request_interval"] == 1.1
 
 
 class TestApiKeyDeprecationWarning:
