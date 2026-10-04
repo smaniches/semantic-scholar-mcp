@@ -2168,7 +2168,9 @@ class TestUXHardening:
 
             parsed = json.loads(result)
             assert "tip" not in parsed
-            assert "authenticated (10 req/sec)" in parsed["rate_tier"]
+            assert parsed["rate_tier"] == "authenticated"
+            assert parsed["min_seconds_between_requests"] == 1.1
+            assert parsed["effective_client_max_requests_per_second"] == pytest.approx(0.909091)
         finally:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
             _ssm_client_mod._client = old_client
