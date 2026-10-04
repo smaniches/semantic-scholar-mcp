@@ -29,8 +29,12 @@ client's MCP configuration:
 ## Optional API key
 
 The server works without an API key. An optional `SEMANTIC_SCHOLAR_API_KEY`
-environment variable can be set to use a Semantic Scholar API key, which
-raises rate limits. A free key is available at
+environment variable can be set to use a Semantic Scholar API key and avoid
+the shared unauthenticated pool. Semantic Scholar currently assigns
+introductory keys a 1 request/second limit across all endpoints. The server
+defaults to 1.1 seconds between authenticated requests; only if S2 explicitly
+grants the key a higher quota should you lower
+`SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS`. A free key is available at
 https://www.semanticscholar.org/product/api
 
 ```json
