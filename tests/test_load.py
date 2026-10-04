@@ -87,8 +87,11 @@ class TestBurstLoad:
 
     @respx.mock
     @pytest.mark.asyncio
-    async def test_burst_with_api_key_is_faster(self, reset_all):
-        """Burst with API key should complete faster due to shorter interval."""
+    async def test_burst_with_api_key_uses_configured_interval(
+        self, reset_all, monkeypatch
+    ):
+        """Burst traffic honors an authenticated interval explicitly granted by S2."""
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "0.05")
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/search"
         respx.get(url).mock(return_value=Response(200, json={"data": [], "total": 0}))
 
@@ -102,9 +105,8 @@ class TestBurstLoad:
         await asyncio.gather(*tasks)
         keyed_elapsed = time.monotonic() - start
 
-        # With API key (0.1s interval), 3 requests should take ~0.2s
-        # Without API key (1.0s interval), 3 requests would take ~2.0s
-        assert keyed_elapsed < 2.0  # Should be much faster than unkeyed
+        assert keyed_elapsed >= 0.08
+        assert keyed_elapsed < 1.0
 
 
 # ===============================================================================
