@@ -162,10 +162,11 @@ pip install s2-mcp-server</pre>
       <pre><span class="c"># Or run the container image</span>
 docker run -i ghcr.io/smaniches/semantic-scholar-mcp:latest</pre>
       <p class="note">
-        Works with <strong>no API key</strong> on Semantic Scholar's public tier, which is
-        rate-limited (around one request per second). A
-        <a href="https://www.semanticscholar.org/product/api">free API key</a> raises the
-        limit substantially — provide it via the <code>SEMANTIC_SCHOLAR_API_KEY</code>
+        Works with <strong>no API key</strong> against Semantic Scholar's shared
+        unauthenticated pool. A
+        <a href="https://www.semanticscholar.org/product/api">free API key</a> provides an
+        assigned quota; introductory keys are currently limited to one request per second
+        across all endpoints. Provide it via the <code>SEMANTIC_SCHOLAR_API_KEY</code>
         environment variable. See the
         <a href="https://github.com/smaniches/semantic-scholar-mcp#readme">README</a> for
         client-by-client setup.
