@@ -180,26 +180,37 @@ async def make_request(
 ) -> dict[str, Any] | list[Any]:
     """Issue an HTTP request to the Semantic Scholar API.
 
-    Serialized through ``_rate_semaphore`` and gated by the per-tier minimum
-    interval, then dispatched to :func:`_execute_request_with_retry`.
+    Serialized through ``_rate_semaphore``; every physical retry attempt is
+    gated by the same effective client-side interval.
     """
-    global _last_request_time
-
     url = f"{base_url or SEMANTIC_SCHOLAR_API_BASE}/{endpoint}"
     headers = get_headers(api_key)
     effective_key = api_key or _request_api_key.get() or SEMANTIC_SCHOLAR_API_KEY
+    interval = get_min_request_interval(bool(effective_key))
 
     async with _rate_semaphore:
-        now = time.monotonic()
-        elapsed = now - _last_request_time
-        interval = get_min_request_interval(bool(effective_key))
-        if elapsed < interval:
-            await asyncio.sleep(interval - elapsed)
-        _last_request_time = time.monotonic()
-
         return await _execute_request_with_retry(
-            method, url, params, json_body, headers, effective_key or None
+            method,
+            url,
+            params,
+            json_body,
+            headers,
+            effective_key or None,
+            min_request_interval=interval,
         )
+
+
+async def _wait_for_rate_limit(interval: float) -> None:
+    """Wait until another physical request may be dispatched safely."""
+    global _last_request_time
+
+    if interval <= 0:
+        return
+    now = time.monotonic()
+    elapsed = now - _last_request_time
+    if elapsed < interval:
+        await asyncio.sleep(interval - elapsed)
+    _last_request_time = time.monotonic()
 
 
 def _parse_retry_after(header_value: str | None, default: float) -> float:
@@ -243,6 +254,7 @@ async def _execute_request_with_retry(
     json_body: dict[str, Any] | None,
     headers: dict[str, str],
     api_key: str | None,
+    min_request_interval: float = 0.0,
 ) -> dict[str, Any] | list[Any]:
     """Execute one request with exponential-backoff retry for transient errors.
 
@@ -258,6 +270,7 @@ async def _execute_request_with_retry(
         return float(RETRY_BACKOFF_BASE * (2**n) + random.uniform(0, 0.5))  # nosec B311
 
     for attempt in range(MAX_RETRIES + 1):
+        await _wait_for_rate_limit(min_request_interval)
         try:
             if method == "GET":
                 resp = await client.get(url, params=params, headers=headers)
