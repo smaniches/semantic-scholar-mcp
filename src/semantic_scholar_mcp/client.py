@@ -197,7 +197,9 @@ async def make_request(
             await asyncio.sleep(interval - elapsed)
         _last_request_time = time.monotonic()
 
-        return await _execute_request_with_retry(method, url, params, json_body, headers, api_key)
+        return await _execute_request_with_retry(
+            method, url, params, json_body, headers, effective_key or None
+        )
 
 
 def _parse_retry_after(header_value: str | None, default: float) -> float:
