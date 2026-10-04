@@ -790,6 +790,7 @@ Check Semantic Scholar API status
   "version": "<current package version>",
   "api_key_configured": true,
   "rate_tier": "authenticated",
+  "configuration_valid": true,
   "min_seconds_between_requests": 1.1,
   "effective_client_max_requests_per_second": 0.909091,
   "timestamp": "2026-04-06T12:00:00.000000+00:00",
