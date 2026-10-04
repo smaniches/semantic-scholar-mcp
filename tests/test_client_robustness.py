@@ -191,9 +191,7 @@ class TestRedirectFollowing:
 
 class TestEffectiveApiKeyContext:
     @pytest.mark.asyncio
-    async def test_env_key_is_forwarded_to_retry_error_context(
-        self, monkeypatch, reset_rate_limit
-    ):
+    async def test_env_key_is_forwarded_to_retry_error_context(self, monkeypatch, reset_rate_limit):
         """429/auth errors must know when an env key actually authenticated the request."""
         captured: dict[str, object] = {}
 
