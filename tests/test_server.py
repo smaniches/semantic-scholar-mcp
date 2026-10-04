@@ -2177,6 +2177,25 @@ class TestUXHardening:
             srv.SEMANTIC_SCHOLAR_API_KEY = original
             _ssm_client_mod._client = old_client
 
+    @pytest.mark.asyncio
+    async def test_status_invalid_rate_config_returns_diagnostic(self, monkeypatch):
+        """Invalid rate configuration should be reported instead of crashing status."""
+        import json
+
+        import semantic_scholar_mcp.server as srv
+
+        original = srv.SEMANTIC_SCHOLAR_API_KEY
+        srv.SEMANTIC_SCHOLAR_API_KEY = "test_key"
+        monkeypatch.setenv("SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS", "invalid")
+        try:
+            parsed = json.loads(await srv.server_status())
+            assert parsed["configuration_valid"] is False
+            assert parsed["api_reachable"] is None
+            assert parsed["rate_limited"] is False
+            assert "SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS" in parsed["configuration_error"]
+        finally:
+            srv.SEMANTIC_SCHOLAR_API_KEY = original
+
     @respx.mock
     @pytest.mark.asyncio
     async def test_status_with_key_shows_rate(self):
