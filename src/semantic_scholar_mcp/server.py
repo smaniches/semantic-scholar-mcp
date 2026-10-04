@@ -1053,8 +1053,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not SEMANTIC_SCHOLAR_API_KEY:
         logger.warning(
             "SEMANTIC_SCHOLAR_API_KEY not set. "
-            "Running with rate-limited public access (1 req/sec). "
-            "Get a free API key at https://www.semanticscholar.org/product/api"
+            "Using shared unauthenticated Semantic Scholar access with a local "
+            "1 second minimum request interval. Get a free API key at "
+            "https://www.semanticscholar.org/product/api"
         )
     if config.transport == "http":
         run_http(mcp, config, _lifespan)
