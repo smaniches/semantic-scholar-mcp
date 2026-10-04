@@ -2,8 +2,12 @@
 
 A single :class:`httpx.AsyncClient` is reused for the process lifetime to
 amortize connection setup across tool invocations. Requests are serialized
-through a semaphore so the per-second rate limit (1 req/s public, 10 req/s
-keyed) is enforced even when the MCP host issues tool calls in parallel.
+through a semaphore so a conservative client-side request interval is
+enforced even when the MCP host issues tool calls in parallel. Authenticated
+requests default to 1.1 seconds between calls, staying below Semantic Scholar's
+introductory 1 request/second API-key limit; operators explicitly granted a
+higher quota can lower that interval with
+``SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS``.
 Retries cover ``429``, ``502``, and ``503`` with exponential backoff +
 jitter, capped at 30 s, honoring the ``Retry-After`` header when present.
 
@@ -56,11 +60,45 @@ def get_request_api_key() -> str:
     return _request_api_key.get()
 
 
-# Rate-limit state.
+# Rate-limit state. Semantic Scholar currently assigns introductory API keys
+# 1 request/second across all endpoints and asks clients to stay below the
+# assigned ceiling. Keep a small safety margin by default; users explicitly
+# granted a higher quota can lower the authenticated interval with the env var.
 _rate_semaphore = asyncio.Semaphore(1)
 _last_request_time: float = 0.0
-_MIN_REQUEST_INTERVAL = 1.0  # public tier: 1 req/sec
-_MIN_REQUEST_INTERVAL_KEYED = 0.1  # keyed tier: 10 req/sec
+_MIN_REQUEST_INTERVAL = 1.0
+_MIN_REQUEST_INTERVAL_KEYED = 1.1
+_RATE_LIMIT_INTERVAL_ENV = "SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS"
+
+
+def get_min_request_interval(authenticated: bool) -> float:
+    """Return the effective client-side minimum interval in seconds.
+
+    The public path remains conservatively limited to one request per second.
+    Authenticated requests default to 1.1 seconds between requests. Set
+    ``SEMANTIC_SCHOLAR_MIN_SECONDS_BETWEEN_REQUESTS`` only when Semantic Scholar
+    has assigned the key a different quota.
+    """
+    if not authenticated:
+        return _MIN_REQUEST_INTERVAL
+
+    raw = os.environ.get(_RATE_LIMIT_INTERVAL_ENV, str(_MIN_REQUEST_INTERVAL_KEYED))
+    try:
+        interval = float(raw)
+    except ValueError as exc:
+        raise SemanticScholarError(
+            f"{_RATE_LIMIT_INTERVAL_ENV} must be a positive finite number of seconds"
+        ) from exc
+    if not math.isfinite(interval):
+        raise SemanticScholarError(
+            f"{_RATE_LIMIT_INTERVAL_ENV} must be a positive finite number of seconds"
+        )
+    if interval <= 0:
+        raise SemanticScholarError(
+            f"{_RATE_LIMIT_INTERVAL_ENV} must be a positive finite number of seconds"
+        )
+    return interval
+
 
 # Retry config.
 MAX_RETRIES = 3
@@ -154,7 +192,7 @@ async def make_request(
     async with _rate_semaphore:
         now = time.monotonic()
         elapsed = now - _last_request_time
-        interval = _MIN_REQUEST_INTERVAL_KEYED if effective_key else _MIN_REQUEST_INTERVAL
+        interval = get_min_request_interval(bool(effective_key))
         if elapsed < interval:
             await asyncio.sleep(interval - elapsed)
         _last_request_time = time.monotonic()
@@ -331,6 +369,7 @@ __all__ = [
     "close_client",
     "get_client",
     "get_headers",
+    "get_min_request_interval",
     "get_request_api_key",
     "handle_error",
     "make_request",
