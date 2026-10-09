@@ -2,6 +2,14 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.6](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.5...semantic-scholar-mcp-v1.7.6) (2026-10-09)
+
+
+### Bug Fixes
+
+* honor assigned Semantic Scholar API rate limits ([#171](https://github.com/smaniches/semantic-scholar-mcp/issues/171)) ([425db45](https://github.com/smaniches/semantic-scholar-mcp/commit/425db45fff9237b2ea2ed1daf4ccb5d45eb77f3f))
+* preserve pagination for citation and reference graph traversal ([#175](https://github.com/smaniches/semantic-scholar-mcp/issues/175)) ([8a5e832](https://github.com/smaniches/semantic-scholar-mcp/commit/8a5e8325e54468f0e275804b92acb5f0719f5345))
+
 ## [1.7.5](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.4...semantic-scholar-mcp-v1.7.5) (2026-09-28)
 
 
