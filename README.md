@@ -448,8 +448,10 @@ Get detailed information about a specific paper.
 | `paper_id` | string | Yes | Paper ID in any supported format |
 | `include_citations` | boolean | No | Include citing papers (default: false) |
 | `include_references` | boolean | No | Include referenced papers (default: false) |
-| `citations_limit` | integer | No | Max citations to return 1-100 (default: 10) |
-| `references_limit` | integer | No | Max references to return 1-100 (default: 10) |
+| `citations_limit` | integer | No | Max citing papers per page, 1-100 (default: 10) |
+| `citations_offset` | integer | No | Offset for citing papers (default: 0) |
+| `references_limit` | integer | No | Max referenced papers per page, 1-100 (default: 10) |
+| `references_offset` | integer | No | Offset for referenced papers (default: 0) |
 | `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
 | `api_key` | string | No | Override environment API key |
 
@@ -463,9 +465,19 @@ Get details for DOI:10.1038/s41586-021-03819-2 including its top 20 citations
 {
   "paper_id": "DOI:10.1038/s41586-021-03819-2",
   "include_citations": true,
-  "citations_limit": 20
+  "citations_limit": 20,
+  "citations_offset": 0,
+  "response_format": "json"
 }
 ```
+
+Citation and reference pages are independent. In JSON mode, requested directions
+retain the existing `citations` / `references` arrays and additionally return
+`citations_page` / `references_page` metadata with `offset` and `next`.
+When `next` is non-null, use it as that direction's `*_offset` on the next
+call with the same paper ID and limit. A null `next` means no continuation was
+advertised by Semantic Scholar. Markdown mode prints a continuation hint when
+one is available. Never treat a first page as a complete citation graph.
 
 ---
 

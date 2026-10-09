@@ -338,7 +338,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
     Returns title, abstract, authors, venue, year, citation counts, TLDR,
     and open-access PDF link for one paper, e.g. paper_id='ARXIV:1706.03762'.
     Set include_citations / include_references to also list citing and
-    referenced papers (fetched in parallel, 1-100 each). Results are cached
+    referenced papers (fetched in parallel, 1-100 per page each). Paginate
+    the two directions independently with citations_offset/references_offset;
+    JSON output exposes citations_page.next and references_page.next.
+    Results are cached
     in memory for 5 minutes; an unknown ID raises a not-found error. Client-side
     requests use a 1.0-second unkeyed interval and a conservative 1.1-second
     authenticated default; explicitly higher S2-assigned quotas can be configured.
@@ -376,6 +379,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                 params={
                     "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
                     "limit": params.citations_limit,
+                    "offset": params.citations_offset,
                 },
                 api_key=params.api_key,
             )
@@ -386,6 +390,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                 params={
                     "fields": ",".join(PAPER_SEARCH_FIELDS_LITE),
                     "limit": params.references_limit,
+                    "offset": params.references_offset,
                 },
                 api_key=params.api_key,
             )
@@ -393,7 +398,15 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             keys = list(sub_tasks.keys())
             responses = await asyncio.gather(*sub_tasks.values())
             for key, resp in zip(keys, responses, strict=True):
-                result[key] = resp.get("data", []) if isinstance(resp, dict) else []
+                requested_offset = (
+                    params.citations_offset if key == "citations" else params.references_offset
+                )
+                page = resp if isinstance(resp, dict) else {}
+                result[key] = page.get("data", [])
+                result[f"{key}_page"] = {
+                    "offset": requested_offset,
+                    "next": page.get("next"),
+                }
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -410,6 +423,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                     f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
                     f"- {p.get('citationCount', 0)} citations"
                 )
+    if result.get("citations_page", {}).get("next") is not None:
+        lines.append(
+            f"*More citing papers: pass citations_offset={result['citations_page']['next']}*"
+        )
     if result.get("references"):
         lines.extend(["---", f"### References ({len(result['references'])} shown)", ""])
         for r in result["references"]:
@@ -419,6 +436,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                     f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
                     f"- {p.get('citationCount', 0)} citations"
                 )
+    if result.get("references_page", {}).get("next") is not None:
+        lines.append(
+            f"*More referenced papers: pass references_offset={result['references_page']['next']}*"
+        )
     return "\n".join(lines)
 
 

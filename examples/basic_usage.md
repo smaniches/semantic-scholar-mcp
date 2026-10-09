@@ -87,6 +87,11 @@ Get a paper with its citations and references in one call.
 **Expected output:** Paper details followed by lists of citing papers and
 referenced papers, each with title, year, and citation count.
 
+For further pages, use `response_format="json"`, inspect
+`citations_page.next` and `references_page.next`, and supply the respective
+non-null value as `citations_offset` or `references_offset` in another call.
+Each direction is paged independently; the original result arrays are retained.
+
 ## 4. Author Search
 
 Find researchers by name.

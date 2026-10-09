@@ -154,12 +154,22 @@ class PaperDetailsInput(BaseModel):
         ge=1,
         le=100,
     )
+    citations_offset: int = Field(
+        default=0,
+        description="Pagination offset for citing papers (default 0)",
+        ge=0,
+    )
     references_limit: int = Field(
         default=10,
         description="Max referenced papers returned when include_references=true "
         "(1-100, default 10)",
         ge=1,
         le=100,
+    )
+    references_offset: int = Field(
+        default=0,
+        description="Pagination offset for referenced papers (default 0)",
+        ge=0,
     )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
