@@ -1,13 +1,14 @@
 name: Live anonymous MCP smoke
 
-# Checks a real MCP stdio handshake plus Semantic Scholar paper, citation,
-# and reference retrieval without API credentials. Unlike deterministic CI,
-# this workflow can fail because Semantic Scholar's shared anonymous pool is
-# throttled or inaccessible. Such failures must remain visible, not skipped.
+# Advisory live end-to-end check: starts a real MCP server and uses the
+# external Semantic Scholar anonymous pool. 429 responses are upstream
+# availability limitations, not deterministic regressions in local code.
+# Do not gate every PR on this external shared anonymous rate-limit pool;
+# the regular CI has separate protocol/validation tests for both transports.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "13 7 * * 1"
 
 permissions:
   contents: read

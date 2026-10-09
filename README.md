@@ -168,7 +168,12 @@ uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 See [Remote access (Streamable HTTP)](#remote-access-streamable-http) for client
 configuration, per-request API keys, and deployment guidance.
 
-> **Note:** Get a free API key at [semanticscholar.org/product/api](https://www.semanticscholar.org/product/api). Without a key, you get rate-limited public access (1 req/sec).
+> **Note:** An API key is optional for most public Semantic Scholar endpoints. This
+> server conservatively throttles unkeyed requests to about one per second,
+> but anonymous users share an upstream pool. Semantic Scholar can return HTTP
+> 429 even when this server respects its local interval. For dependable,
+> sustained research workflows, configure an assigned API key.
+> See [Known Limitations](LIMITATIONS.md).
 
 ---
 

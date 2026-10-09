@@ -3,6 +3,21 @@
 Explicit boundaries on what this project provides today. These are not
 defects — they are tracked gaps for follow-up releases.
 
+## Shared anonymous API access and rate limits
+
+Most public Semantic Scholar endpoints can be queried without a key, and a
+real no-key MCP stdio smoke succeeded on October 9, 2026. On subsequent
+anonymous executions the same API returned HTTP 429 repeatedly, exhausting
+the client's bounded retries. This is an external shared-pool limit, not a
+guarantee of 1 successful request per second per caller. The server continues
+to surface this as a typed rate-limit failure rather than synthesizing data.
+
+A manual/scheduled live smoke exercises real anonymous retrieval and graph
+pagination; its failure must not be silently interpreted as a product code
+regression. Hermetic CI separately tests the stdio and Streamable HTTP MCP
+handshakes, tool discovery, and invalid-input rejection without contacting
+the third-party API.
+
 ## Paper-ID URL encoding
 
 Paper IDs are interpolated into request URL paths without
