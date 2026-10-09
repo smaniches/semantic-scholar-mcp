@@ -18,6 +18,10 @@ CITATIONS_URL = f"{PAPER_URL}/citations"
 REFERENCES_URL = f"{PAPER_URL}/references"
 
 
+def _respond(url, payload):
+    return respx.get(url).mock(return_value=Response(200, json=payload))
+
+
 @pytest.mark.parametrize("field", ["citations_offset", "references_offset"])
 def test_offsets_reject_negative_values(field):
     with pytest.raises(PydanticValidationError):
@@ -35,41 +39,26 @@ def test_offsets_exposed_in_input_schema():
 @respx.mock
 @pytest.mark.asyncio
 async def test_json_paginates_both_directions_independently(reset_all):
-    respx.get(PAPER_URL).mock(
-        return_value=Response(200, json={"paperId": PAPER_ID, "title": "Seed"})
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
+    citing = _respond(
+        CITATIONS_URL,
+        {"data": [{"citingPaper": {"paperId": "citation-7", "title": "Citing"}}], "next": 9},
     )
-    citing = respx.get(CITATIONS_URL).mock(
-        return_value=Response(
-            200,
-            json={
-                "data": [{"citingPaper": {"paperId": "citation-7", "title": "Citing"}}],
-                "next": 9,
-            },
-        )
+    cited = _respond(
+        REFERENCES_URL,
+        {"data": [{"citedPaper": {"paperId": "reference-13", "title": "Cited"}}], "next": 15},
     )
-    cited = respx.get(REFERENCES_URL).mock(
-        return_value=Response(
-            200,
-            json={
-                "data": [{"citedPaper": {"paperId": "reference-13", "title": "Referenced"}}],
-                "next": 15,
-            },
-        )
+    params = PaperDetailsInput(
+        paper_id=PAPER_ID,
+        include_citations=True,
+        include_references=True,
+        citations_offset=7,
+        citations_limit=2,
+        references_offset=13,
+        references_limit=2,
+        response_format=ResponseFormat.JSON,
     )
-    result = json.loads(
-        await get_paper_details(
-            PaperDetailsInput(
-                paper_id=PAPER_ID,
-                include_citations=True,
-                include_references=True,
-                citations_offset=7,
-                citations_limit=2,
-                references_offset=13,
-                references_limit=2,
-                response_format=ResponseFormat.JSON,
-            )
-        )
-    )
+    result = json.loads(await get_paper_details(params))
     assert result["paper"]["title"] == "Seed"
     assert result["citations"][0]["citingPaper"]["paperId"] == "citation-7"
     assert result["references"][0]["citedPaper"]["paperId"] == "reference-13"
@@ -84,67 +73,38 @@ async def test_json_paginates_both_directions_independently(reset_all):
 @respx.mock
 @pytest.mark.asyncio
 async def test_markdown_indicates_continuation_for_both_directions(reset_all):
-    respx.get(PAPER_URL).mock(
-        return_value=Response(200, json={"paperId": PAPER_ID, "title": "Seed"})
-    )
-    respx.get(CITATIONS_URL).mock(
-        return_value=Response(
-            200, json={"data": [{"citingPaper": {"title": "Citing"}}], "next": 4}
-        )
-    )
-    respx.get(REFERENCES_URL).mock(
-        return_value=Response(
-            200, json={"data": [{"citedPaper": {"title": "Referenced"}}], "next": 5}
-        )
-    )
-    text = await get_paper_details(
-        PaperDetailsInput(
-            paper_id=PAPER_ID, include_citations=True, include_references=True
-        )
-    )
-    assert "Citing" in text
-    assert "Referenced" in text
-    assert "citations_offset=4" in text
-    assert "references_offset=5" in text
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
+    _respond(CITATIONS_URL, {"data": [{"citingPaper": {"title": "Citing"}}], "next": 4})
+    _respond(REFERENCES_URL, {"data": [{"citedPaper": {"title": "Cited"}}], "next": 5})
+    params = PaperDetailsInput(paper_id=PAPER_ID, include_citations=True, include_references=True)
+    result = await get_paper_details(params)
+    assert "Citing" in result
+    assert "Cited" in result
+    assert "citations_offset=4" in result
+    assert "references_offset=5" in result
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_end_of_pages_does_not_advertise_more(reset_all):
-    respx.get(PAPER_URL).mock(
-        return_value=Response(200, json={"paperId": PAPER_ID, "title": "Seed"})
-    )
-    respx.get(CITATIONS_URL).mock(
-        return_value=Response(200, json={"data": [], "next": None})
-    )
-    respx.get(REFERENCES_URL).mock(
-        return_value=Response(200, json={"data": []})
-    )
-    text = await get_paper_details(
-        PaperDetailsInput(
-            paper_id=PAPER_ID, include_citations=True, include_references=True
-        )
-    )
-    assert "citations_offset=" not in text
-    assert "references_offset=" not in text
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
+    _respond(CITATIONS_URL, {"data": [], "next": None})
+    _respond(REFERENCES_URL, {"data": []})
+    params = PaperDetailsInput(paper_id=PAPER_ID, include_citations=True, include_references=True)
+    result = await get_paper_details(params)
+    assert "citations_offset=" not in result
+    assert "references_offset=" not in result
 
 
 @respx.mock
 @pytest.mark.asyncio
 async def test_non_object_graph_response_retains_legacy_empty_array(reset_all):
-    respx.get(PAPER_URL).mock(
-        return_value=Response(200, json={"paperId": PAPER_ID, "title": "Seed"})
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
+    _respond(CITATIONS_URL, [])
+    params = PaperDetailsInput(
+        paper_id=PAPER_ID, include_citations=True, response_format=ResponseFormat.JSON
     )
-    respx.get(CITATIONS_URL).mock(return_value=Response(200, json=[]))
-    result = json.loads(
-        await get_paper_details(
-            PaperDetailsInput(
-                paper_id=PAPER_ID,
-                include_citations=True,
-                response_format=ResponseFormat.JSON,
-            )
-        )
-    )
+    result = json.loads(await get_paper_details(params))
     assert result["citations"] == []
     assert result["citations_page"] == {"offset": 0, "next": None}
     assert "references_page" not in result
