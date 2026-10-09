@@ -1,0 +1,36 @@
+name: Live anonymous MCP smoke
+
+# Checks a real MCP stdio handshake plus Semantic Scholar paper, citation,
+# and reference retrieval without API credentials. Unlike deterministic CI,
+# this workflow can fail because Semantic Scholar's shared anonymous pool is
+# throttled or inaccessible. Such failures must remain visible, not skipped.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anonymous-mcp:
+    name: Public API and MCP stdio (no token)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install locked build closure
+        run: python -m pip install --require-hashes -r requirements-build.lock
+      - name: Install locked development closure
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Install server from checkout (offline)
+        env:
+          PIP_NO_INDEX: "1"
+        run: python -m pip install --no-deps --no-build-isolation -e .
+      - name: MCP handshake and real public graph pagination (without API key)
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ""
+        run: python scripts/smoke_no_key_mcp.py
