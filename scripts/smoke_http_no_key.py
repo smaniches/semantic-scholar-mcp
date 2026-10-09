@@ -1,8 +1,10 @@
-"""Unauthenticated end-to-end Streamable HTTP MCP transport smoke test.
+"""Unauthenticated end-to-end Streamable HTTP MCP protocol smoke.
 
 Creates a loopback server, negotiates an MCP session, enumerates the public
-tool surface and retrieves one real Semantic Scholar paper without an API key.
-Live upstream failures are surfaced rather than silently skipped.
+tools and checks rejection of an invalid ID at the real protocol boundary.
+The stdio smoke separately validates real no-key API access. It is deliberate
+that this smoke does not send a second anonymous upstream API request: such
+calls share Semantic Scholar's external rate-limited public pool.
 """
 
 from __future__ import annotations
@@ -15,9 +17,6 @@ import sys
 
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
-
-PAPER_ID = "ARXIV:1706.03762"
-
 
 def _port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -69,12 +68,9 @@ async def _smoke():
                 assert len(names) == 14, f"Expected 14 MCP tools, got {len(names)}"
                 result = await session.call_tool(
                     "semantic_scholar_get_paper",
-                    arguments={"params": {"paper_id": PAPER_ID, "response_format": "json"}},
+                    arguments={"params": {"paper_id": "invalid-id"}},
                 )
-                if result.isError:
-                    raise RuntimeError(f"HTTP MCP paper retrieval failed: {result.content}")
-                payload = json.loads(result.content[0].text)
-                assert payload["paper"]["paperId"]
+                assert result.isError, "An invalid paper ID should produce a tool error"
                 print(
                     json.dumps(
                         {
@@ -83,7 +79,8 @@ async def _smoke():
                             "host": "127.0.0.1",
                             "auth": "none",
                             "tool_count": len(names),
-                            "paper_id": payload["paper"]["paperId"],
+                            "invalid_id_rejected": True,
+                            "live_upstream_api_test": "covered by separate stdio smoke",
                         },
                         sort_keys=True,
                     ),
