@@ -127,6 +127,8 @@ class TestPaperDetailsInput:
         m = PaperDetailsInput(paper_id="a" * 40)
         assert m.include_citations is False
         assert m.include_references is False
+        assert m.citations_offset == 0
+        assert m.references_offset == 0
 
     def test_all_fields(self):
         m = PaperDetailsInput(
@@ -134,12 +136,16 @@ class TestPaperDetailsInput:
             include_citations=True,
             include_references=True,
             citations_limit=50,
+            citations_offset=7,
             references_limit=50,
+            references_offset=13,
             response_format=ResponseFormat.JSON,
             api_key="key",
         )
         assert m.include_citations is True
         assert m.citations_limit == 50
+        assert m.citations_offset == 7
+        assert m.references_offset == 13
 
     def test_paper_id_empty_rejected(self):
         with pytest.raises(PydanticValidationError):
@@ -158,6 +164,11 @@ class TestPaperDetailsInput:
         assert m1.references_limit == 1
         m100 = PaperDetailsInput(paper_id="a" * 40, references_limit=100)
         assert m100.references_limit == 100
+
+    @pytest.mark.parametrize("name", ["citations_offset", "references_offset"])
+    def test_negative_offset_rejected(self, name):
+        with pytest.raises(PydanticValidationError):
+            PaperDetailsInput(paper_id="a" * 40, **{name: -1})
 
     def test_extra_fields_rejected(self):
         with pytest.raises(PydanticValidationError):

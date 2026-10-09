@@ -1,0 +1,42 @@
+name: Live anonymous MCP smoke
+
+# Advisory live end-to-end check: starts a real MCP server and uses the
+# external Semantic Scholar anonymous pool. 429 responses are upstream
+# availability limitations, not deterministic regressions in local code.
+# Do not gate every PR on this external shared anonymous rate-limit pool;
+# the regular CI has separate protocol/validation tests for both transports.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  anonymous-mcp:
+    name: Public API and MCP stdio (no token)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install locked build closure
+        run: python -m pip install --require-hashes -r requirements-build.lock
+      - name: Install locked development closure
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Install server from checkout (offline)
+        env:
+          PIP_NO_INDEX: "1"
+        run: python -m pip install --no-deps --no-build-isolation -e .
+      - name: MCP handshake and real public graph pagination (without API key)
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ""
+        run: python scripts/smoke_no_key_mcp.py
+
+      - name: Streamable HTTP MCP handshake and real no-key paper retrieval
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ""
+        run: python scripts/smoke_http_no_key.py

@@ -74,6 +74,13 @@ jobs:
       run: python -m pip install --no-deps --no-build-isolation -e .
     - name: Test with coverage
       run: pytest --cov=src/semantic_scholar_mcp --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=100 --tb=short -q
+    # Real protocol-level stdio and Streamable HTTP sessions; both exercise
+    # input validation without relying on third-party network availability.
+    - name: MCP protocol process smoke (no key, no upstream calls)
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+      run: |
+        python scripts/smoke_stdio_protocol.py
+        python scripts/smoke_http_no_key.py
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
