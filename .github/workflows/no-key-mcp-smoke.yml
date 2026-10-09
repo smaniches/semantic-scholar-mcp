@@ -34,3 +34,8 @@ jobs:
         env:
           SEMANTIC_SCHOLAR_API_KEY: ""
         run: python scripts/smoke_no_key_mcp.py
+
+      - name: Streamable HTTP MCP handshake and real no-key paper retrieval
+        env:
+          SEMANTIC_SCHOLAR_API_KEY: ""
+        run: python scripts/smoke_http_no_key.py
