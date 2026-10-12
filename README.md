@@ -217,7 +217,7 @@ flowchart LR
 | `server.py` | FastMCP instance, 14 `@mcp.tool` registrations, lifespan, `main()` entry. Re-exports the helper surface for back-compat. |
 | `transport.py` | Streamable HTTP transport: CLI/env parsing (`--transport http`), uvicorn wiring, and per-request API-key extraction (header / query param / Smithery config) into a request-scoped contextvar. |
 | `client.py` | Shared `httpx.AsyncClient` singleton, client-side rate limiter (1.0 s public; 1.1 s authenticated default, configurable for assigned quotas), retry loop with exponential backoff + jitter on 429/502/503/timeout, HTTP→typed-exception mapping. |
-| `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the four tiered field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`, `AUTHOR_FIELDS`). |
+| `models.py` | Pydantic input models per tool, `ResponseFormat` enum, the tiered paper field-set constants (`PAPER_SEARCH_FIELDS`, `…_LITE`, `PAPER_BULK_SEARCH_FIELDS`, `PAPER_DETAIL_FIELDS`) plus `AUTHOR_FIELDS`. |
 | `validators.py` | Pre-flight paper-ID validation. Rejects NUL bytes, `?`, `#`, path traversal; accepts the seven canonical ID formats. |
 | `cache.py` | In-memory TTL cache (5 min, 200 entries, oldest-first eviction) for paper/author lookups within a session. |
 | `formatters.py` | Markdown renderers for paper and author dicts, tuned for chat-surface readability. |
@@ -306,8 +306,11 @@ listings, `mcp-remote` bridges — connect to.
 # (--from pins the floor: uvx may otherwise reuse a cached older version)
 uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http
 
-# Bind a public interface and custom port (only behind a TLS proxy — see Security)
-uvx --from "s2-mcp-server>=1.5.0" s2-mcp-server --transport http --host 0.0.0.0 --port 8080
+# Bind a public interface and custom port (only behind a TLS proxy — see Security).
+# The DNS-rebinding guard only admits localhost Host headers by default, so
+# also allow the public hostname clients will use (":*" matches any port).
+uvx --from "s2-mcp-server>=1.7.1" s2-mcp-server --transport http --host 0.0.0.0 --port 8080 \
+  --allowed-host "mcp.example.org:*"
 
 # Docker
 docker run -p 8000:8000 ghcr.io/smaniches/semantic-scholar-mcp --transport http
@@ -321,6 +324,9 @@ docker run -p 8000:8000 ghcr.io/smaniches/semantic-scholar-mcp --transport http
 | `--host` | `MCP_HOST` | `127.0.0.1` | Bind address (`0.0.0.0` in the Docker image) |
 | `--port` | `MCP_PORT`, then `PORT` | `8000` | Bind port (`PORT` is honored for hosting platforms) |
 | `--path` | `MCP_PATH` | `/mcp` | URL path of the MCP endpoint |
+| `--allowed-host` (repeatable) | `MCP_ALLOWED_HOSTS` (comma-separated) | localhost only | Extra `Host` header values admitted by the DNS-rebinding guard, e.g. `mcp.example.org:*` (≥ 1.7.1) |
+| `--allowed-origin` (repeatable) | `MCP_ALLOWED_ORIGINS` (comma-separated) | localhost only | Extra `Origin` header values admitted by the DNS-rebinding guard, e.g. `https://mcp.example.org` (≥ 1.7.1) |
+| `--version` | — | — | Print the package version and exit |
 | — | `MCP_STATELESS_HTTP` | `true` | One independent server interaction per request (recommended) |
 | — | `MCP_JSON_RESPONSE` | `true` | Plain JSON responses instead of SSE streams |
 

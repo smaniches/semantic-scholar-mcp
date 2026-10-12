@@ -27,8 +27,9 @@ import random
 import time
 import warnings
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 import httpx
 
@@ -217,7 +218,9 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
     """Parse a ``Retry-After`` header per RFC 9110 (delay-seconds OR HTTP-date).
 
     Falls back to ``default`` for missing, malformed, or past-dated values —
-    so a CDN that emits a date string can never crash the retry loop.
+    so a CDN that emits a date string can never crash the retry loop. The
+    result is never negative: a negative delay-seconds value is clamped to 0,
+    matching the past-dated branch.
     """
     if not header_value:
         return default
@@ -229,7 +232,7 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
         # ``float()`` accepts "nan"/"inf"; a non-finite delay would serialize to
         # invalid JSON (NaN/Infinity) downstream, so treat it as malformed.
         if math.isfinite(seconds):
-            return seconds
+            return max(seconds, 0.0)
     try:
         target = parsedate_to_datetime(header_value)
     except (TypeError, ValueError):
@@ -238,7 +241,6 @@ def _parse_retry_after(header_value: str | None, default: float) -> float:
     # None) for bad input, so this arm is unreachable on supported versions.
     if target is None:  # pragma: no cover
         return default
-    from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
     if target.tzinfo is None:
@@ -342,8 +344,12 @@ def handle_error(
     status: int,
     api_key: str | None = None,
     retry_after: float | None = None,
-) -> None:
-    """Map an HTTP status code onto a typed exception with an actionable message."""
+) -> NoReturn:
+    """Map an HTTP status code onto a typed exception with an actionable message.
+
+    Always raises; the ``NoReturn`` annotation lets type checkers see that the
+    retry loop in :func:`_execute_request_with_retry` cannot fall through here.
+    """
     if status == 400:
         raise ValidationError("Bad request. Check syntax.", status_code=400)
     if status == 401:

@@ -108,3 +108,65 @@ async def test_non_object_graph_response_retains_legacy_empty_array(reset_all):
     assert result["citations"] == []
     assert result["citations_page"] == {"offset": 0, "next": None}
     assert "references_page" not in result
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_failed_direction_cancels_sibling_request(reset_all):
+    """A failing citations fetch must not leave the references fetch in flight.
+
+    ``asyncio.gather`` propagates the first exception but keeps sibling tasks
+    running: before the fix the references request was still dispatched after
+    the tool had already raised, burning a rate-limit slot for a result nobody
+    could observe.
+    """
+    import asyncio
+
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    from semantic_scholar_mcp import client as _client
+
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
+    respx.get(CITATIONS_URL).mock(return_value=Response(404))
+    refs = _respond(REFERENCES_URL, {"data": []})
+    params = PaperDetailsInput(paper_id=PAPER_ID, include_citations=True, include_references=True)
+
+    with pytest.raises(ToolError, match="Not found"):
+        await get_paper_details(params)
+
+    # No orphaned make_request task may survive the tool's failure...
+    leftovers = [t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.done()]
+    assert not any("make_request" in repr(t) for t in leftovers), leftovers
+    # ...and the sibling request must never reach the wire, even after the
+    # rate-limit interval that previously let it slip out.
+    await asyncio.sleep(_client.get_min_request_interval(False) + 0.2)
+    assert not refs.called
+
+
+@pytest.mark.asyncio
+async def test_gather_or_cancel_preserves_order_and_cancels_on_failure():
+    import asyncio
+
+    from semantic_scholar_mcp.server import _gather_or_cancel
+
+    async def ok(value, delay=0.0):
+        await asyncio.sleep(delay)
+        return value
+
+    assert await _gather_or_cancel([ok("a", 0.01), ok("b")]) == ["a", "b"]
+
+    cancelled = asyncio.Event()
+
+    async def slow():
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    async def boom():
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await _gather_or_cancel([slow(), boom()])
+    assert cancelled.is_set()

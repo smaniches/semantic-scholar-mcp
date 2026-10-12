@@ -31,9 +31,10 @@ pytest
 mypy src/
 ```
 
-### Linting
+### Linting and formatting
 ```bash
-ruff check src/
+ruff check src/ tests/           # same invocation as CI
+ruff format --check src/ tests/  # drop --check to apply
 ```
 
 ### Security scanning
@@ -90,8 +91,7 @@ scripts/verify-reproducibility.sh
 
 1. Ensure tests pass
 2. Update documentation if needed
-3. Add yourself to CONTRIBUTORS.md (optional)
-4. Submit PR with clear description
+3. Submit PR with clear description
 
 ## Releasing
 

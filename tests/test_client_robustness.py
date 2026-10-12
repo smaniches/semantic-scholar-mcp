@@ -58,6 +58,30 @@ class TestParseRetryAfter:
         assert _parse_retry_after("-inf", default=8.0) == 8.0
         assert _parse_retry_after("Infinity", default=8.0) == 8.0
 
+    def test_negative_delay_seconds_clamps_to_zero(self):
+        # A negative delay-seconds value is nonsensical; it must not leak into
+        # RateLimitError.retry_after / the status tool as "Retry in -5.0s".
+        assert _parse_retry_after("-5", default=8.0) == 0.0
+        assert _parse_retry_after("-0.001", default=8.0) == 0.0
+        assert _parse_retry_after("0", default=8.0) == 0.0
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_negative_retry_after_header_yields_no_retry_hint(
+        self, reset_client, reset_rate_limit, monkeypatch
+    ):
+        """End-to-end: a 429 with ``Retry-After: -5`` must not report a negative delay."""
+        from semantic_scholar_mcp.errors import RateLimitError
+
+        monkeypatch.setattr(client, "MAX_RETRIES", 0)
+        respx.get(f"{client.SEMANTIC_SCHOLAR_API_BASE}/paper/search").mock(
+            return_value=Response(429, headers={"Retry-After": "-5"})
+        )
+        with pytest.raises(RateLimitError) as exc_info:
+            await make_request("GET", "paper/search", params={"query": "q"})
+        assert exc_info.value.retry_after is None
+        assert "-5" not in str(exc_info.value)
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Bad JSON response — surface a typed error, don't crash

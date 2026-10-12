@@ -18,6 +18,7 @@ import sys
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+
 def _port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -29,7 +30,7 @@ async def _wait_until_listening(proc, port):
         if proc.returncode is not None:
             raise RuntimeError(f"MCP HTTP server exited with code {proc.returncode}")
         try:
-            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            _reader, writer = await asyncio.open_connection("127.0.0.1", port)
         except OSError:
             await asyncio.sleep(0.25)
             continue
