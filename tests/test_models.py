@@ -301,6 +301,24 @@ class TestFormatterNullSafety:
         assert "Unknown Title" in result
         assert "N/A" in result
 
+    def test_paper_with_null_citation_counts_renders_zero(self):
+        from semantic_scholar_mcp.formatters import format_paper_markdown
+
+        result = format_paper_markdown(
+            {"title": "T", "citationCount": None, "influentialCitationCount": None}
+        )
+        assert "**Citations:** 0 (0 influential)" in result
+        assert "None" not in result
+
+    def test_paper_author_with_null_name_renders_placeholder(self):
+        from semantic_scholar_mcp.formatters import format_paper_markdown
+
+        result = format_paper_markdown(
+            {"title": "T", "authors": [{"authorId": "1", "name": None}, {"authorId": "2"}]}
+        )
+        assert "**Authors:** ?, ?" in result
+        assert "None" not in result
+
     def test_author_with_null_counts_renders_zero(self):
         from semantic_scholar_mcp.formatters import format_author_markdown
 

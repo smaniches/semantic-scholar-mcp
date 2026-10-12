@@ -23,9 +23,9 @@ def format_paper_markdown(paper: dict[str, Any]) -> str:
     year = paper.get("year") or "N/A"
     lines.append(f"### {title} ({year})")
 
-    authors = paper.get("authors", [])
+    authors = paper.get("authors") or []
     if authors:
-        names = [a.get("name", "?") for a in authors[:_MAX_AUTHORS_INLINE]]
+        names = [a.get("name") or "?" for a in authors[:_MAX_AUTHORS_INLINE]]
         if len(authors) > _MAX_AUTHORS_INLINE:
             names.append(f"... +{len(authors) - _MAX_AUTHORS_INLINE} more")
         lines.append(f"**Authors:** {', '.join(names)}")
@@ -34,8 +34,8 @@ def format_paper_markdown(paper: dict[str, Any]) -> str:
     if venue:
         lines.append(f"**Venue:** {venue}")
 
-    citations = paper.get("citationCount", 0)
-    influential = paper.get("influentialCitationCount", 0)
+    citations = paper.get("citationCount") or 0
+    influential = paper.get("influentialCitationCount") or 0
     lines.append(f"**Citations:** {citations} ({influential} influential)")
 
     pdf_info = paper.get("openAccessPdf") or {}

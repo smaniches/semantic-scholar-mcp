@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, get_type_hints
@@ -262,6 +262,26 @@ def _annotations(title: str) -> ToolAnnotations:
     return ToolAnnotations(title=title, readOnlyHint=True, idempotentHint=True, openWorldHint=True)
 
 
+async def _gather_or_cancel(coros: Sequence[Awaitable[Any]]) -> list[Any]:
+    """Run ``coros`` concurrently; if any fails, cancel the rest before re-raising.
+
+    ``asyncio.gather`` propagates the first exception but leaves its sibling
+    tasks running. For the citation/reference fan-out that meant a failed
+    direction returned an error to the caller while the other direction still
+    went out on the wire afterwards — an orphaned request that consumed a
+    rate-limit slot and whose result (or error) nobody observed.
+    """
+    tasks = [asyncio.ensure_future(coro) for coro in coros]
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        # Drain so no sibling is still in flight when the error surfaces.
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -396,7 +416,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             )
         if sub_tasks:
             keys = list(sub_tasks.keys())
-            responses = await asyncio.gather(*sub_tasks.values())
+            responses = await _gather_or_cancel(list(sub_tasks.values()))
             for key, resp in zip(keys, responses, strict=True):
                 requested_offset = (
                     params.citations_offset if key == "citations" else params.references_offset
