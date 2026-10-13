@@ -132,7 +132,9 @@ class TestRateLimiting:
             _ssm_client_mod.get_min_request_interval(True)
 
     @pytest.mark.asyncio
-    async def test_early_sleep_wakeup_rechecks_request_deadline(self, reset_all, monkeypatch):
+    async def test_early_sleep_wakeup_rechecks_request_deadline(
+        self, reset_all, monkeypatch
+    ):
         """An early timer callback must not dispatch before the full interval."""
         from types import SimpleNamespace
 
