@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.7](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.6...semantic-scholar-mcp-v1.7.7) (2026-10-12)
+
+
+### Bug Fixes
+
+* cancel orphaned sibling requests and harden null handling ([#176](https://github.com/smaniches/semantic-scholar-mcp/issues/176)) ([25fb51d](https://github.com/smaniches/semantic-scholar-mcp/commit/25fb51d80640d460f202266b2f32ac731b079000))
+
 ## [1.7.6](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.5...semantic-scholar-mcp-v1.7.6) (2026-10-09)
 
 
