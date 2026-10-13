@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.8](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.7...semantic-scholar-mcp-v1.7.8) (2026-10-13)
+
+
+### Bug Fixes
+
+* prevent early async timer wakeups from bypassing request interval ([#179](https://github.com/smaniches/semantic-scholar-mcp/issues/179)) ([72fbe5a](https://github.com/smaniches/semantic-scholar-mcp/commit/72fbe5a64063870b519c629179a5a246052a0589))
+
 ## [1.7.7](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.6...semantic-scholar-mcp-v1.7.7) (2026-10-12)
 
 
