@@ -131,6 +131,32 @@ class TestRateLimiting:
         ):
             _ssm_client_mod.get_min_request_interval(True)
 
+    @pytest.mark.asyncio
+    async def test_early_timer_wakeup(self, reset_all, monkeypatch):
+        """An early sleep return must not shorten the request interval."""
+        from types import SimpleNamespace
+
+        from semantic_scholar_mcp import client as client_module
+
+        clock = [100.0]
+        sleeps: list[float] = []
+
+        async def sleep_early_once(delay: float) -> None:
+            sleeps.append(delay)
+            clock[0] += 0.02 if len(sleeps) == 1 else delay
+
+        fake_clock = SimpleNamespace(monotonic=lambda: clock[0])
+        fake_asyncio = SimpleNamespace(sleep=sleep_early_once)
+        monkeypatch.setattr(client_module, "time", fake_clock)
+        monkeypatch.setattr(client_module, "asyncio", fake_asyncio)
+        client_module._last_request_time = 100.0
+
+        await client_module._wait_for_rate_limit(0.05)
+
+        assert len(sleeps) >= 2
+        assert clock[0] >= 100.05
+        assert client_module._last_request_time >= 100.05
+
     @respx.mock
     @pytest.mark.asyncio
     async def test_retry_attempts_obey_configured_interval(self, reset_all, monkeypatch):

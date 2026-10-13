@@ -207,10 +207,12 @@ async def _wait_for_rate_limit(interval: float) -> None:
 
     if interval <= 0:
         return
-    now = time.monotonic()
-    elapsed = now - _last_request_time
-    if elapsed < interval:
-        await asyncio.sleep(interval - elapsed)
+    deadline = _last_request_time + interval
+    # A scheduled sleep can wake early; confirm the monotonic deadline instead
+    # of assuming a single sleep enforced the full request interval.
+    # ASYNC110 is intentional: this bounded retry loop enforces wall-clock spacing.
+    while (remaining := deadline - time.monotonic()) > 0:  # noqa: ASYNC110
+        await asyncio.sleep(remaining)
     _last_request_time = time.monotonic()
 
 
