@@ -22,6 +22,8 @@ Every release ships **verifiable supply-chain provenance**: Sigstore-signed SLSA
 
 > Author: **Santiago Maniches** · ORCID [0009-0005-6480-1987](https://orcid.org/0009-0005-6480-1987) · TOPOLOGICA LLC
 
+**Research authorship:** Santiago Maniches independently directs and maintains this project and is the sole scientific author of its research contributions. AI-assisted tools have supported coding, documentation, and internal review; they do not constitute scientific coauthors or independent validation. Semantic Scholar content and reused software and methods are attributed to their respective sources.
+
 ---
 
 ## Quick start
