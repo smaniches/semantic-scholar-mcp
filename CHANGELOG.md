@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.9](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.8...semantic-scholar-mcp-v1.7.9) (2026-10-15)
+
+
+### Bug Fixes
+
+* align search, title-match, influential-count and logging docs with provider contract ([#182](https://github.com/smaniches/semantic-scholar-mcp/issues/182)) ([6ea8478](https://github.com/smaniches/semantic-scholar-mcp/commit/6ea847878ec08e7a8561938d44b230722e496021))
+
 ## [1.7.8](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.7...semantic-scholar-mcp-v1.7.8) (2026-10-13)
 
 
