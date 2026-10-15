@@ -422,7 +422,7 @@ Search for academic papers with advanced filters.
 **Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `query` | string | Yes | Search query (supports AND, OR, NOT operators and "phrase search") |
+| `query` | string | Yes | Plain-text search query, sent unchanged (no special syntax is documented for this endpoint; use `semantic_scholar_bulk_search` for boolean/phrase syntax) |
 | `year` | string | No | Year filter: `"2024"`, `"2020-2024"`, or `"2020-"` |
 | `fields_of_study` | string[] | No | Filter by fields: `["Computer Science", "Biology"]` |
 | `publication_types` | string[] | No | Filter by type: `["Review", "JournalArticle"]` |
@@ -617,14 +617,14 @@ paging through all results.
 **Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `query` | string | Yes | Search query |
+| `query` | string | Yes | Search query; supports `+` (AND), `\|` (OR), `-` (NOT), `"phrase"`, `*` prefix, `( )` grouping |
 | `sort` | string | No | Sort order, e.g. `"citationCount:desc"`, `"publicationDate:asc"` |
 | `token` | string | No | Continuation token from a previous bulk_search response |
 | `year` | string | No | Year filter: `"2024"`, `"2020-2024"`, `"2020-"` |
 | `fields_of_study` | string[] | No | Filter by fields: `["Computer Science"]` |
 | `publication_types` | string[] | No | Filter by type: `["Review", "JournalArticle"]` |
 | `min_citation_count` | integer | No | Minimum citation count |
-| `limit` | integer | No | Max results per page 1-1000 (default: 100) |
+| `limit` | integer | No | Requested page size 1-1000 (default: 100). Forwarded, but the observed API ignores it and returns up to 1000 papers per page; the full page and its `token` are returned unchanged |
 | `response_format` | string | No | `"markdown"` or `"json"` (default: markdown) |
 | `api_key` | string | No | Override environment API key |
 

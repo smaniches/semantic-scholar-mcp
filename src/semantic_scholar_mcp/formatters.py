@@ -35,8 +35,13 @@ def format_paper_markdown(paper: dict[str, Any]) -> str:
         lines.append(f"**Venue:** {venue}")
 
     citations = paper.get("citationCount") or 0
-    influential = paper.get("influentialCitationCount") or 0
-    lines.append(f"**Citations:** {citations} ({influential} influential)")
+    influential = paper.get("influentialCitationCount")
+    # Only render an influential count the provider actually supplied (bulk
+    # search never returns one); a genuine 0 is kept, absent/null is omitted.
+    if influential is None:
+        lines.append(f"**Citations:** {citations}")
+    else:
+        lines.append(f"**Citations:** {citations} ({influential} influential)")
 
     pdf_info = paper.get("openAccessPdf") or {}
     if pdf_info.get("url"):
