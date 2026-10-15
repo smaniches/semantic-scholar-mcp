@@ -97,8 +97,10 @@ class PaperSearchInput(BaseModel):
     query: str = Field(
         ...,
         description=(
-            "Search query, e.g. 'protein language models'. Supports AND, OR, NOT "
-            "operators and quoted phrases: '\"graph neural network\" AND drug'"
+            "Plain-text search query, e.g. 'protein language models'. Semantic "
+            "Scholar documents no special query syntax for this endpoint; the query "
+            "is forwarded unchanged. For boolean/phrase syntax use "
+            "semantic_scholar_bulk_search"
         ),
         min_length=1,
         max_length=500,
@@ -240,7 +242,16 @@ class BulkPaperInput(BaseModel):
 
 class BulkSearchInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
-    query: str = Field(..., description="Search query", min_length=1, max_length=500)
+    query: str = Field(
+        ...,
+        description=(
+            "Search query. The bulk endpoint documents boolean syntax: + (AND), "
+            '| (OR), - (NOT), "quoted phrase", * (prefix), ( ) grouping, '
+            "~N (edit distance / phrase slop), e.g. '\"graph neural network\" + drug'"
+        ),
+        min_length=1,
+        max_length=500,
+    )
     sort: str | None = Field(
         default=None,
         description="Sort order: 'citationCount:desc', 'publicationDate:asc', etc.",
@@ -258,7 +269,16 @@ class BulkSearchInput(BaseModel):
         default=None, description="Filter: 'Review', 'JournalArticle'"
     )
     min_citation_count: int | None = Field(default=None, description="Minimum citations", ge=0)
-    limit: int = Field(default=100, description="Max results per page (1-1000)", ge=1, le=1000)
+    limit: int = Field(
+        default=100,
+        description=(
+            "Requested page size (1-1000), forwarded to the API. The observed bulk "
+            "endpoint ignores it and returns up to 1000 papers per page; the whole "
+            "page is returned (never truncated) so the continuation token skips nothing"
+        ),
+        ge=1,
+        le=1000,
+    )
     response_format: ResponseFormat = _RESPONSE_FORMAT_FIELD
     api_key: str | None = _API_KEY_FIELD
 

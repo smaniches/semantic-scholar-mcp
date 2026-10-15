@@ -295,9 +295,10 @@ async def _gather_or_cancel(coros: Sequence[Awaitable[Any]]) -> list[Any]:
 async def search_papers(params: PaperSearchInput) -> str:
     """Search for academic papers.
 
-    Relevance-ranked keyword search over 200M+ papers; supports boolean
-    operators (AND, OR, NOT) and quoted phrases, plus year, field-of-study,
-    publication-type, open-access, and citation-count filters. Page with
+    Relevance-ranked plain-text search over 200M+ papers, with year,
+    field-of-study, publication-type, open-access, and citation-count filters.
+    The query is sent unchanged; boolean and quoted-phrase syntax is
+    documented only for semantic_scholar_bulk_search. Page with
     offset/limit (max 100 per call). For sorted or very large result sets
     use semantic_scholar_bulk_search; to search inside paper full text use
     semantic_scholar_snippet_search; to resolve one known title use
@@ -675,8 +676,10 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
 async def bulk_search(params: BulkSearchInput) -> str:
     """Search papers with sorting and cursor-based pagination for large result sets.
 
-    Unlike regular search, supports sorting (e.g., by citation count) and
-    returns a continuation token for paging through all results.
+    Unlike regular search, supports sorting (e.g., by citation count), boolean
+    query syntax, and returns a continuation token for paging through all
+    results. The observed endpoint ignores ``limit`` and may return up to 1000
+    papers per page; the full page is returned so no row is skipped.
     """
     logger.info("Bulk searching: %s", params.query)
 
@@ -793,6 +796,10 @@ async def match_paper(params: PaperMatchInput) -> str:
             api_key=params.api_key,
         )
         papers = response.get("data", []) if isinstance(response, dict) else []
+    except NotFoundError:
+        # /paper/search/match answers "Title match not found" with HTTP 404;
+        # that is the endpoint's documented no-match, not an ID error.
+        papers = []
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 

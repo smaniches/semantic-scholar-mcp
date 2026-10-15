@@ -301,13 +301,14 @@ class TestFormatterNullSafety:
         assert "Unknown Title" in result
         assert "N/A" in result
 
-    def test_paper_with_null_citation_counts_renders_zero(self):
+    def test_paper_with_null_citation_counts_omits_influential(self):
         from semantic_scholar_mcp.formatters import format_paper_markdown
 
         result = format_paper_markdown(
             {"title": "T", "citationCount": None, "influentialCitationCount": None}
         )
-        assert "**Citations:** 0 (0 influential)" in result
+        assert "**Citations:** 0" in result
+        assert "influential" not in result
         assert "None" not in result
 
     def test_paper_author_with_null_name_renders_placeholder(self):

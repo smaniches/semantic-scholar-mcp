@@ -288,10 +288,11 @@ class TestFormatPaperMarkdown:
         assert "IDs:" not in result
 
     def test_default_citation_counts(self):
-        """Paper without citation counts should show 0."""
+        """Missing citationCount shows 0; a missing influential count is omitted."""
         paper = {"title": "Test", "year": 2020}
         result = _format_paper_markdown(paper)
-        assert "0 (0 influential)" in result
+        assert "**Citations:** 0" in result
+        assert "influential" not in result
 
 
 # ===============================================================================

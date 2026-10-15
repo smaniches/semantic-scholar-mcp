@@ -23,8 +23,11 @@ Design decisions:
   key via the ``x-api-key`` header, a ``SEMANTIC_SCHOLAR_API_KEY``/``api_key``
   query parameter (Smithery dot-notation session config), or the legacy
   base64 ``?config=`` parameter. The key is request-scoped (see
-  :data:`semantic_scholar_mcp.client._request_api_key`); it is never logged
-  and never leaks across concurrent requests.
+  :data:`semantic_scholar_mcp.client._request_api_key`) and never leaks
+  across concurrent requests. Application code never logs it, but a key sent
+  in the URL query string is part of the request line that uvicorn's access
+  log (enabled at ``log_level="info"``) and any proxy may record; prefer the
+  header.
 - **Loopback bind by default** (``127.0.0.1``). Exposing the server on a
   public interface is an explicit opt-in (``--host 0.0.0.0``) because the
   HTTP transport itself performs no authentication.
