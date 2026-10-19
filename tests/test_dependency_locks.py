@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
 DEV_CUTOFF = "2026-09-30T23:45:48Z"
 BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
+CYCLONEDX_CUTOFF = "2026-09-29T15:45:57Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
@@ -43,6 +44,7 @@ SEMANTIC_CHANGES = frozenset(
         "backports-asyncio-runner",
         "cryptography",
         "exceptiongroup",
+        "mcp",
         "pip",
         "pyjwt",
         "python-discovery",
@@ -59,6 +61,7 @@ SEMANTIC_CHANGES = frozenset(
 REQUIRED_DEV_VERSIONS = {
     "anyio": "4.15.1",
     "cryptography": "50.0.2",
+    "mcp": "1.30.0",
     "pip": "26.2.1",
     "pyjwt": "2.15.1",
     "urllib3": "2.8.0",
@@ -102,8 +105,9 @@ EXPECTED_HEADERS = {
     RELEASE_LOCK: (
         "uv --no-config pip compile requirements-release.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --constraint requirements-build.lock "
-        "--output-file requirements-release.lock"
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} "
+        f"--exclude-newer-package cyclonedx-bom={CYCLONEDX_CUTOFF} "
+        "--constraint requirements-build.lock --output-file requirements-release.lock"
     ),
 }
 
@@ -390,6 +394,8 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
     assert f"BASE={AUTHORITATIVE_BASE}" in script
     assert f"DEV_CUTOFF={DEV_CUTOFF}" in script
     assert f"BUILD_RELEASE_CUTOFF={BUILD_RELEASE_CUTOFF}" in script
+    assert f"CYCLONEDX_CUTOFF={CYCLONEDX_CUTOFF}" in script
+    assert '--exclude-newer-package "cyclonedx-bom=$CYCLONEDX_CUTOFF"' in script
     assert '"uv 0.11.29"|"uv 0.11.29 "*' in script, "version gate must accept build metadata"
     assert 'git show "$BASE:requirements-dev.lock"' in script, "dev lock must be seeded from git"
     assert 'test ! -e "$WORK/requirements-build.lock"' in script
