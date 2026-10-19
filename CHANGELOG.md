@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.10](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.9...semantic-scholar-mcp-v1.7.10) (2026-10-19)
+
+
+### Bug Fixes
+
+* **security:** exclude vulnerable MCP SDK versions (CVE-2026-59951) ([#184](https://github.com/smaniches/semantic-scholar-mcp/issues/184)) ([b9aff13](https://github.com/smaniches/semantic-scholar-mcp/commit/b9aff13ff7888efa884c5694a9245a8c62fbbc0a))
+
 ## [1.7.9](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.8...semantic-scholar-mcp-v1.7.9) (2026-10-15)
 
 
