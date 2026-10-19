@@ -1,4 +1,4 @@
-# Temporary read-only lock regeneration for CVE-2026-59951.
+# Temporary scoped lock regeneration for CVE-2026-59951.
 # Delete this workflow after incorporating its generated lock into the PR.
 name: Security lock refresh (temporary)
 on:
@@ -8,7 +8,7 @@ on:
       - ".github/workflows/security-lock-refresh-temp.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   regenerate-and-verify:
@@ -56,3 +56,17 @@ jobs:
           ruff format --check src/ tests/
           mypy src/
           python scripts/smoke_stdio_protocol.py
+      - name: Commit verified dev lock to isolated fix branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/fix/mcp-sdk-cve-2026-59951"
+          changed="$(git diff --name-only)"
+          test "$changed" = "requirements-dev.lock"
+          git add -- requirements-dev.lock
+          git diff --cached --quiet && { echo "No lock change generated"; exit 1; }
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build(deps): regenerate audited MCP 1.30.0 lock"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/fix/mcp-sdk-cve-2026-59951
