@@ -367,7 +367,7 @@ def test_build_and_release_locks_pin_editables(
 
 def test_release_lock_pins_cyclonedx_bom(release_lock: dict[str, list[Requirement]]) -> None:
     """The SBOM tool must come from the locked release closure, never live."""
-    assert "cyclonedx-bom" in release_lock
+    assert {requirement.version for requirement in release_lock["cyclonedx-bom"]} == {"7.5.0"}
 
 
 def test_release_closure_preserves_the_build_closure_versions(
