@@ -6,6 +6,8 @@ on:
     branches: [fix/mcp-sdk-cve-2026-59951]
     paths:
       - ".github/workflows/security-lock-refresh-temp.yml"
+      - "scripts/regenerate-locks.sh"
+      - "tests/test_dependency_locks.py"
 
 permissions:
   contents: write
@@ -30,7 +32,8 @@ jobs:
       - name: Verify deterministic regeneration and limited delta
         run: |
           bash scripts/regenerate-locks.sh --check
-          git diff --exit-code -- requirements-build.lock requirements-release.lock
+          git diff --exit-code -- requirements-build.lock
+          grep -E '^cyclonedx-bom==7\\.5\\.0([ ;\\\\]|$)' requirements-release.lock
           grep -E '^mcp==1\.30\.0([ ;\\]|$)' requirements-dev.lock
       - name: Upload regenerated dev lock
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -63,10 +66,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/fix/mcp-sdk-cve-2026-59951"
-          changed="$(git diff --name-only)"
-          test "$changed" = "requirements-dev.lock"
-          git add -- requirements-dev.lock
+          changed="$(git diff --name-only | LC_ALL=C sort)"
+          expected="$(printf 'requirements-dev.lock\\nrequirements-release.lock')"
+          test "$changed" = "$expected"
+          git add -- requirements-dev.lock requirements-release.lock
           git diff --cached --quiet && { echo "No lock change generated"; exit 1; }
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build(deps): regenerate audited MCP 1.30.0 lock"
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "build(deps): regenerate audited MCP and SBOM locks"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/fix/mcp-sdk-cve-2026-59951
