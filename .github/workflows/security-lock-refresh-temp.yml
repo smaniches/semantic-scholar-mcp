@@ -33,8 +33,8 @@ jobs:
         run: |
           bash scripts/regenerate-locks.sh --check
           git diff --exit-code -- requirements-build.lock
-          grep -E '^cyclonedx-bom==7\\.5\\.0([ ;\\\\]|$)' requirements-release.lock
-          grep -E '^mcp==1\.30\.0([ ;\\]|$)' requirements-dev.lock
+          grep -q '^cyclonedx-bom==7[.]5[.]0 ' requirements-release.lock
+          grep -q '^mcp==1[.]30[.]0 ' requirements-dev.lock
       - name: Upload regenerated dev lock
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -59,7 +59,7 @@ jobs:
           ruff format --check src/ tests/
           mypy src/
           python scripts/smoke_stdio_protocol.py
-      - name: Commit verified dev lock to isolated fix branch
+      - name: Commit verified dev and release locks to isolated fix branch
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = "refs/heads/fix/mcp-sdk-cve-2026-59951"
           changed="$(git diff --name-only | LC_ALL=C sort)"
-          expected="$(printf 'requirements-dev.lock\\nrequirements-release.lock')"
+          expected="$(printf '%s\n' requirements-dev.lock requirements-release.lock)"
           test "$changed" = "$expected"
           git add -- requirements-dev.lock requirements-release.lock
           git diff --cached --quiet && { echo "No lock change generated"; exit 1; }
