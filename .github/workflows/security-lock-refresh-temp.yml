@@ -1,0 +1,58 @@
+# Temporary read-only lock regeneration for CVE-2026-59951.
+# Delete this workflow after incorporating its generated lock into the PR.
+name: Security lock refresh (temporary)
+on:
+  push:
+    branches: [fix/mcp-sdk-cve-2026-59951]
+    paths:
+      - ".github/workflows/security-lock-refresh-temp.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate-and-verify:
+    name: Regenerate and verify dev dependency lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install canonical resolver
+        run: python -m pip install uv==0.11.29
+      - name: Regenerate canonical dependency locks
+        run: bash scripts/regenerate-locks.sh
+      - name: Verify deterministic regeneration and limited delta
+        run: |
+          bash scripts/regenerate-locks.sh --check
+          git diff --exit-code -- requirements-build.lock requirements-release.lock
+          grep -E '^mcp==1\.30\.0([ ;\\]|$)' requirements-dev.lock
+      - name: Upload regenerated dev lock
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-cve-2026-59951-dev-lock
+          path: requirements-dev.lock
+          if-no-files-found: error
+          retention-days: 7
+      - name: Install locked development dependencies
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+      - name: Audit all locked dependencies
+        run: python -m pip_audit -r requirements-dev.lock --strict
+      - name: Install locked build dependencies
+        run: python -m pip install --require-hashes -r requirements-build.lock
+      - name: Install project offline
+        env:
+          PIP_NO_INDEX: "1"
+        run: python -m pip install --no-deps --no-build-isolation -e .
+      - name: Verify SDK compatibility, lint, and unit tests
+        run: |
+          python -m pytest --cov=src/semantic_scholar_mcp --cov-branch --cov-report=term-missing --cov-fail-under=100 --tb=short -q
+          ruff check src/ tests/
+          ruff format --check src/ tests/
+          mypy src/
+          python scripts/smoke_stdio_protocol.py
