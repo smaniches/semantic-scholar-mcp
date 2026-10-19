@@ -22,8 +22,8 @@ repos:
     rev: v2.1.0  # keep equal to mypy== in requirements-dev.lock
     hooks:
       - id: mypy
-        # Keep in step with the runtime pin in pyproject.toml ("mcp>=1.28.1,<2").
-        additional_dependencies: ["mcp>=1.28.1,<2", "httpx>=0.25.0", "pydantic>=2.0.0"]
+        # Keep in step with the runtime pin in pyproject.toml ("mcp>=1.30.0,<2").
+        additional_dependencies: ["mcp>=1.30.0,<2", "httpx>=0.25.0", "pydantic>=2.0.0"]
         args: [--strict]
         files: ^src/
 

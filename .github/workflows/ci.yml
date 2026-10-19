@@ -149,3 +149,16 @@ jobs:
       run: python -m build --no-isolation
     - name: Show built distributions
       run: ls -l dist/
+    # Exercise the same hash-pinned release toolchain used by publish.yml, without
+    # granting release credentials or publishing anything. A declared SBOM-tool
+    # update must not reach a release tag without proving its installability.
+    - name: Install locked release closure
+      run: python -m pip install --require-hashes -r requirements-release.lock
+    - name: Validate release package metadata and CycloneDX CLI
+      run: |
+        python -m twine check dist/*
+        cyclonedx-py --version
+        cyclonedx-py requirements --help > /tmp/cyclonedx-usage.txt
+        for flag in --pyproject --output-format --spec-version --output-file; do
+          grep -F -- "$flag" /tmp/cyclonedx-usage.txt > /dev/null
+        done
