@@ -36,8 +36,12 @@ BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
 DEV_CUTOFF=2026-09-30T23:45:48Z
 # One second after hatchling 1.32.4's final distribution was published
 # (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
-# This cutoff must never predate a pin in a build/release *.in file.
+# The build/release base cutoff predates the later explicit cyclonedx-bom 7.5.0
+# pin. Give ONLY that release tool a package-specific cutoff, 433 ms after its
+# last required distribution appeared on PyPI. This preserves the frozen
+# transitive index for every unrelated dependency.
 BUILD_RELEASE_CUTOFF=2026-09-20T22:48:46Z
+CYCLONEDX_CUTOFF=2026-09-29T15:45:57Z
 
 MODE=write
 case "${1:-}" in
@@ -97,6 +101,8 @@ uv_compile() {
 # --upgrade-package exempts exactly the named packages from the preference seed
 # above, so each is re-resolved to the newest release allowed by the cutoff while
 # every other pin stays pinned by the seed:
+#   * mcp         -> newest compatible patched 1.x SDK <= DEV_CUTOFF
+#                    (1.30.0 here), resolving CVE-2026-59951;
 #   * anyio       -> newest <= DEV_CUTOFF (4.15.1 in this snapshot), preserving
 #                     the fixes for CVE-2026-63374/CVE-2026-64847/CVE-2026-63349;
 #   * cryptography -> newest <= DEV_CUTOFF (50.0.2 here), preserving the
@@ -121,6 +127,7 @@ uv_compile pyproject.toml \
     --exclude-newer "$DEV_CUTOFF" \
     --upgrade-package anyio \
     --upgrade-package cryptography \
+    --upgrade-package mcp \
     --upgrade-package pip \
     --upgrade-package pyjwt \
     --upgrade-package urllib3 \
@@ -141,6 +148,7 @@ uv_compile requirements-release.in \
     --universal \
     --generate-hashes \
     --exclude-newer "$BUILD_RELEASE_CUTOFF" \
+    --exclude-newer-package "cyclonedx-bom=$CYCLONEDX_CUTOFF" \
     --default-index https://pypi.org/simple \
     --constraint requirements-build.lock \
     --output-file requirements-release.lock
