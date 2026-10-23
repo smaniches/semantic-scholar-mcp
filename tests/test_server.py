@@ -288,11 +288,17 @@ class TestFormatPaperMarkdown:
         assert "IDs:" not in result
 
     def test_default_citation_counts(self):
-        """Missing citationCount shows 0; a missing influential count is omitted."""
+        """A missing upstream count is unknown, not evidence of zero."""
         paper = {"title": "Test", "year": 2020}
         result = _format_paper_markdown(paper)
-        assert "**Citations:** 0" in result
+        assert "**Citations:** N/A" in result
         assert "influential" not in result
+
+    def test_explicit_zero_citations_remains_zero(self):
+        """Zero supplied by the provider is distinct from a missing field."""
+        paper = {"title": "Test", "citationCount": 0, "influentialCitationCount": 0}
+        result = _format_paper_markdown(paper)
+        assert "**Citations:** 0 (0 influential)" in result
 
 
 # ===============================================================================
@@ -1177,6 +1183,30 @@ class TestBulkPapersTool:
 
     @respx.mock
     @pytest.mark.asyncio
+    async def test_bulk_papers_truncated_upstream_response_is_not_absence(self, reset_client):
+        from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
+
+        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch").mock(
+            return_value=Response(200, json=[{"paperId": "a" * 40, "title": "Paper A"}])
+        )
+        params = BulkPaperInput(paper_ids=["a" * 40, "b" * 40])
+        with pytest.raises(ToolError, match="Incomplete bulk response"):
+            await get_bulk_papers(params)
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_bulk_papers_malformed_data_is_not_empty_result(self, reset_client):
+        from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
+
+        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/paper/batch").mock(
+            return_value=Response(200, json={"data": None})
+        )
+        params = BulkPaperInput(paper_ids=["a" * 40])
+        with pytest.raises(ToolError, match="Incomplete bulk response"):
+            await get_bulk_papers(params)
+
+    @respx.mock
+    @pytest.mark.asyncio
     async def test_bulk_papers_invalid_ids(self, reset_client):
         """get_bulk_papers should validate all paper IDs."""
         from semantic_scholar_mcp.server import BulkPaperInput, get_bulk_papers
@@ -1373,13 +1403,24 @@ class TestFormatAuthorMarkdown:
         assert "Homepage" in result
 
     def test_minimal_author(self):
-        """Author with minimal info should still format."""
+        """Missing numeric author statistics are unknown, not zero."""
         from semantic_scholar_mcp.server import _format_author_markdown
 
         author = {"name": "Anonymous"}
         result = _format_author_markdown(author)
 
         assert "Anonymous" in result
+        assert "**Papers:** N/A" in result
+        assert "**Citations:** N/A" in result
+
+    def test_author_explicit_zero_counts(self):
+        from semantic_scholar_mcp.server import _format_author_markdown
+
+        result = _format_author_markdown(
+            {"name": "New Author", "paperCount": 0, "citationCount": 0}
+        )
+        assert "**Papers:** 0" in result
+        assert "**Citations:** 0" in result
 
     def test_author_missing_name(self):
         """Author without name should show 'Unknown'."""

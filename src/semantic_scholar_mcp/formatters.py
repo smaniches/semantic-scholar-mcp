@@ -34,7 +34,9 @@ def format_paper_markdown(paper: dict[str, Any]) -> str:
     if venue:
         lines.append(f"**Venue:** {venue}")
 
-    citations = paper.get("citationCount") or 0
+    # A source that omits its count has not reported zero citations.
+    raw_citations = paper.get("citationCount")
+    citations = str(raw_citations) if raw_citations is not None else "N/A"
     influential = paper.get("influentialCitationCount")
     # Only render an influential count the provider actually supplied (bulk
     # search never returns one); a genuine 0 is kept, absent/null is omitted.
@@ -92,10 +94,14 @@ def format_author_markdown(author: dict[str, Any]) -> str:
     # ("N/A") from explicit 0 instead of using ``or 0``.
     h_index = author.get("hIndex")
     h_index_str = str(h_index) if h_index is not None else "N/A"
+    paper_count = author.get("paperCount")
+    citation_count = author.get("citationCount")
+    paper_count_str = str(paper_count) if paper_count is not None else "N/A"
+    citation_count_str = str(citation_count) if citation_count is not None else "N/A"
     lines.append(
         f"**h-index:** {h_index_str} | "
-        f"**Papers:** {author.get('paperCount') or 0} | "
-        f"**Citations:** {author.get('citationCount') or 0}"
+        f"**Papers:** {paper_count_str} | "
+        f"**Citations:** {citation_count_str}"
     )
 
     if author.get("homepage"):
