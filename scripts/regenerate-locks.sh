@@ -34,6 +34,9 @@ BASE=5ab7a36e52828f726bec764bbbfb2a881b311273
 # Keep the development closure on its previously reviewed index snapshot so a
 # build/release-tool bump cannot silently re-resolve unrelated dev dependencies.
 DEV_CUTOFF=2026-09-30T23:45:48Z
+# Refresh only the security-patched dependencies; unrelated packages remain
+# on the original, immutable September 30 index snapshot.
+SECURITY_PATCH_CUTOFF=2026-10-23T20:40:00Z
 # One second after hatchling 1.32.4's final distribution was published
 # (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
 # The build/release base cutoff predates the later explicit cyclonedx-bom 7.5.0
@@ -113,9 +116,11 @@ uv_compile() {
 #                     September 2026 JWT advisory set caught by pip-audit;
 #   * urllib3      -> newest <= DEV_CUTOFF (2.8.0 here), resolving
 #                     CVE-2026-97687/97688/97689;
-#   * virtualenv   -> newest <= DEV_CUTOFF (21.14.1 here), resolving
-#                     PYSEC-2026-4011/4012/4013/4014 and requiring
-#                     python-discovery>=1.6 (resolved to 1.6.1).
+#   * certifi      -> 2026.10.19, fixes PYSEC-2026-4320.
+#   * packaging    -> 26.3, required by the fixed virtualenv.
+#   * virtualenv   -> 21.14.9, fixes 2026-10 security advisories.
+# Only these three security updates may use SECURITY_PATCH_CUTOFF;
+# every other package retains DEV_CUTOFF and the frozen base preference.
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.
@@ -125,9 +130,14 @@ uv_compile pyproject.toml \
     --universal \
     --generate-hashes \
     --exclude-newer "$DEV_CUTOFF" \
+    --exclude-newer-package "certifi=$SECURITY_PATCH_CUTOFF" \
+    --exclude-newer-package "packaging=$SECURITY_PATCH_CUTOFF" \
+    --exclude-newer-package "virtualenv=$SECURITY_PATCH_CUTOFF" \
     --upgrade-package anyio \
+    --upgrade-package certifi \
     --upgrade-package cryptography \
     --upgrade-package mcp \
+    --upgrade-package packaging \
     --upgrade-package pip \
     --upgrade-package pyjwt \
     --upgrade-package urllib3 \

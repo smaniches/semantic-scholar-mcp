@@ -307,7 +307,7 @@ class TestFormatterNullSafety:
         result = format_paper_markdown(
             {"title": "T", "citationCount": None, "influentialCitationCount": None}
         )
-        assert "**Citations:** 0" in result
+        assert "**Citations:** N/A" in result
         assert "influential" not in result
         assert "None" not in result
 
@@ -320,12 +320,12 @@ class TestFormatterNullSafety:
         assert "**Authors:** ?, ?" in result
         assert "None" not in result
 
-    def test_author_with_null_counts_renders_zero(self):
+    def test_author_with_null_counts_renders_unknown(self):
         from semantic_scholar_mcp.formatters import format_author_markdown
 
         result = format_author_markdown({"name": "Jane", "paperCount": None, "citationCount": None})
-        assert "**Papers:** 0" in result
-        assert "**Citations:** 0" in result
+        assert "**Papers:** N/A" in result
+        assert "**Citations:** N/A" in result
 
     def test_author_with_explicit_zero_hindex_renders_zero(self):
         """0 h-index is meaningful (early-career); must not collapse to N/A."""

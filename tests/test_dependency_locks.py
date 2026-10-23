@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
 DEV_CUTOFF = "2026-09-30T23:45:48Z"
+SECURITY_PATCH_CUTOFF = "2026-10-23T20:40:00Z"
 BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
 CYCLONEDX_CUTOFF = "2026-09-29T15:45:57Z"
 
@@ -42,9 +43,11 @@ SEMANTIC_CHANGES = frozenset(
     {
         "anyio",
         "backports-asyncio-runner",
+        "certifi",
         "cryptography",
         "exceptiongroup",
         "mcp",
+        "packaging",
         "pip",
         "pyjwt",
         "python-discovery",
@@ -60,19 +63,17 @@ SEMANTIC_CHANGES = frozenset(
 # scripts/regenerate-locks.sh, never by hand-editing the generated lock.
 REQUIRED_DEV_VERSIONS = {
     "anyio": "4.15.1",
+    "certifi": "2026.10.19",
     "cryptography": "50.0.2",
     "mcp": "1.30.0",
+    "packaging": "26.3",
     "pip": "26.2.1",
     "pyjwt": "2.15.1",
     "urllib3": "2.8.0",
-    "virtualenv": "21.14.1",
+    "virtualenv": "21.14.9",
 }
 
 PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
-    "packaging": {
-        "added": ("    #   virtualenv\n",),
-        "removed": (),
-    },
     "platformdirs": {
         "added": (),
         "removed": ("    #   python-discovery\n",),
@@ -95,7 +96,11 @@ EXPECTED_HEADERS = {
     DEV_LOCK: (
         "uv --no-config pip compile pyproject.toml --extra dev "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {DEV_CUTOFF} --output-file requirements-dev.lock"
+        f"--exclude-newer {DEV_CUTOFF} "
+        f"--exclude-newer-package certifi={SECURITY_PATCH_CUTOFF} "
+        f"--exclude-newer-package packaging={SECURITY_PATCH_CUTOFF} "
+        f"--exclude-newer-package virtualenv={SECURITY_PATCH_CUTOFF} "
+        "--output-file requirements-dev.lock"
     ),
     BUILD_LOCK: (
         "uv --no-config pip compile requirements-build.in "

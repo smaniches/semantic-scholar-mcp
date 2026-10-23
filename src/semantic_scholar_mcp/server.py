@@ -634,6 +634,16 @@ async def get_bulk_papers(params: BulkPaperInput) -> str:
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
+    # The batch endpoint contract is positional. A truncated or malformed
+    # response cannot establish which requested IDs were absent; fail closed
+    # rather than silently losing records or misattributing a paper.
+    if not isinstance(papers, list) or len(papers) != len(params.paper_ids):
+        received = len(papers) if isinstance(papers, list) else "unknown"
+        raise ToolError(
+            f"Incomplete bulk response: requested {len(params.paper_ids)} "
+            f"paper IDs, received {received} positions."
+        )
+
     # Null entries == not-found IDs; track and surface them so users can react.
     succeeded = [p for p in papers if p]
     failed_indices = [i for i, p in enumerate(papers) if not p]
