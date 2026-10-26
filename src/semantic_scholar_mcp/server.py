@@ -289,9 +289,7 @@ def _required_provider_items(response: Any, field: str, endpoint: str) -> list[d
         raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected JSON object")
     items = response.get(field)
     if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
-        raise ToolError(
-            f"Invalid Semantic Scholar {endpoint} response: expected a list of {field}"
-        )
+        raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected a list of {field}")
     return items
 
 

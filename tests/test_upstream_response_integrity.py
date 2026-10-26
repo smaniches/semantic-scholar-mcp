@@ -51,9 +51,12 @@ def test_invalid_total_response_envelope() -> None:
 def test_empty_result_list_and_exact_zero_total_are_valid() -> None:
     assert s._required_provider_items({"data": []}, "data", "paper/search") == []
     assert s._required_provider_items({"data": [{}]}, "data", "paper/search") == [{}]
-    assert s._required_provider_items(
-        {"recommendedPapers": []}, "recommendedPapers", "recommendations"
-    ) == []
+    assert (
+        s._required_provider_items(
+            {"recommendedPapers": []}, "recommendedPapers", "recommendations"
+        )
+        == []
+    )
     assert s._required_provider_total({"total": 0}, "paper/search") == 0
     assert s._required_provider_total({"total": 17}, "paper/search") == 17
 
