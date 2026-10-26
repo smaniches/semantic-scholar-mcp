@@ -503,6 +503,7 @@ class TestGetAuthorNoPapers:
         # Only author endpoint should be called, not papers
         assert route.call_count == 1
 
+
 @respx.mock
 @pytest.mark.asyncio
 async def test_author_publications_missing_citation_counts_are_unknown(reset_all):
