@@ -359,7 +359,9 @@ async def search_papers(params: PaperSearchInput) -> str:
             "GET", "paper/search", params=api_params, api_key=params.api_key
         )
         total = _required_provider_total(response, "paper/search")
-        papers = _required_provider_items(response, "data", "paper/search", identity_field="paperId")
+        papers = _required_provider_items(
+            response, "data", "paper/search", identity_field="paperId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -523,7 +525,9 @@ async def search_authors(params: AuthorSearchInput) -> str:
             api_key=params.api_key,
         )
         total = _required_provider_total(response, "author/search")
-        authors = _required_provider_items(response, "data", "author/search", identity_field="authorId")
+        authors = _required_provider_items(
+            response, "data", "author/search", identity_field="authorId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
