@@ -2066,7 +2066,7 @@ class TestAuthorBatchTool:
             ([{"authorId": 1}], ["1"]),
             ([{"authorId": ""}], ["0"]),
             ([{"authorId": ""}], ["00"]),
-            ([{"authorId": "１"}], ["1"]),
+            ([{"authorId": "\uff11"}], ["1"]),
         ],
     )
     async def test_author_batch_rejects_malformed_or_misattributed_response(
