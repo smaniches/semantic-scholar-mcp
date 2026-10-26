@@ -2072,9 +2072,9 @@ class TestAuthorBatchTool:
         """A successful HTTP status cannot establish missing or wrong author identities."""
         from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
 
-        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(
-            return_value=Response(200, json=payload)
-        )
+        # httpx.Response(json=None) would construct an empty body, not JSON null.
+        body = Response(200, content=b"null") if payload is None else Response(200, json=payload)
+        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(return_value=body)
         with pytest.raises(ToolError, match="batch response"):
             await get_author_batch(AuthorBatchInput(author_ids=author_ids))
 
