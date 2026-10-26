@@ -71,6 +71,11 @@ scripts/regenerate-locks.sh            # rewrite the locks
 scripts/regenerate-locks.sh --check    # verify only; nonzero on any drift
 ```
 
+The development tools `pre-commit` and `pip-audit` use Python 3.11+ because
+patched `filelock` 4.2.1+ requires Python 3.11. Python 3.10 remains supported
+for the MCP runtime and its offline pytest suite. Dependency auditing runs
+on Python 3.12; this is not a CVE suppression.
+
 Both modes need network access and exactly uv 0.11.29:
 
 ```bash

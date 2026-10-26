@@ -118,8 +118,11 @@ uv_compile() {
 #                     CVE-2026-97687/97688/97689;
 #   * certifi      -> 2026.10.19, fixes PYSEC-2026-4320.
 #   * packaging    -> 26.3, required by the fixed virtualenv.
-#   * virtualenv   -> 21.14.9, fixes 2026-10 security advisories.
-# Only these three security updates may use SECURITY_PATCH_CUTOFF;
+#   * filelock     -> patched 4.2.4 (requires Python >=3.11); dev-only
+#                    pre-commit/pip-audit are likewise scoped to >=3.11.
+#   * virtualenv   -> patched 21.14.13 (fixes CVE-2026-113713).
+# The security updates to certifi, packaging, filelock and virtualenv
+# may use SECURITY_PATCH_CUTOFF;
 # every other package retains DEV_CUTOFF and the frozen base preference.
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
@@ -131,11 +134,13 @@ uv_compile pyproject.toml \
     --generate-hashes \
     --exclude-newer "$DEV_CUTOFF" \
     --exclude-newer-package "certifi=$SECURITY_PATCH_CUTOFF" \
+    --exclude-newer-package "filelock=$SECURITY_PATCH_CUTOFF" \
     --exclude-newer-package "packaging=$SECURITY_PATCH_CUTOFF" \
     --exclude-newer-package "virtualenv=$SECURITY_PATCH_CUTOFF" \
     --upgrade-package anyio \
     --upgrade-package certifi \
     --upgrade-package cryptography \
+    --upgrade-package filelock \
     --upgrade-package mcp \
     --upgrade-package packaging \
     --upgrade-package pip \

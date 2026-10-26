@@ -46,6 +46,7 @@ SEMANTIC_CHANGES = frozenset(
         "certifi",
         "cryptography",
         "exceptiongroup",
+        "filelock",
         "mcp",
         "packaging",
         "pip",
@@ -65,12 +66,13 @@ REQUIRED_DEV_VERSIONS = {
     "anyio": "4.15.1",
     "certifi": "2026.10.19",
     "cryptography": "50.0.2",
+    "filelock": "4.2.4",
     "mcp": "1.30.0",
     "packaging": "26.3",
     "pip": "26.2.1",
     "pyjwt": "2.15.1",
     "urllib3": "2.8.0",
-    "virtualenv": "21.14.9",
+    "virtualenv": "21.14.13",
 }
 
 PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
@@ -98,6 +100,7 @@ EXPECTED_HEADERS = {
         "--python-version 3.10 --universal --generate-hashes "
         f"--exclude-newer {DEV_CUTOFF} "
         f"--exclude-newer-package certifi={SECURITY_PATCH_CUTOFF} "
+        f"--exclude-newer-package filelock={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package packaging={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package virtualenv={SECURITY_PATCH_CUTOFF} "
         "--output-file requirements-dev.lock"
