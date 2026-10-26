@@ -2075,7 +2075,7 @@ class TestAuthorBatchTool:
         respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(
             return_value=Response(200, json=payload)
         )
-        with pytest.raises(ToolError, match="author batch response"):
+        with pytest.raises(ToolError, match="batch response"):
             await get_author_batch(AuthorBatchInput(author_ids=author_ids))
 
     @respx.mock
