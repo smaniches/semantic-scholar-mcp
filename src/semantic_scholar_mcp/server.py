@@ -907,10 +907,8 @@ async def get_author_batch(params: AuthorBatchInput) -> str:
         if not isinstance(author, dict):
             raise ToolError("Invalid author batch response: expected author object or null")
         returned_id = author.get("authorId")
-        if (
-            not isinstance(returned_id, str)
-            or returned_id.lstrip("0") != requested_id.strip().lstrip("0")
-        ):
+        normalized_id = requested_id.strip().lstrip("0")
+        if not isinstance(returned_id, str) or returned_id.lstrip("0") != normalized_id:
             raise ToolError(
                 "Author batch response identity mismatch: returned authorId "
                 "does not match the requested position"
