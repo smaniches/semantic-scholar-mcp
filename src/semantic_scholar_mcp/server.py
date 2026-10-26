@@ -282,6 +282,32 @@ async def _gather_or_cancel(coros: Sequence[Awaitable[Any]]) -> list[Any]:
         raise
 
 
+def _require_search_page(
+    response: Any, *, record_type: str, identifier_key: str
+) -> tuple[int, list[dict[str, Any]]]:
+    """Validate an S2 search result before reporting any matches or absence.
+
+    A successful HTTP status with an error object, missing data, or malformed
+    records is not scientific evidence of zero matching papers/authors.
+    """
+    label = f"Invalid Semantic Scholar {record_type} search response"
+    if not isinstance(response, dict):
+        raise ToolError(f"{label}: expected a JSON object")
+    total = response.get("total")
+    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+        raise ToolError(f"{label}: missing or invalid total")
+    records = response.get("data")
+    if not isinstance(records, list):
+        raise ToolError(f"{label}: missing or invalid data list")
+    for record in records:
+        if not isinstance(record, dict):
+            raise ToolError(f"{label}: non-object record")
+        record_id = record.get(identifier_key)
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise ToolError(f"{label}: missing or invalid {identifier_key}")
+    return total, records
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -328,17 +354,19 @@ async def search_papers(params: PaperSearchInput) -> str:
         response = await make_request(
             "GET", "paper/search", params=api_params, api_key=params.api_key
         )
-        total = response.get("total", 0) if isinstance(response, dict) else 0
-        papers = response.get("data", []) if isinstance(response, dict) else []
+        total, papers = _require_search_page(
+            response, record_type="paper", identifier_key="paperId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"query": params.query, "total": total, "papers": papers}, indent=2)
 
+    shown = f"{params.offset + 1}-{params.offset + len(papers)}" if papers else "0"
     lines = [
         f'## Search Results: "{params.query}"',
-        f"**Found:** {total} papers (showing {params.offset + 1}-{params.offset + len(papers)})",
+        f"**Found:** {total} papers (showing {shown})",
         "",
     ]
     for paper in papers:
@@ -493,8 +521,9 @@ async def search_authors(params: AuthorSearchInput) -> str:
             },
             api_key=params.api_key,
         )
-        total = response.get("total", 0) if isinstance(response, dict) else 0
-        authors = response.get("data", []) if isinstance(response, dict) else []
+        total, authors = _require_search_page(
+            response, record_type="author", identifier_key="authorId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
