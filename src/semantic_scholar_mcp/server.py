@@ -312,6 +312,12 @@ def _required_provider_total(response: Any, endpoint: str) -> int:
     return total
 
 
+def _citation_count_text(paper: dict[str, Any]) -> str:
+    """Distinguish an omitted provider count from an explicit zero."""
+    count = paper.get("citationCount")
+    return str(count) if count is not None else "N/A"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -473,7 +479,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             if p:
                 lines.append(
                     f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
-                    f"- {p.get('citationCount', 0)} citations"
+                    f"- {_citation_count_text(p)} citations"
                 )
     if result.get("citations_page", {}).get("next") is not None:
         lines.append(
@@ -486,7 +492,7 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
             if p:
                 lines.append(
                     f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
-                    f"- {p.get('citationCount', 0)} citations"
+                    f"- {_citation_count_text(p)} citations"
                 )
     if result.get("references_page", {}).get("next") is not None:
         lines.append(
@@ -587,7 +593,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
         for p in result["papers"]:
             lines.append(
                 f"- **{p.get('title', '?')}** ({p.get('year', '')}) "
-                f"- {p.get('citationCount', 0)} citations"
+                f"- {_citation_count_text(p)} citations"
             )
     return "\n".join(lines)
 

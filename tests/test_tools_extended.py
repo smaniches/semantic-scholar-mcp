@@ -502,3 +502,32 @@ class TestGetAuthorNoPapers:
         assert "Publications" not in result
         # Only author endpoint should be called, not papers
         assert route.call_count == 1
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_author_publications_missing_citation_counts_are_unknown(reset_all):
+    """Rendered author publications must distinguish unknown from actual zero."""
+    author_id = "123"
+    base = f"{SEMANTIC_SCHOLAR_API_BASE}/author/{author_id}"
+    respx.get(base).mock(
+        return_value=Response(200, json={"authorId": author_id, "name": "Synthetic Author"})
+    )
+    respx.get(f"{base}/papers").mock(
+        return_value=Response(
+            200,
+            json={
+                "data": [
+                    {"paperId": "p1", "title": "Missing count"},
+                    {"paperId": "p2", "title": "Null count", "citationCount": None},
+                    {"paperId": "p3", "title": "Actual zero", "citationCount": 0},
+                    {"paperId": "p4", "title": "Actual ten", "citationCount": 10},
+                ],
+            },
+        )
+    )
+    output = await get_author_details(AuthorDetailsInput(author_id=author_id))
+    assert "**Missing count** () - N/A citations" in output
+    assert "**Null count** () - N/A citations" in output
+    assert "**Actual zero** () - 0 citations" in output
+    assert "**Actual ten** () - 10 citations" in output
