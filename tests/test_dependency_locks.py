@@ -64,7 +64,7 @@ SEMANTIC_CHANGES = frozenset(
 # scripts/regenerate-locks.sh, never by hand-editing the generated lock.
 REQUIRED_DEV_VERSIONS = {
     "anyio": "4.15.1",
-    "certifi": "2026.10.19",
+    "certifi": "2026.10.23",
     "cryptography": "50.0.2",
     "filelock": "4.2.4",
     "mcp": "1.30.0",

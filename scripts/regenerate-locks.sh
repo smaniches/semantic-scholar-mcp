@@ -116,7 +116,7 @@ uv_compile() {
 #                     September 2026 JWT advisory set caught by pip-audit;
 #   * urllib3      -> newest <= DEV_CUTOFF (2.8.0 here), resolving
 #                     CVE-2026-97687/97688/97689;
-#   * certifi      -> 2026.10.19, fixes PYSEC-2026-4320.
+#   * certifi      -> 2026.10.23, fixes PYSEC-2026-4320.
 #   * packaging    -> 26.3, required by the fixed virtualenv.
 #   * filelock     -> patched 4.2.4 (requires Python >=3.11); dev-only
 #                    pre-commit/pip-audit are likewise scoped to >=3.11.
