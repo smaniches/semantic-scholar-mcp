@@ -521,7 +521,7 @@ async def test_author_publications_missing_citation_counts_are_unknown(reset_all
                     {"paperId": "p2", "title": "Null count", "citationCount": None},
                     {"paperId": "p3", "title": "Actual zero", "citationCount": 0},
                     {"paperId": "p4", "title": "Actual ten", "citationCount": 10},
-                ]
+                ],
             },
         )
     )

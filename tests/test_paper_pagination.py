@@ -95,8 +95,12 @@ async def test_missing_citation_counts_are_unknown_not_zero(reset_all):
     )
     _respond(
         REFERENCES_URL,
-        {"data": [{"citedPaper": {"paperId": "r1", "title": "Null count", "citationCount": None}},
-                  {"citedPaper": {"paperId": "r2", "title": "Reported zero", "citationCount": 0}}]},
+        {
+            "data": [
+                {"citedPaper": {"paperId": "r1", "title": "Null count", "citationCount": None}},
+                {"citedPaper": {"paperId": "r2", "title": "Reported zero", "citationCount": 0}},
+            ]
+        },
     )
     params = PaperDetailsInput(paper_id=PAPER_ID, include_citations=True, include_references=True)
     output = await get_paper_details(params)
