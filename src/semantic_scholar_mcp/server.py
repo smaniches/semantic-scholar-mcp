@@ -29,7 +29,7 @@ import math
 from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any, get_type_hints
+from typing import Any, cast, get_type_hints
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -737,7 +737,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
         )
         total = _required_provider_total(response, "paper/search/bulk")
         papers = _required_provider_items(response, "data", "paper/search/bulk")
-        token = response.get("token")
+        token = cast(dict[str, Any], response).get("token")
         if token is not None and not isinstance(token, str):
             raise ToolError("Invalid Semantic Scholar bulk-search continuation token")
     except SemanticScholarError as e:
