@@ -86,6 +86,27 @@ async def test_markdown_indicates_continuation_for_both_directions(reset_all):
 
 @respx.mock
 @pytest.mark.asyncio
+async def test_missing_citation_counts_are_unknown_not_zero(reset_all):
+    """Missing upstream citation counts cannot be presented as observed zero."""
+    _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Synthetic Seed"})
+    _respond(
+        CITATIONS_URL,
+        {"data": [{"citingPaper": {"paperId": "c1", "title": "Missing count"}}]},
+    )
+    _respond(
+        REFERENCES_URL,
+        {"data": [{"citedPaper": {"paperId": "r1", "title": "Null count", "citationCount": None}},
+                  {"citedPaper": {"paperId": "r2", "title": "Reported zero", "citationCount": 0}}]},
+    )
+    params = PaperDetailsInput(paper_id=PAPER_ID, include_citations=True, include_references=True)
+    output = await get_paper_details(params)
+    assert "**Missing count** () - N/A citations" in output
+    assert "**Null count** () - N/A citations" in output
+    assert "**Reported zero** () - 0 citations" in output
+
+
+@respx.mock
+@pytest.mark.asyncio
 async def test_end_of_pages_does_not_advertise_more(reset_all):
     _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
     _respond(CITATIONS_URL, {"data": [], "next": None})
