@@ -888,13 +888,38 @@ async def get_author_batch(params: AuthorBatchInput) -> str:
             json_body={"ids": params.author_ids},
             api_key=params.api_key,
         )
-        authors = response if isinstance(response, list) else response.get("data", [])
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
+    # The author/batch API returns one positional item per requested ID;
+    # missing authors are explicit nulls. A malformed/truncated response
+    # cannot establish which identities were actually retrieved.
+    if not isinstance(response, list) or len(response) != len(params.author_ids):
+        received = len(response) if isinstance(response, list) else "unknown"
+        raise ToolError(
+            f"Invalid author batch response: requested {len(params.author_ids)} "
+            f"IDs, received {received} positions"
+        )
+
+    for requested_id, author in zip(params.author_ids, response, strict=True):
+        if author is None:
+            continue
+        if not isinstance(author, dict):
+            raise ToolError("Invalid author batch response: expected author object or null")
+        returned_id = author.get("authorId")
+        if (
+            not isinstance(returned_id, str)
+            or returned_id.lstrip("0") != requested_id.strip().lstrip("0")
+        ):
+            raise ToolError(
+                "Author batch response identity mismatch: returned authorId "
+                "does not match the requested position"
+            )
+
+    authors = response
     succeeded = [a for a in authors if a]
-    failed_indices = [i for i, a in enumerate(authors) if not a]
-    failed_ids = [params.author_ids[i] for i in failed_indices if i < len(params.author_ids)]
+    failed_indices = [i for i, a in enumerate(authors) if a is None]
+    failed_ids = [params.author_ids[i] for i in failed_indices]
 
     if params.response_format == ResponseFormat.JSON:
         result: dict[str, Any] = {
