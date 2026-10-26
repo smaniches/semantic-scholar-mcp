@@ -6,6 +6,7 @@ They make no claims about actual Semantic Scholar papers or authors.
 
 from __future__ import annotations
 
+import json
 import math
 from typing import Any
 
@@ -200,6 +201,7 @@ async def test_invalid_bulk_continuation_token_is_not_forwarded(
     with pytest.raises(ToolError, match="continuation token"):
         await s.bulk_search(s.BulkSearchInput(query="Synthetic"))
 
+
 @pytest.mark.parametrize(
     ("tool", "params", "identity_field"),
     [
@@ -281,8 +283,6 @@ async def test_provider_match_score_above_one_is_not_normalized(
     json_result = await s.match_paper(
         s.PaperMatchInput(query="Synthetic", response_format=s.ResponseFormat.JSON)
     )
-    import json
-
     assert json.loads(json_result)["matchScore"] == 174.2298
     markdown_result = await s.match_paper(s.PaperMatchInput(query="Synthetic"))
     assert "174.2" in markdown_result
