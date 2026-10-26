@@ -2050,7 +2050,6 @@ class TestAuthorBatchTool:
         assert parsed["retrieved"] == 1
         assert "not_found" in parsed
 
-
     @respx.mock
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -2086,15 +2085,16 @@ class TestAuthorBatchTool:
         from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
 
         respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(
-            return_value=Response(
-                200, json=[{"authorId": "1", "name": "Author A"}, None]
-            )
+            return_value=Response(200, json=[{"authorId": "1", "name": "Author A"}, None])
         )
+        import json
+
         params = AuthorBatchInput(author_ids=["001", "999"])
         parsed = json.loads(await get_author_batch(params))
         assert parsed["retrieved"] == 1
         assert parsed["not_found"] == ["999"]
         assert parsed["authors"][0]["authorId"] == "1"
+
 
 class TestMultiRecommendTool:
     """Test multi_recommend tool function."""
