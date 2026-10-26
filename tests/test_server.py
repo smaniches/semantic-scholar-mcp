@@ -2050,6 +2050,54 @@ class TestAuthorBatchTool:
         assert parsed["retrieved"] == 1
         assert "not_found" in parsed
 
+    @respx.mock
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "payload, author_ids",
+        [
+            ({"data": [{"authorId": "1"}]}, ["1"]),
+            (None, ["1"]),
+            ([{"authorId": "1"}], ["1", "2"]),
+            ([{"authorId": "1"}, {"authorId": "2"}, None], ["1", "2"]),
+            ([{"authorId": "2"}, {"authorId": "1"}], ["1", "2"]),
+            ([{"authorId": "1"}, {"authorId": "1"}], ["1", "2"]),
+            ([{}], ["1"]),
+            (["unexpected string"], ["1"]),
+            ([{"authorId": 1}], ["1"]),
+            ([{"authorId": ""}], ["0"]),
+            ([{"authorId": ""}], ["00"]),
+            ([{"authorId": "\uff11"}], ["1"]),
+        ],
+    )
+    async def test_author_batch_rejects_malformed_or_misattributed_response(
+        self, reset_client, payload, author_ids
+    ):
+        """A successful HTTP status cannot establish missing or wrong author identities."""
+        from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
+
+        # httpx.Response(json=None) would construct an empty body, not JSON null.
+        body = Response(200, content=b"null") if payload is None else Response(200, json=payload)
+        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(return_value=body)
+        with pytest.raises(ToolError, match="batch response"):
+            await get_author_batch(AuthorBatchInput(author_ids=author_ids))
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_author_batch_accepts_numeric_alias_and_explicit_null(self, reset_client):
+        """Leading zeros do not create a new author; null preserves not-found position."""
+        from semantic_scholar_mcp.server import AuthorBatchInput, get_author_batch
+
+        respx.post(f"{SEMANTIC_SCHOLAR_API_BASE}/author/batch").mock(
+            return_value=Response(200, json=[{"authorId": "1", "name": "Author A"}, None])
+        )
+        import json
+
+        params = AuthorBatchInput(author_ids=["001", "999"])
+        parsed = json.loads(await get_author_batch(params))
+        assert parsed["retrieved"] == 1
+        assert parsed["not_found"] == ["999"]
+        assert parsed["authors"][0]["authorId"] == "1"
+
 
 class TestMultiRecommendTool:
     """Test multi_recommend tool function."""

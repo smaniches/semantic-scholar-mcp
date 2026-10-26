@@ -46,6 +46,7 @@ SEMANTIC_CHANGES = frozenset(
         "certifi",
         "cryptography",
         "exceptiongroup",
+        "filelock",
         "mcp",
         "packaging",
         "pip",
@@ -63,21 +64,47 @@ SEMANTIC_CHANGES = frozenset(
 # scripts/regenerate-locks.sh, never by hand-editing the generated lock.
 REQUIRED_DEV_VERSIONS = {
     "anyio": "4.15.1",
-    "certifi": "2026.10.19",
+    "certifi": "2026.10.23",
     "cryptography": "50.0.2",
+    "filelock": "4.2.4",
     "mcp": "1.30.0",
     "packaging": "26.3",
     "pip": "26.2.1",
     "pyjwt": "2.15.1",
     "urllib3": "2.8.0",
-    "virtualenv": "21.14.9",
+    "virtualenv": "21.14.13",
 }
 
+# These transitive dependencies of developer-only tools now carry a >=3.11
+# marker. Their versions and SHA-256 distribution hashes must remain unchanged
+# relative to the authoritative base; only applicability/provenance may change.
+DEV_TOOL_MARKER_SCOPE_CHANGES = frozenset(
+    {
+        "boolean-py",
+        "cachecontrol",
+        "cfgv",
+        "charset-normalizer",
+        "cyclonedx-python-lib",
+        "defusedxml",
+        "distlib",
+        "identify",
+        "license-expression",
+        "msgpack",
+        "nodeenv",
+        "packageurl-python",
+        "pip-api",
+        "pip-audit",
+        "pip-requirements-parser",
+        "platformdirs",
+        "pre-commit",
+        "py-serializable",
+        "pyparsing",
+        "requests",
+        "tomli-w",
+    }
+)
+
 PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
-    "platformdirs": {
-        "added": (),
-        "removed": ("    #   python-discovery\n",),
-    },
     "tomli": {
         "added": (
             "    #   bandit\n",
@@ -88,7 +115,9 @@ PROVENANCE_ONLY_CHANGES: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
-EXPECTED_CHANGED_PACKAGES = SEMANTIC_CHANGES | set(PROVENANCE_ONLY_CHANGES)
+EXPECTED_CHANGED_PACKAGES = (
+    SEMANTIC_CHANGES | DEV_TOOL_MARKER_SCOPE_CHANGES | set(PROVENANCE_ONLY_CHANGES)
+)
 
 # The exact uv command line each lock header must record. uv echoes its own
 # arguments verbatim, so this pins the resolver contract into the artifact.
@@ -98,6 +127,7 @@ EXPECTED_HEADERS = {
         "--python-version 3.10 --universal --generate-hashes "
         f"--exclude-newer {DEV_CUTOFF} "
         f"--exclude-newer-package certifi={SECURITY_PATCH_CUTOFF} "
+        f"--exclude-newer-package filelock={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package packaging={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package virtualenv={SECURITY_PATCH_CUTOFF} "
         "--output-file requirements-dev.lock"
@@ -306,6 +336,30 @@ def test_provenance_only_packages_change_by_approved_comments_alone(name: str) -
     assert residual_after == expected_before, (
         f"{name}: applying the approved provenance-only edits does not restore the base block"
     )
+
+
+@pytest.mark.parametrize("name", sorted(DEV_TOOL_MARKER_SCOPE_CHANGES))
+def test_dev_tool_scope_does_not_mutate_transitive_versions_or_hashes(name: str) -> None:
+    """Python 3.10 excludes dev-only audit tools, not runtime dependencies."""
+    base = parse_lock(require_base())
+    current = parse_lock(DEV_LOCK.read_text(encoding="utf-8"))
+    assert len(base[name]) == len(current[name]) == 1
+    before, after = base[name][0], current[name][0]
+    assert after.version == before.version, name
+    assert after.hashes == before.hashes, name
+    assert after.marker == "python_full_version >= '3.11'", name
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["filelock", "virtualenv", "pre-commit", "pip-audit", "python-discovery"],
+)
+def test_patched_dev_only_packages_never_install_on_python_310(
+    dev_lock: dict[str, list[Requirement]], name: str
+) -> None:
+    requirement = dev_lock[name]
+    assert len(requirement) == 1
+    assert requirement[0].marker == "python_full_version >= '3.11'", name
 
 
 @pytest.mark.parametrize("name", sorted(REQUIRED_DEV_VERSIONS))

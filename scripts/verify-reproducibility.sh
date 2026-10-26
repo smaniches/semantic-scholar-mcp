@@ -10,8 +10,10 @@
 # Usage:
 #   scripts/verify-reproducibility.sh
 #
-# Requires bash and Python >=3.10. Uses `uv` when available (faster, native
-# hash enforcement); otherwise falls back to stdlib venv + pip.
+# Full audit requires bash and Python >=3.11: patched filelock is restricted
+# to >=3.11 in the developer-tool dependency closure. The MCP runtime itself
+# still supports Python 3.10. Uses uv when available (hash-checked), otherwise
+# falls back to stdlib venv + pip.
 #
 set -euo pipefail
 
@@ -27,6 +29,16 @@ for required in "$LOCK" "$BUILD_LOCK"; do
         exit 1
     fi
 done
+
+# Fail before creating an environment or installing tools if the interpreter
+# cannot support the complete patched development/audit dependency closure.
+PYTHON="python3"
+command -v python3 >/dev/null 2>&1 || PYTHON="python"
+if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "ERROR: full reproducibility audit requires Python >=3.11." >&2
+    echo "       Python 3.10 remains supported for the MCP runtime and CI tests." >&2
+    exit 1
+fi
 
 WORK="$(mktemp -d)"
 VENV="$WORK/venv"
@@ -45,7 +57,7 @@ activate() {
 
 echo ">> [1/8] creating clean venv: $VENV"
 if command -v uv >/dev/null 2>&1; then
-    uv venv "$VENV" >/dev/null
+    uv venv "$VENV" --python "$PYTHON" >/dev/null
     activate
     echo ">> [2/8] installing locked build + dev closures (hash-checked)"
     uv pip install --require-hashes -r "$BUILD_LOCK" >/dev/null
@@ -53,9 +65,6 @@ if command -v uv >/dev/null 2>&1; then
     echo ">> [3/8] installing package offline (editable, no deps, no build isolation)"
     uv pip install --offline --no-deps --no-build-isolation -e . >/dev/null
 else
-    # Prefer python3: on many distros `python` is absent or points at python2.
-    PYTHON="python3"
-    command -v python3 >/dev/null 2>&1 || PYTHON="python"
     "$PYTHON" -m venv "$VENV"
     activate
     echo ">> [2/8] installing locked build + dev closures (hash-checked)"

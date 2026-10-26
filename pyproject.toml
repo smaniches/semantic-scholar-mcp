@@ -42,10 +42,10 @@ dev = [
     "respx>=0.20.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
-    "pre-commit>=3.0.0",
+    "pre-commit>=3.0.0; python_version >= '3.11'",
     "hypothesis>=6.0.0",
     "bandit[toml]>=1.8,<2",
-    "pip-audit>=2.7,<3",
+    "pip-audit>=2.7,<3; python_version >= '3.11'",
 ]
 
 [project.urls]
