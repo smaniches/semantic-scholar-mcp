@@ -857,8 +857,10 @@ async def match_paper(params: PaperMatchInput) -> str:
 
     paper = papers[0]
     match_score = paper.get("matchScore")
+    if isinstance(match_score, bool) or not isinstance(match_score, (int, float)):
+        raise ToolError("Invalid Semantic Scholar paper match: missing or invalid matchScore")
     try:
-        finite_score = type(match_score) in (int, float) and math.isfinite(float(match_score))
+        finite_score = math.isfinite(float(match_score))
     except OverflowError:
         finite_score = False
     if not finite_score:
