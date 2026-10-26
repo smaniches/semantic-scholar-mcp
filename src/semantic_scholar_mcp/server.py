@@ -283,13 +283,22 @@ async def _gather_or_cancel(coros: Sequence[Awaitable[Any]]) -> list[Any]:
         raise
 
 
-def _required_provider_items(response: Any, field: str, endpoint: str) -> list[dict[str, Any]]:
-    """Reject unusable HTTP-200 result pages instead of reporting no matches."""
+def _required_provider_items(
+    response: Any, field: str, endpoint: str, *, identity_field: str | None = None
+) -> list[dict[str, Any]]:
+    """Reject unusable result pages and unattributable counted search records."""
     if not isinstance(response, dict):
         raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected JSON object")
     items = response.get(field)
     if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
         raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected a list of {field}")
+    if identity_field is not None:
+        for item in items:
+            value = item.get(identity_field)
+            if not isinstance(value, str) or not value.strip():
+                raise ToolError(
+                    f"Invalid Semantic Scholar {endpoint} response: missing valid {identity_field}"
+                )
     return items
 
 
@@ -350,7 +359,7 @@ async def search_papers(params: PaperSearchInput) -> str:
             "GET", "paper/search", params=api_params, api_key=params.api_key
         )
         total = _required_provider_total(response, "paper/search")
-        papers = _required_provider_items(response, "data", "paper/search")
+        papers = _required_provider_items(response, "data", "paper/search", identity_field="paperId")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -514,7 +523,7 @@ async def search_authors(params: AuthorSearchInput) -> str:
             api_key=params.api_key,
         )
         total = _required_provider_total(response, "author/search")
-        authors = _required_provider_items(response, "data", "author/search")
+        authors = _required_provider_items(response, "data", "author/search", identity_field="authorId")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -736,7 +745,9 @@ async def bulk_search(params: BulkSearchInput) -> str:
             "GET", "paper/search/bulk", params=api_params, api_key=params.api_key
         )
         total = _required_provider_total(response, "paper/search/bulk")
-        papers = _required_provider_items(response, "data", "paper/search/bulk")
+        papers = _required_provider_items(
+            response, "data", "paper/search/bulk", identity_field="paperId"
+        )
         token = cast(dict[str, Any], response).get("token")
         if token is not None and not isinstance(token, str):
             raise ToolError("Invalid Semantic Scholar bulk-search continuation token")
@@ -817,7 +828,7 @@ async def export_citation(params: CitationExportInput) -> str:
     structured_output=False,
 )
 async def match_paper(params: PaperMatchInput) -> str:
-    """Find the single best paper matching a title string. Returns match score."""
+    """Find the closest title match; preserve S2's unscaled numeric matchScore."""
     logger.info("Matching paper: %s", params.query)
 
     try:
@@ -827,7 +838,9 @@ async def match_paper(params: PaperMatchInput) -> str:
             params={"query": params.query, "fields": ",".join(PAPER_SEARCH_FIELDS)},
             api_key=params.api_key,
         )
-        papers = _required_provider_items(response, "data", "paper/search/match")
+        papers = _required_provider_items(
+            response, "data", "paper/search/match", identity_field="paperId"
+        )
     except NotFoundError:
         # /paper/search/match answers "Title match not found" with HTTP 404;
         # that is the endpoint's documented no-match, not an ID error.
@@ -840,11 +853,11 @@ async def match_paper(params: PaperMatchInput) -> str:
 
     paper = papers[0]
     match_score = paper.get("matchScore")
-    if (
-        isinstance(match_score, bool)
-        or not isinstance(match_score, (int, float))
-        or not math.isfinite(match_score)
-    ):
+    try:
+        finite_score = type(match_score) in (int, float) and math.isfinite(float(match_score))
+    except OverflowError:
+        finite_score = False
+    if not finite_score:
         raise ToolError("Invalid Semantic Scholar paper match: missing or invalid matchScore")
 
     if params.response_format == ResponseFormat.JSON:

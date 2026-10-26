@@ -165,7 +165,7 @@ async def test_genuine_empty_upstream_pages_remain_successful(
 
 @pytest.mark.parametrize(
     "score",
-    [None, True, "0", math.nan, math.inf, -math.inf, {}, []],
+    [None, True, "0", math.nan, math.inf, -math.inf, 10**400, {}, []],
 )
 @pytest.mark.asyncio
 async def test_match_score_never_invents_zero_or_accepts_malformed_value(
@@ -199,3 +199,90 @@ async def test_invalid_bulk_continuation_token_is_not_forwarded(
     monkeypatch.setattr(s, "make_request", malformed_bulk)
     with pytest.raises(ToolError, match="continuation token"):
         await s.bulk_search(s.BulkSearchInput(query="Synthetic"))
+
+@pytest.mark.parametrize(
+    ("tool", "params", "identity_field"),
+    [
+        ("search_papers", s.PaperSearchInput(query="Synthetic"), "paperId"),
+        ("search_authors", s.AuthorSearchInput(query="Synthetic"), "authorId"),
+        ("bulk_search", s.BulkSearchInput(query="Synthetic"), "paperId"),
+        ("match_paper", s.PaperMatchInput(query="Synthetic"), "paperId"),
+    ],
+)
+@pytest.mark.parametrize("bad_identity", [None, "", "   ", 17, False])
+@pytest.mark.asyncio
+async def test_unattributable_search_result_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    tool: str,
+    params: Any,
+    identity_field: str,
+    bad_identity: Any,
+) -> None:
+    """A counted search hit must not be displayed without its provider ID."""
+
+    async def missing_identity(_method: str, _endpoint: str, **_kwargs: Any) -> Any:
+        return {
+            "total": 1,
+            "data": [
+                {identity_field: bad_identity, "title": "Synthetic", "matchScore": 174.2298}
+            ],
+        }
+
+    monkeypatch.setattr(s, "make_request", missing_identity)
+    with pytest.raises(ToolError, match=f"missing valid {identity_field}"):
+        await getattr(s, tool)(params)
+
+
+@pytest.mark.parametrize(
+    ("tool", "params", "identity_field"),
+    [
+        (
+            "search_papers",
+            s.PaperSearchInput(query="Synthetic", response_format=s.ResponseFormat.JSON),
+            "paperId",
+        ),
+        (
+            "search_authors",
+            s.AuthorSearchInput(query="Synthetic", response_format=s.ResponseFormat.JSON),
+            "authorId",
+        ),
+        (
+            "bulk_search",
+            s.BulkSearchInput(query="Synthetic", response_format=s.ResponseFormat.JSON),
+            "paperId",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_counted_search_preserves_valid_upstream_identity(
+    monkeypatch: pytest.MonkeyPatch, tool: str, params: Any, identity_field: str
+) -> None:
+    async def valid_response(_method: str, _endpoint: str, **_kwargs: Any) -> Any:
+        return {
+            "total": 1,
+            "data": [{identity_field: "VALID_ID", "title": "Synthetic", "name": "Synthetic"}],
+        }
+
+    monkeypatch.setattr(s, "make_request", valid_response)
+    result = await getattr(s, tool)(params)
+    assert "VALID_ID" in result
+
+
+@pytest.mark.asyncio
+async def test_provider_match_score_above_one_is_not_normalized(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The official S2 example uses a matchScore above 100, not a probability."""
+
+    async def valid_match(_method: str, _endpoint: str, **_kwargs: Any) -> Any:
+        return {"data": [{"paperId": _PAPER, "title": "Synthetic", "matchScore": 174.2298}]}
+
+    monkeypatch.setattr(s, "make_request", valid_match)
+    json_result = await s.match_paper(
+        s.PaperMatchInput(query="Synthetic", response_format=s.ResponseFormat.JSON)
+    )
+    import json
+
+    assert json.loads(json_result)["matchScore"] == 174.2298
+    markdown_result = await s.match_paper(s.PaperMatchInput(query="Synthetic"))
+    assert "174.2" in markdown_result
