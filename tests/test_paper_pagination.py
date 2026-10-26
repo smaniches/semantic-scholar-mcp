@@ -98,16 +98,16 @@ async def test_end_of_pages_does_not_advertise_more(reset_all):
 
 @respx.mock
 @pytest.mark.asyncio
-async def test_non_object_graph_response_retains_legacy_empty_array(reset_all):
+async def test_non_object_graph_response_is_explicit_upstream_failure(reset_all):
+    from mcp.server.fastmcp.exceptions import ToolError
+
     _respond(PAPER_URL, {"paperId": PAPER_ID, "title": "Seed"})
     _respond(CITATIONS_URL, [])
     params = PaperDetailsInput(
         paper_id=PAPER_ID, include_citations=True, response_format=ResponseFormat.JSON
     )
-    result = json.loads(await get_paper_details(params))
-    assert result["citations"] == []
-    assert result["citations_page"] == {"offset": 0, "next": None}
-    assert "references_page" not in result
+    with pytest.raises(ToolError, match="paper/citations"):
+        await get_paper_details(params)
 
 
 @respx.mock

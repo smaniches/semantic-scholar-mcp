@@ -25,10 +25,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any, get_type_hints
+from typing import Any, cast, get_type_hints
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -282,6 +283,35 @@ async def _gather_or_cancel(coros: Sequence[Awaitable[Any]]) -> list[Any]:
         raise
 
 
+def _required_provider_items(
+    response: Any, field: str, endpoint: str, *, identity_field: str | None = None
+) -> list[dict[str, Any]]:
+    """Reject unusable result pages and unattributable counted search records."""
+    if not isinstance(response, dict):
+        raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected JSON object")
+    items = response.get(field)
+    if not isinstance(items, list) or any(not isinstance(item, dict) for item in items):
+        raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected a list of {field}")
+    if identity_field is not None:
+        for item in items:
+            value = item.get(identity_field)
+            if not isinstance(value, str) or not value.strip():
+                raise ToolError(
+                    f"Invalid Semantic Scholar {endpoint} response: missing valid {identity_field}"
+                )
+    return items
+
+
+def _required_provider_total(response: Any, endpoint: str) -> int:
+    """A missing or malformed count is unknown, never evidence for zero."""
+    if not isinstance(response, dict):
+        raise ToolError(f"Invalid Semantic Scholar {endpoint} response: expected JSON object")
+    total = response.get("total")
+    if type(total) is not int or total < 0:
+        raise ToolError(f"Invalid Semantic Scholar {endpoint} response: missing valid total")
+    return total
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MCP TOOLS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -328,8 +358,10 @@ async def search_papers(params: PaperSearchInput) -> str:
         response = await make_request(
             "GET", "paper/search", params=api_params, api_key=params.api_key
         )
-        total = response.get("total", 0) if isinstance(response, dict) else 0
-        papers = response.get("data", []) if isinstance(response, dict) else []
+        total = _required_provider_total(response, "paper/search")
+        papers = _required_provider_items(
+            response, "data", "paper/search", identity_field="paperId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -422,11 +454,10 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                 requested_offset = (
                     params.citations_offset if key == "citations" else params.references_offset
                 )
-                page = resp if isinstance(resp, dict) else {}
-                result[key] = page.get("data", [])
+                result[key] = _required_provider_items(resp, "data", f"paper/{key}")
                 result[f"{key}_page"] = {
                     "offset": requested_offset,
-                    "next": page.get("next"),
+                    "next": resp.get("next"),
                 }
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
@@ -493,8 +524,10 @@ async def search_authors(params: AuthorSearchInput) -> str:
             },
             api_key=params.api_key,
         )
-        total = response.get("total", 0) if isinstance(response, dict) else 0
-        authors = response.get("data", []) if isinstance(response, dict) else []
+        total = _required_provider_total(response, "author/search")
+        authors = _required_provider_items(
+            response, "data", "author/search", identity_field="authorId"
+        )
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -541,7 +574,7 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
                 params={"fields": ",".join(PAPER_SEARCH_FIELDS_LITE), "limit": params.papers_limit},
                 api_key=params.api_key,
             )
-            result["papers"] = papers.get("data", []) if isinstance(papers, dict) else []
+            result["papers"] = _required_provider_items(papers, "data", "author/papers")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -593,7 +626,7 @@ async def get_recommendations(params: PaperRecommendationsInput) -> str:
             api_key=params.api_key,
             base_url=RECOMMENDATIONS_BASE,
         )
-        papers = response.get("recommendedPapers", []) if isinstance(response, dict) else []
+        papers = _required_provider_items(response, "recommendedPapers", "recommendations")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -715,9 +748,13 @@ async def bulk_search(params: BulkSearchInput) -> str:
         response = await make_request(
             "GET", "paper/search/bulk", params=api_params, api_key=params.api_key
         )
-        total = response.get("total", 0) if isinstance(response, dict) else 0
-        token = response.get("token") if isinstance(response, dict) else None
-        papers = response.get("data", []) if isinstance(response, dict) else []
+        total = _required_provider_total(response, "paper/search/bulk")
+        papers = _required_provider_items(
+            response, "data", "paper/search/bulk", identity_field="paperId"
+        )
+        token = cast(dict[str, Any], response).get("token")
+        if token is not None and not isinstance(token, str):
+            raise ToolError("Invalid Semantic Scholar bulk-search continuation token")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -795,7 +832,7 @@ async def export_citation(params: CitationExportInput) -> str:
     structured_output=False,
 )
 async def match_paper(params: PaperMatchInput) -> str:
-    """Find the single best paper matching a title string. Returns match score."""
+    """Find the closest title match; preserve S2's unscaled numeric matchScore."""
     logger.info("Matching paper: %s", params.query)
 
     try:
@@ -805,7 +842,9 @@ async def match_paper(params: PaperMatchInput) -> str:
             params={"query": params.query, "fields": ",".join(PAPER_SEARCH_FIELDS)},
             api_key=params.api_key,
         )
-        papers = response.get("data", []) if isinstance(response, dict) else []
+        papers = _required_provider_items(
+            response, "data", "paper/search/match", identity_field="paperId"
+        )
     except NotFoundError:
         # /paper/search/match answers "Title match not found" with HTTP 404;
         # that is the endpoint's documented no-match, not an ID error.
@@ -817,7 +856,15 @@ async def match_paper(params: PaperMatchInput) -> str:
         return "No matching paper found."
 
     paper = papers[0]
-    match_score = paper.get("matchScore", 0)
+    match_score = paper.get("matchScore")
+    if isinstance(match_score, bool) or not isinstance(match_score, (int, float)):
+        raise ToolError("Invalid Semantic Scholar paper match: missing or invalid matchScore")
+    try:
+        finite_score = math.isfinite(float(match_score))
+    except OverflowError:
+        finite_score = False
+    if not finite_score:
+        raise ToolError("Invalid Semantic Scholar paper match: missing or invalid matchScore")
 
     if params.response_format == ResponseFormat.JSON:
         return json.dumps({"matchScore": match_score, "paper": paper}, indent=2)
@@ -856,7 +903,7 @@ async def get_paper_authors(params: PaperAuthorsInput) -> str:
             params={"fields": ",".join(AUTHOR_FIELDS), "limit": params.limit},
             api_key=params.api_key,
         )
-        authors = response.get("data", []) if isinstance(response, dict) else []
+        authors = _required_provider_items(response, "data", "paper/authors")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -987,7 +1034,7 @@ async def multi_recommend(params: MultiRecommendInput) -> str:
             api_key=params.api_key,
             base_url=RECOMMENDATIONS_BASE,
         )
-        papers = response.get("recommendedPapers", []) if isinstance(response, dict) else []
+        papers = _required_provider_items(response, "recommendedPapers", "multi-recommendations")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
@@ -1043,7 +1090,7 @@ async def snippet_search(params: SnippetSearchInput) -> str:
         response = await make_request(
             "GET", "snippet/search", params=api_params, api_key=params.api_key
         )
-        results = response.get("data", []) if isinstance(response, dict) else []
+        results = _required_provider_items(response, "data", "snippet/search")
     except SemanticScholarError as e:
         raise ToolError(str(e)) from e
 
