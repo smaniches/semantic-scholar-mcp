@@ -225,9 +225,7 @@ async def test_unattributable_search_result_is_rejected(
     async def missing_identity(_method: str, _endpoint: str, **_kwargs: Any) -> Any:
         return {
             "total": 1,
-            "data": [
-                {identity_field: bad_identity, "title": "Synthetic", "matchScore": 174.2298}
-            ],
+            "data": [{identity_field: bad_identity, "title": "Synthetic", "matchScore": 174.2298}],
         }
 
     monkeypatch.setattr(s, "make_request", missing_identity)
