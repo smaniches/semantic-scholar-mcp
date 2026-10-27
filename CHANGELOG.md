@@ -2,6 +2,16 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.12](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.11...semantic-scholar-mcp-v1.7.12) (2026-10-27)
+
+
+### Bug Fixes
+
+* **science:** fail closed on malformed and unattributable Semantic Scholar results ([#190](https://github.com/smaniches/semantic-scholar-mcp/issues/190)) ([b78e194](https://github.com/smaniches/semantic-scholar-mcp/commit/b78e1947abb957607b1a0a85e582320290c08177))
+* **science:** preserve unknown citation counts in Semantic Scholar outputs ([#193](https://github.com/smaniches/semantic-scholar-mcp/issues/193)) ([e4f9cdd](https://github.com/smaniches/semantic-scholar-mcp/commit/e4f9cddc75fc78d651e1bed68e7dde119c5ecb4c))
+* **science:** prevent author batch misattribution and repair audited dependency locks ([#188](https://github.com/smaniches/semantic-scholar-mcp/issues/188)) ([3d027cc](https://github.com/smaniches/semantic-scholar-mcp/commit/3d027cc95cd460707ee0de450ef07fa257b908bd))
+* **science:** verify S2 aliases and source-bound citation identities ([#192](https://github.com/smaniches/semantic-scholar-mcp/issues/192)) ([146edb8](https://github.com/smaniches/semantic-scholar-mcp/commit/146edb84be46dae5e7206433a877cf37a708fede))
+
 ## [1.7.11](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.10...semantic-scholar-mcp-v1.7.11) (2026-10-23)
 
 
