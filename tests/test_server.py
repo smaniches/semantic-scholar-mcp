@@ -1763,6 +1763,7 @@ class TestExportCitationTool:
             return_value=Response(
                 200,
                 json={
+                    "paperId": paper_id,
                     "title": "Attention Is All You Need",
                     "citationStyles": {"bibtex": bibtex},
                 },
@@ -1784,7 +1785,9 @@ class TestExportCitationTool:
         paper_id = "a" * 40
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
         respx.get(url).mock(
-            return_value=Response(200, json={"title": "No Cite Paper", "citationStyles": {}})
+            return_value=Response(
+                200, json={"paperId": paper_id, "title": "No Cite Paper", "citationStyles": {}}
+            )
         )
 
         params = CitationExportInput(paper_id=paper_id)
@@ -1800,7 +1803,10 @@ class TestExportCitationTool:
         paper_id = "a" * 40
         url = f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{paper_id}"
         respx.get(url).mock(
-            return_value=Response(200, json={"title": "Test", "citationStyles": {"bibtex": "@a{}"}})
+            return_value=Response(
+                200,
+                json={"paperId": paper_id, "title": "Test", "citationStyles": {"bibtex": "@a{}"}},
+            )
         )
 
         params = CitationExportInput(paper_id=paper_id, format="apa")

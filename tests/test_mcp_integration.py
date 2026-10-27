@@ -164,6 +164,7 @@ class TestGetPaperIntegration:
                 200,
                 json={
                     "paperId": "abc",
+                    "externalIds": {"DOI": "10.1234/test"},
                     "title": "Test DOI Paper",
                     "year": 2024,
                     "citationCount": 10,
