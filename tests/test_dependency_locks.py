@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 AUTHORITATIVE_BASE = "5ab7a36e52828f726bec764bbbfb2a881b311273"
 DEV_CUTOFF = "2026-09-30T23:45:48Z"
 SECURITY_PATCH_CUTOFF = "2026-10-23T20:40:00Z"
+MSGPACK_PATCH_CUTOFF = "2026-10-30T00:00:00Z"
 BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
 CYCLONEDX_CUTOFF = "2026-09-29T15:45:57Z"
 
@@ -48,6 +49,7 @@ SEMANTIC_CHANGES = frozenset(
         "exceptiongroup",
         "filelock",
         "mcp",
+        "msgpack",
         "packaging",
         "pip",
         "pyjwt",
@@ -68,6 +70,7 @@ REQUIRED_DEV_VERSIONS = {
     "cryptography": "50.0.2",
     "filelock": "4.2.4",
     "mcp": "1.30.0",
+    "msgpack": "1.2.4",  # patched dev-only cachecontrol dependency
     "packaging": "26.3",
     "pip": "26.2.1",
     "pyjwt": "2.15.1",
@@ -89,7 +92,6 @@ DEV_TOOL_MARKER_SCOPE_CHANGES = frozenset(
         "distlib",
         "identify",
         "license-expression",
-        "msgpack",
         "nodeenv",
         "packageurl-python",
         "pip-api",
@@ -130,6 +132,7 @@ EXPECTED_HEADERS = {
         f"--exclude-newer-package filelock={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package packaging={SECURITY_PATCH_CUTOFF} "
         f"--exclude-newer-package virtualenv={SECURITY_PATCH_CUTOFF} "
+        f"--exclude-newer-package msgpack={MSGPACK_PATCH_CUTOFF} "
         "--output-file requirements-dev.lock"
     ),
     BUILD_LOCK: (
@@ -452,6 +455,8 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
 
     assert f"BASE={AUTHORITATIVE_BASE}" in script
     assert f"DEV_CUTOFF={DEV_CUTOFF}" in script
+    assert f"MSGPACK_PATCH_CUTOFF={MSGPACK_PATCH_CUTOFF}" in script
+    assert '--exclude-newer-package "msgpack=$MSGPACK_PATCH_CUTOFF"' in script
     assert f"BUILD_RELEASE_CUTOFF={BUILD_RELEASE_CUTOFF}" in script
     assert f"CYCLONEDX_CUTOFF={CYCLONEDX_CUTOFF}" in script
     assert '--exclude-newer-package "cyclonedx-bom=$CYCLONEDX_CUTOFF"' in script

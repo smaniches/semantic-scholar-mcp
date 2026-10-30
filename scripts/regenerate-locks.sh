@@ -37,6 +37,10 @@ DEV_CUTOFF=2026-09-30T23:45:48Z
 # Refresh only the security-patched dependencies; unrelated packages remain
 # on the original, immutable September 30 index snapshot.
 SECURITY_PATCH_CUTOFF=2026-10-23T20:40:00Z
+# 1.2.4 (released October 26) closes CVE-2026-114613 in dev-only
+# cachecontrol[filecache]. Keep this separate from the older security cutoff
+# so unrelated packages do not float.
+MSGPACK_PATCH_CUTOFF=2026-10-30T00:00:00Z
 # One second after hatchling 1.32.4's final distribution was published
 # (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
 # The build/release base cutoff predates the later explicit cyclonedx-bom 7.5.0
@@ -121,9 +125,11 @@ uv_compile() {
 #   * filelock     -> patched 4.2.4 (requires Python >=3.11); dev-only
 #                    pre-commit/pip-audit are likewise scoped to >=3.11.
 #   * virtualenv   -> patched 21.14.13 (fixes CVE-2026-113713).
-# The security updates to certifi, packaging, filelock and virtualenv
-# may use SECURITY_PATCH_CUTOFF;
-# every other package retains DEV_CUTOFF and the frozen base preference.
+#   * msgpack      -> patched 1.2.4 (fixes CVE-2026-114613), only in
+#                     developer tooling on Python >=3.11.
+# Security updates to certifi, packaging, filelock and virtualenv use
+# SECURITY_PATCH_CUTOFF; msgpack uses MSGPACK_PATCH_CUTOFF. All other packages
+# retain DEV_CUTOFF and the frozen base preference.
 # Note that uv does NOT echo --upgrade-package into the generated header, so
 # these lines are the only record of why the lock carries those versions —
 # removing one would silently resolve that package back down to the seed.
@@ -137,11 +143,13 @@ uv_compile pyproject.toml \
     --exclude-newer-package "filelock=$SECURITY_PATCH_CUTOFF" \
     --exclude-newer-package "packaging=$SECURITY_PATCH_CUTOFF" \
     --exclude-newer-package "virtualenv=$SECURITY_PATCH_CUTOFF" \
+    --exclude-newer-package "msgpack=$MSGPACK_PATCH_CUTOFF" \
     --upgrade-package anyio \
     --upgrade-package certifi \
     --upgrade-package cryptography \
     --upgrade-package filelock \
     --upgrade-package mcp \
+    --upgrade-package msgpack \
     --upgrade-package packaging \
     --upgrade-package pip \
     --upgrade-package pyjwt \
