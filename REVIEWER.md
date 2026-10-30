@@ -98,6 +98,7 @@ on Python 3.12.
 | Workflow | Trigger | What it checks |
 | --- | --- | --- |
 | `ci.yml` | push/PR to main | lint, format, mypy, tests (3.10-3.13, Linux/macOS/Windows), CodeQL, dependency review |
+| `dependency-audit.yml` | PR/weekly/manual | strict advisory scan of the hash-pinned dev lock on Linux and Windows; on PRs, independently regenerate all three lockfiles byte-for-byte using uv 0.11.29 (read-only) |
 | `test-api-compat.yml` | push/PR/weekly | live API compatibility (requires `SEMANTIC_SCHOLAR_API_KEY` secret) |
 | `publish.yml` | release published | build + trusted PyPI publish; SLSA provenance + PEP 740 attestations; CycloneDX SBOM |
 | `release-verify.yml` | dispatched by `publish.yml`/manual/6-hourly | PyPI read-back for the tag: exactly one wheel + one sdist; served wheel matches the SLSA provenance attested at `refs/tags/<tag>` |
