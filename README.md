@@ -12,7 +12,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/smaniches/semantic-scholar-mcp)](https://github.com/smaniches/semantic-scholar-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-blue)](https://modelcontextprotocol.io)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11-3.13 recommended](https://img.shields.io/badge/python-3.11--3.13_recommended-blue.svg)](https://www.python.org/downloads/)
 [![Glama score](https://glama.ai/mcp/servers/smaniches/semantic-scholar-mcp/badges/score.svg)](https://glama.ai/mcp/servers/smaniches/semantic-scholar-mcp)
 [![Awesome MCP Servers](https://img.shields.io/badge/Awesome_MCP-Listed-blue?logo=github)](https://github.com/punkpeye/awesome-mcp-servers#research)
 
@@ -32,6 +32,16 @@ Every release ships **verifiable supply-chain provenance**: Sigstore-signed SLSA
 uvx s2-mcp-server                                      # run instantly, no install
 claude mcp add semantic-scholar -- uvx s2-mcp-server   # or register it in Claude Code
 ```
+
+**Runtime support (October 2026).** Python 3.11–3.13 are the recommended,
+CI-tested interpreters. Python 3.10 reached upstream end of life on October 1,
+2026 and no longer receives security fixes. The package retains
+`Requires-Python >=3.10` and a legacy Python 3.10 compatibility test to avoid
+breaking existing installs, but **Python 3.10 is not a security-supported
+runtime**. Migrate deployed clients to Python 3.11 or newer. Python 3.14+
+remains outside the declared CI verification matrix; installability is not a
+claim of tested support. The development dependency security audit runs on
+Python 3.12 and checks its hash-pinned closure, not every legacy environment.
 
 No API key is needed to start. Set `SEMANTIC_SCHOLAR_API_KEY` to use your
 assigned Semantic Scholar quota and avoid the shared unauthenticated pool.

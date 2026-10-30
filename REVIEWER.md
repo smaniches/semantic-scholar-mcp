@@ -89,6 +89,12 @@ README advertises a tool the server does not register.
 
 ## CI workflows
 
+Python 3.10 appears in the functional test matrix only for legacy
+compatibility. It reached upstream end of life on October 1, 2026 and is
+not a security-supported runtime. Python 3.11–3.13 are recommended for
+production. Dependency auditing covers the pinned developer-tool closure
+on Python 3.12.
+
 | Workflow | Trigger | What it checks |
 | --- | --- | --- |
 | `ci.yml` | push/PR to main | lint, format, mypy, tests (3.10-3.13, Linux/macOS/Windows), CodeQL, dependency review |

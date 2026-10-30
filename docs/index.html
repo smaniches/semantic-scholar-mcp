@@ -117,7 +117,7 @@
     <p class="badges">
       <a href="https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml"><img src="https://github.com/smaniches/semantic-scholar-mcp/actions/workflows/ci.yml/badge.svg" alt="CI status" /></a>
       <a href="https://pypi.org/project/s2-mcp-server/"><img src="https://img.shields.io/pypi/v/s2-mcp-server" alt="PyPI version" /></a>
-      <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+" /></a>
+      <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11--3.13_recommended-blue.svg" alt="Python 3.11 to 3.13 recommended" /></a>
       <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Compatible-blue" alt="MCP compatible" /></a>
       <a href="https://doi.org/10.5281/zenodo.19324159"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19324159-2f4b8f?logo=zenodo&logoColor=white" alt="DOI" /></a>
       <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
@@ -222,7 +222,7 @@ docker run -i ghcr.io/smaniches/semantic-scholar-mcp:latest</pre>
       <h2>Engineering</h2>
       <p class="sub">Verifiable facts, not adjectives.</p>
       <ul class="checks">
-        <li>Tested across Python 3.10–3.13 on Linux, macOS, and Windows — unit, property-based, load, and live API-compatibility suites, with a coverage gate in CI.</li>
+        <li>Recommended and tested on Python 3.11–3.13 (Linux, macOS, Windows). Python 3.10 is tested for backward compatibility only; it reached upstream EOL on 2026-10-01 and is not security-supported. CI includes unit, property-based and API-compatibility tests with coverage gates.</li>
         <li>Static analysis on every change: <code>ruff</code>, <code>mypy</code> (strict), and CodeQL.</li>
         <li>Resilient API client: per-tier rate limiting, exponential-backoff retries that honour <code>Retry-After</code>, and typed, actionable errors.</li>
         <li>Hardened supply chain: GitHub Actions pinned to commit SHAs; SLSA build-provenance attestations on the wheel, sdist, and container image; a CycloneDX SBOM published with each release.</li>
