@@ -751,7 +751,9 @@ msgpack==1.2.4 ; python_full_version >= '3.11' \
     --hash=sha256:f641971d3eec89ffca57fa36d151ad1cf1b6a214b47faca16cb165c7d45ef8be \
     --hash=sha256:fb811ac3d463a75013b234d2aae56b9f0bdb0105caf4dd2ee65305b6a8a6078d \
     --hash=sha256:fb9ddbf23b8c6e89752af399fcf4daed60055e239cda44c6acfaa76d19331e8c
-    # via cachecontrol
+    # via
+    #   s2-mcp-server (pyproject.toml)
+    #   cachecontrol
 mypy==2.1.0 \
     --hash=sha256:022c771234936ceac541ebaf836fe9e2abeb3f5e09aff21588fe543ff006fe21 \
     --hash=sha256:0b1a5260c95aa443083f9ed3592662941951bca3d4ca224a5dc517c38b7cf666 \

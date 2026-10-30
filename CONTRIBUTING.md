@@ -63,8 +63,10 @@ Three hash-pinned locks, one role each:
 `requirements-build.in` and `requirements-release.in` hold the direct inputs.
 The three `.lock` files are generated artifacts — never edit one by hand.
 
-Regeneration is deterministic: one pinned resolver version and one index cutoff,
-so the same inputs produce byte-identical locks on any machine.
+Regeneration uses a pinned resolver, a frozen baseline index, and narrowly
+scoped security exception cutoffs for patched packages. The PR-only lock
+reproducibility job verifies that the committed files can be regenerated
+byte-for-byte. It never modifies the repository.
 
 ```bash
 scripts/regenerate-locks.sh            # rewrite the locks
