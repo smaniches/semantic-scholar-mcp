@@ -30,6 +30,7 @@ from collections.abc import AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, cast, get_type_hints
+from urllib.parse import urlsplit
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -386,6 +387,120 @@ async def search_papers(params: PaperSearchInput) -> str:
     return "\n".join(lines)
 
 
+def _require_paper_record_identity(paper: Any, requested_id: str) -> dict[str, Any]:
+    """Verify that the returned S2 record is bound to the exact requested identifier.
+
+    A nonempty paperId is insufficient for DOI/arXiv/PMID/ACL/CorpusId/URL
+    lookups: their alias must also be established by a returned provider field.
+    Unknown/missing alias evidence fails closed rather than poisoning the cache.
+    """
+    if not isinstance(paper, dict):
+        raise ToolError("Unexpected response format from Semantic Scholar API")
+    paper_id = paper.get("paperId")
+    if not isinstance(paper_id, str) or not paper_id.strip():
+        raise ToolError("Unexpected paper response: missing paperId")
+
+    requested = requested_id.strip()
+    canonical = len(requested) == 40 and all(char in "0123456789abcdefABCDEF" for char in requested)
+    if canonical:
+        if paper_id.lower() != requested.lower():
+            raise ToolError(
+                "Paper identity mismatch: returned paperId differs from requested S2 ID"
+            )
+        return paper
+
+    kind, _, requested_value = requested.partition(":")
+    kind = kind.upper()
+    external = paper.get("externalIds")
+    identifiers = external if isinstance(external, dict) else {}
+
+    def external_matches(key: str, value: str) -> bool:
+        observed = identifiers.get(key)
+        return (
+            isinstance(observed, str)
+            and bool(observed.strip())
+            and observed.strip().casefold() == value.strip().casefold()
+        )
+
+    def corpus_matches(value: str) -> bool:
+        observed = paper.get("corpusId")
+        if observed is None:
+            observed = identifiers.get("CorpusId")
+        return (
+            value.isascii()
+            and value.isdecimal()
+            and isinstance(observed, (str, int))
+            and not isinstance(observed, bool)
+            and str(observed).isascii()
+            and str(observed).isdecimal()
+            and int(observed) == int(value)
+        )
+
+    def arxiv_base(value: str) -> str:
+        raw_id = value.removesuffix(".pdf")
+        base, marker, version = raw_id.rpartition("v")
+        if marker and version.isascii() and version.isdecimal():
+            return base
+        return raw_id
+
+    if kind == "CORPUSID":
+        matched = corpus_matches(requested_value)
+    elif kind == "ARXIV":
+        matched = external_matches("ArXiv", arxiv_base(requested_value))
+    elif kind in {"DOI", "PMID", "ACL"}:
+        field = {"DOI": "DOI", "PMID": "PubMed", "ACL": "ACL"}[kind]
+        matched = external_matches(field, requested_value)
+    elif kind == "URL":
+        # S2 resolves aliases from multiple sites but reports only its own
+        # canonical URL. Compare verifiable ID-bearing URLs; reject others.
+        try:
+            parsed = urlsplit(requested_value)
+            host = (parsed.hostname or "").lower()
+        except ValueError as exc:
+            raise ToolError("Paper identity mismatch: invalid URL alias") from exc
+        path = parsed.path.rstrip("/")
+        tail = path.rsplit("/", 1)[-1]
+        matched = False
+        if parsed.scheme == "https":
+            if host in {"semanticscholar.org", "www.semanticscholar.org"}:
+                # URL equality alone is not identity: verify the embedded ID.
+                matched = (
+                    "/paper/" in path
+                    and len(tail) == 40
+                    and all(c in "0123456789abcdefABCDEF" for c in tail)
+                    and tail.lower() == paper_id.lower()
+                )
+            elif host in {"arxiv.org", "www.arxiv.org"} and (
+                path.startswith("/abs/") or path.startswith("/pdf/")
+            ):
+                arxiv_id = (
+                    path.split("/abs/", 1)[1]
+                    if path.startswith("/abs/")
+                    else path.split("/pdf/", 1)[1]
+                )
+                matched = external_matches("ArXiv", arxiv_base(arxiv_id))
+            elif host in {"aclanthology.org", "www.aclweb.org", "aclweb.org"}:
+                matched = external_matches("ACL", tail)
+            elif host in {"dl.acm.org", "www.acm.org", "acm.org"} and "/doi/" in path:
+                matched = external_matches("DOI", path.split("/doi/", 1)[1])
+            elif host in {"doi.org", "www.doi.org"}:
+                matched = external_matches("DOI", path.lstrip("/"))
+            elif host == "pubmed.ncbi.nlm.nih.gov":
+                matched = external_matches("PubMed", tail)
+            elif host in {"www.biorxiv.org", "biorxiv.org"} and path.startswith("/content/"):
+                doi = path[len("/content/") :].removesuffix(".full.pdf").removesuffix(".full")
+                base, marker, version = doi.rpartition("v")
+                if marker and version.isascii() and version.isdecimal():
+                    doi = base
+                matched = external_matches("DOI", doi)
+    else:
+        raise ToolError("Paper identity mismatch: unsupported identifier kind")
+
+    if not matched:
+        raise ToolError("Paper identity mismatch: returned record does not bind requested alias")
+    return paper
+
+
 @mcp.tool(
     name="semantic_scholar_get_paper",
     annotations=_annotations("Get Paper Details"),
@@ -422,11 +537,11 @@ async def get_paper_details(params: PaperDetailsInput) -> str:
                 params={"fields": ",".join(PAPER_DETAIL_FIELDS)},
                 api_key=params.api_key,
             )
-            if isinstance(paper, dict):
-                cache_set(cache_key, paper)
+            paper = _require_paper_record_identity(paper, params.paper_id)
+            cache_set(cache_key, paper)
+        else:
+            paper = _require_paper_record_identity(paper, params.paper_id)
 
-        if not isinstance(paper, dict):
-            raise ToolError("Unexpected response format from Semantic Scholar API")
         result: dict[str, Any] = {"paper": paper}
 
         # Fetch citations and references in parallel when both requested.
@@ -546,6 +661,20 @@ async def search_authors(params: AuthorSearchInput) -> str:
     return "\n".join(lines)
 
 
+def _require_author_record_identity(author: Any, requested_id: str) -> dict[str, Any]:
+    """Only associate an upstream author record with the requested numeric S2 ID."""
+    if not isinstance(author, dict):
+        raise ToolError("Unexpected response format from Semantic Scholar API")
+    author_id = author.get("authorId")
+    if not isinstance(author_id, str) or not author_id.isascii() or not author_id.isdecimal():
+        raise ToolError("Unexpected author response: missing or invalid authorId")
+    expected = requested_id.strip().lstrip("0") or "0"
+    actual = author_id.lstrip("0") or "0"
+    if expected != actual:
+        raise ToolError("Author identity mismatch: returned authorId differs from request")
+    return author
+
+
 @mcp.tool(
     name="semantic_scholar_get_author",
     annotations=_annotations("Get Author Profile"),
@@ -566,11 +695,11 @@ async def get_author_details(params: AuthorDetailsInput) -> str:
                 params={"fields": ",".join(AUTHOR_FIELDS)},
                 api_key=params.api_key,
             )
-            if isinstance(author, dict):
-                cache_set(cache_key, author)
+            author = _require_author_record_identity(author, params.author_id)
+            cache_set(cache_key, author)
+        else:
+            author = _require_author_record_identity(author, params.author_id)
 
-        if not isinstance(author, dict):
-            raise ToolError("Unexpected response format from Semantic Scholar API")
         result: dict[str, Any] = {"author": author}
 
         if params.include_papers:
@@ -808,13 +937,11 @@ async def export_citation(params: CitationExportInput) -> str:
             paper = await make_request(
                 "GET",
                 f"paper/{params.paper_id}",
-                params={"fields": "title,citationStyles"},
+                params={"fields": "paperId,corpusId,externalIds,url,title,citationStyles"},
                 api_key=params.api_key,
             )
 
-        if not isinstance(paper, dict):
-            raise ToolError("Unexpected response format from Semantic Scholar API")
-
+        paper = _require_paper_record_identity(paper, params.paper_id)
         citation_styles = paper.get("citationStyles") or {}
         fmt = params.format.lower()
 
