@@ -41,14 +41,14 @@ SECURITY_PATCH_CUTOFF=2026-10-23T20:40:00Z
 # cachecontrol[filecache]. Keep this separate from the older security cutoff
 # so unrelated packages do not float.
 MSGPACK_PATCH_CUTOFF=2026-10-30T00:00:00Z
-# One second after hatchling 1.32.4's final distribution was published
-# (2026-09-20T22:48:45Z), the newest exact pin declared in requirements-build.in.
-# The build/release base cutoff predates the later explicit cyclonedx-bom 7.5.0
-# pin. Give ONLY that release tool a package-specific cutoff, 433 ms after its
-# last required distribution appeared on PyPI. This preserves the frozen
-# transitive index for every unrelated dependency.
+# Preserve the original September 20 resolver snapshot for all unrelated
+# build/release transitive packages. The new exact Hatchling 1.33.0 and
+# CycloneDX-BOM 7.6.0 direct pins were published October 28, 2026.
+# Exempt ONLY those named packages from the old snapshot, without letting
+# unrelated transitive dependencies float during a Dependabot update.
 BUILD_RELEASE_CUTOFF=2026-09-20T22:48:46Z
-CYCLONEDX_CUTOFF=2026-09-29T15:45:57Z
+HATCHLING_CUTOFF=2026-10-29T00:00:00Z
+CYCLONEDX_CUTOFF=2026-10-29T00:00:00Z
 
 MODE=write
 case "${1:-}" in
@@ -163,6 +163,7 @@ uv_compile requirements-build.in \
     --universal \
     --generate-hashes \
     --exclude-newer "$BUILD_RELEASE_CUTOFF" \
+    --exclude-newer-package "hatchling=$HATCHLING_CUTOFF" \
     --default-index https://pypi.org/simple \
     --output-file requirements-build.lock
 
@@ -171,6 +172,7 @@ uv_compile requirements-release.in \
     --universal \
     --generate-hashes \
     --exclude-newer "$BUILD_RELEASE_CUTOFF" \
+    --exclude-newer-package "hatchling=$HATCHLING_CUTOFF" \
     --exclude-newer-package "cyclonedx-bom=$CYCLONEDX_CUTOFF" \
     --default-index https://pypi.org/simple \
     --constraint requirements-build.lock \

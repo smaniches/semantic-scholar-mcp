@@ -1,0 +1,40 @@
+name: One-time lock export (read-only, disposable)
+on:
+  push:
+    branches:
+      - fix/s2-bot-locksync-20261102
+permissions:
+  contents: read
+jobs:
+  export:
+    if: github.repository == 'smaniches/semantic-scholar-mcp'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Install pinned frozen resolver
+        run: python -m pip install uv==0.11.29
+      - name: Regenerate exact locks and verify reproducibility
+        shell: bash
+        run: |
+          bash scripts/regenerate-locks.sh
+          bash scripts/regenerate-locks.sh --check
+          git diff --exit-code -- requirements-dev.lock
+          grep -q '^hatchling==1.33.0 ' requirements-build.lock
+          grep -q '^hatchling==1.33.0 ' requirements-release.lock
+          grep -q '^cyclonedx-bom==7.6.0 ' requirements-release.lock
+      - name: Export reproducible public lock contents
+        shell: bash
+        run: |
+          printf '%s\n' 'BEGIN_S2_LOCK_BUILD_20261102'
+          cat requirements-build.lock
+          printf '%s\n' 'END_S2_LOCK_BUILD_20261102'
+          printf '%s\n' 'BEGIN_S2_LOCK_RELEASE_20261102'
+          cat requirements-release.lock
+          printf '%s\n' 'END_S2_LOCK_RELEASE_20261102'

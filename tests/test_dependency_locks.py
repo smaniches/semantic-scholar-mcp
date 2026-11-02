@@ -30,7 +30,8 @@ DEV_CUTOFF = "2026-09-30T23:45:48Z"
 SECURITY_PATCH_CUTOFF = "2026-10-23T20:40:00Z"
 MSGPACK_PATCH_CUTOFF = "2026-10-30T00:00:00Z"
 BUILD_RELEASE_CUTOFF = "2026-09-20T22:48:46Z"
-CYCLONEDX_CUTOFF = "2026-09-29T15:45:57Z"
+HATCHLING_CUTOFF = "2026-10-29T00:00:00Z"
+CYCLONEDX_CUTOFF = "2026-10-29T00:00:00Z"
 
 DEV_LOCK = ROOT / "requirements-dev.lock"
 BUILD_LOCK = ROOT / "requirements-build.lock"
@@ -138,12 +139,15 @@ EXPECTED_HEADERS = {
     BUILD_LOCK: (
         "uv --no-config pip compile requirements-build.in "
         "--python-version 3.10 --universal --generate-hashes "
-        f"--exclude-newer {BUILD_RELEASE_CUTOFF} --output-file requirements-build.lock"
+        f"--exclude-newer {BUILD_RELEASE_CUTOFF} "
+        f"--exclude-newer-package hatchling={HATCHLING_CUTOFF} "
+        "--output-file requirements-build.lock"
     ),
     RELEASE_LOCK: (
         "uv --no-config pip compile requirements-release.in "
         "--python-version 3.10 --universal --generate-hashes "
         f"--exclude-newer {BUILD_RELEASE_CUTOFF} "
+        f"--exclude-newer-package hatchling={HATCHLING_CUTOFF} "
         f"--exclude-newer-package cyclonedx-bom={CYCLONEDX_CUTOFF} "
         "--constraint requirements-build.lock --output-file requirements-release.lock"
     ),
@@ -429,7 +433,7 @@ def test_build_and_release_locks_pin_editables(
 
 def test_release_lock_pins_cyclonedx_bom(release_lock: dict[str, list[Requirement]]) -> None:
     """The SBOM tool must come from the locked release closure, never live."""
-    assert {requirement.version for requirement in release_lock["cyclonedx-bom"]} == {"7.5.0"}
+    assert {requirement.version for requirement in release_lock["cyclonedx-bom"]} == {"7.6.0"}
 
 
 def test_release_closure_preserves_the_build_closure_versions(
@@ -458,7 +462,9 @@ def test_regeneration_script_encodes_the_deterministic_contract() -> None:
     assert f"MSGPACK_PATCH_CUTOFF={MSGPACK_PATCH_CUTOFF}" in script
     assert '--exclude-newer-package "msgpack=$MSGPACK_PATCH_CUTOFF"' in script
     assert f"BUILD_RELEASE_CUTOFF={BUILD_RELEASE_CUTOFF}" in script
+    assert f"HATCHLING_CUTOFF={HATCHLING_CUTOFF}" in script
     assert f"CYCLONEDX_CUTOFF={CYCLONEDX_CUTOFF}" in script
+    assert script.count('--exclude-newer-package "hatchling=$HATCHLING_CUTOFF"') == 2
     assert '--exclude-newer-package "cyclonedx-bom=$CYCLONEDX_CUTOFF"' in script
     assert '"uv 0.11.29"|"uv 0.11.29 "*' in script, "version gate must accept build metadata"
     assert 'git show "$BASE:requirements-dev.lock"' in script, "dev lock must be seeded from git"
