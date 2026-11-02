@@ -1,20 +1,10 @@
 name: Live anonymous MCP smoke
 
-# Advisory live end-to-end check: starts a real MCP server and uses the
-# external Semantic Scholar anonymous pool. 429 responses are upstream
-# availability limitations, not deterministic regressions in local code.
-# Do not gate every PR on this external shared anonymous rate-limit pool;
-# the regular CI has separate protocol/validation tests for both transports.
+# Manual diagnostic only. The shared anonymous Semantic Scholar API can
+# return HTTP 429 independently of MCP correctness. CI separately validates
+# stdio/HTTP protocol behavior without relying on third-party availability.
 on:
   workflow_dispatch:
-  # Validate changes to the probe immediately, not just on next week's schedule.
-  pull_request:
-    paths:
-      - ".github/workflows/no-key-mcp-smoke.yml"
-      - "scripts/smoke_no_key_mcp.py"
-      - "scripts/smoke_http_no_key.py"
-  schedule:
-    - cron: "13 7 * * 1"
 
 permissions:
   contents: read
