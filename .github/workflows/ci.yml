@@ -32,8 +32,12 @@ jobs:
       run: python -m pip install --no-deps --no-build-isolation -e .
     - name: Lint with ruff
       run: ruff check src/ tests/
-    - name: Format check with ruff
-      run: ruff format --check src/ tests/
+    - name: Format check with ruff (diff on failure)
+      run: |
+        if ! ruff format --check src/ tests/; then
+          ruff format --diff src/ tests/
+          exit 1
+        fi
     - name: Type check with mypy
       run: mypy src/
 
