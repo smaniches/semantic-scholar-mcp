@@ -50,15 +50,17 @@ def test_only_exact_tool_rate_limit_is_an_advisory_condition() -> None:
 
 
 def test_success_requires_valid_json() -> None:
-    assert smoke._decode_tool_output(
-        _result(error=False, message=json.dumps(FIRST_PAGE))
-    ) == FIRST_PAGE
+    parsed = smoke._decode_tool_output(_result(error=False, message=json.dumps(FIRST_PAGE)))
+    assert parsed == FIRST_PAGE
     with pytest.raises(json.JSONDecodeError):
         smoke._decode_tool_output(_result(error=False, message="{not JSON}"))
 
 
 def _install_fake_protocol(
-    monkeypatch: pytest.MonkeyPatch, *, limited_at: int | None = None, fail_at: int | None = None
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    limited_at: int | None = None,
+    fail_at: int | None = None,
 ) -> None:
     @asynccontextmanager
     async def fake_stdio(_params):
@@ -78,12 +80,9 @@ def _install_fake_protocol(
             return None
 
         async def list_tools(self):
-            return SimpleNamespace(
-                tools=[
-                    SimpleNamespace(name=f"other_{index}") for index in range(13)
-                ]
-                + [SimpleNamespace(name="semantic_scholar_get_paper")]
-            )
+            tools = [SimpleNamespace(name=f"other_{index}") for index in range(13)]
+            tools.append(SimpleNamespace(name="semantic_scholar_get_paper"))
+            return SimpleNamespace(tools=tools)
 
         async def call_tool(self, _name, *, arguments):
             assert "params" in arguments
@@ -102,7 +101,10 @@ def _install_fake_protocol(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("limited_at,stage", [(1, "first_page"), (2, "second_page")])
 async def test_throttling_after_valid_handshake_is_inconclusive(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], limited_at: int, stage: str
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    limited_at: int,
+    stage: str,
 ) -> None:
     _install_fake_protocol(monkeypatch, limited_at=limited_at)
     assert await smoke._smoke() == smoke.UPSTREAM_RATE_LIMITED
@@ -124,7 +126,8 @@ async def test_real_mcp_error_still_fails(monkeypatch: pytest.MonkeyPatch) -> No
 
 @pytest.mark.asyncio
 async def test_real_two_page_success_remains_a_pass(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     _install_fake_protocol(monkeypatch)
     assert await smoke._smoke() == 0
