@@ -3,9 +3,9 @@
 Run on a networked environment with dependencies installed:
     SEMANTIC_SCHOLAR_API_KEY= python scripts/smoke_no_key_mcp.py
 
-This intentionally fails (rather than reporting a false pass) when unauthenticated
-Semantic Scholar availability is blocked or rate-limited. The regular hermetic
-test suite is independent of this external availability check.
+The live probe returns exit code 75 if the external anonymous pool returns 429.
+That means INCONCLUSIVE, never PASS; all other errors remain failures. Hermetic
+CI checks the protocol without depending on the external API.
 """
 
 from __future__ import annotations
@@ -20,11 +20,43 @@ from mcp.client.stdio import stdio_client
 
 PAPER_ID = "ARXIV:1706.03762"
 EXPECTED_TOOLS = 14
+UPSTREAM_RATE_LIMITED = 75
+
+
+class UpstreamRateLimited(RuntimeError):
+    """The external no-key API returned an identified HTTP 429 error."""
+
+
+def _inconclusive(*, stage: str, tool_count: int) -> int:
+    print(
+        json.dumps(
+            {
+                "status": "INCONCLUSIVE",
+                "reason": "UPSTREAM_HTTP_429",
+                "auth": "none",
+                "protocol": "MCP stdio",
+                "handshake": "PASS",
+                "tools_list": "PASS",
+                "tool_count": tool_count,
+                "live_pagination": "NOT_VERIFIED",
+                "stage": stage,
+            },
+            sort_keys=True,
+        ),
+        flush=True,
+    )
+    return UPSTREAM_RATE_LIMITED
+
 
 
 def _decode_tool_output(result):
     if result.isError:
         payload = " | ".join(block.text for block in result.content if hasattr(block, "text"))
+        # Match only the explicit public-API 429 propagated by this tool.
+        # Unknown MCP errors, 5xx, invalid output, or changed error wording
+        # still fail the smoke instead of being reclassified as availability.
+        if payload.startswith("Error executing tool semantic_scholar_get_paper: Rate limited."):
+            raise UpstreamRateLimited(payload)
         raise RuntimeError(f"MCP tool returned isError: {payload[:500]}")
     content = [block.text for block in result.content if hasattr(block, "text")]
     if len(content) != 1:
@@ -51,21 +83,24 @@ async def _smoke():
         assert len(names) == EXPECTED_TOOLS, f"Expected 14 tools, got {len(names)}"
         assert "semantic_scholar_get_paper" in names
 
-        first = _decode_tool_output(
-            await session.call_tool(
-                "semantic_scholar_get_paper",
-                arguments={
-                    "params": {
-                        "paper_id": PAPER_ID,
-                        "include_citations": True,
-                        "include_references": True,
-                        "citations_limit": 2,
-                        "references_limit": 2,
-                        "response_format": "json",
-                    }
-                },
+        try:
+            first = _decode_tool_output(
+                await session.call_tool(
+                    "semantic_scholar_get_paper",
+                    arguments={
+                        "params": {
+                            "paper_id": PAPER_ID,
+                            "include_citations": True,
+                            "include_references": True,
+                            "citations_limit": 2,
+                            "references_limit": 2,
+                            "response_format": "json",
+                        }
+                    },
+                )
             )
-        )
+        except UpstreamRateLimited:
+            return _inconclusive(stage="first_page", tool_count=len(names))
         assert first["paper"]["paperId"], "Missing Semantic Scholar paper ID"
         citations = first["citations"]
         references = first["references"]
@@ -76,20 +111,23 @@ async def _smoke():
         assert isinstance(citation_next, int), f"Missing citation next: {citation_next}"
         assert isinstance(reference_next, int), f"Missing reference next: {reference_next}"
 
-        second = _decode_tool_output(
-            await session.call_tool(
-                "semantic_scholar_get_paper",
-                arguments={
-                    "params": {
-                        "paper_id": PAPER_ID,
-                        "include_citations": True,
-                        "citations_offset": citation_next,
-                        "citations_limit": 2,
-                        "response_format": "json",
-                    }
-                },
+        try:
+            second = _decode_tool_output(
+                await session.call_tool(
+                    "semantic_scholar_get_paper",
+                    arguments={
+                        "params": {
+                            "paper_id": PAPER_ID,
+                            "include_citations": True,
+                            "citations_offset": citation_next,
+                            "citations_limit": 2,
+                            "response_format": "json",
+                        }
+                    },
+                )
             )
-        )
+        except UpstreamRateLimited:
+            return _inconclusive(stage="second_page", tool_count=len(names))
         assert second["citations_page"]["offset"] == citation_next
         old_ids = {x["citingPaper"]["paperId"] for x in citations}
         new_ids = {x["citingPaper"]["paperId"] for x in second["citations"]}
@@ -115,7 +153,8 @@ async def _smoke():
             ),
             flush=True,
         )
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(asyncio.wait_for(_smoke(), timeout=180))
+    raise SystemExit(asyncio.run(asyncio.wait_for(_smoke(), timeout=180)))
