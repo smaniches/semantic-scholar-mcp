@@ -15,8 +15,7 @@ RATE_LIMIT_MESSAGE = (
     "Get a free API key for faster access: https://www.semanticscholar.org/product/api"
 )
 SERVER_ERROR_MESSAGE = (
-    "Error executing tool semantic_scholar_get_paper: "
-    "Upstream server error (503)"
+    "Error executing tool semantic_scholar_get_paper: Upstream server error (503)"
 )
 FIRST_PAGE = {
     "paper": {"paperId": "verified-paper"},
