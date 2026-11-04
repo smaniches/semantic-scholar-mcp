@@ -2,6 +2,15 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.14](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.13...semantic-scholar-mcp-v1.7.14) (2026-11-02)
+
+
+### Bug Fixes
+
+* **ci:** report anonymous Semantic Scholar HTTP 429 as inconclusive, not MCP failure ([84b050c](https://github.com/smaniches/semantic-scholar-mcp/commit/84b050cc54e38144a4773b2e22f34fe279b5d142))
+* **locks:** synchronize Hatchling/CycloneDX upgrades with frozen hashes ([#197](https://github.com/smaniches/semantic-scholar-mcp/issues/197)) ([2a2b14c](https://github.com/smaniches/semantic-scholar-mcp/commit/2a2b14c6dd566cb3f104b0f4c789b35028973c13))
+* **smoke:** classify only confirmed anonymous API throttling as inconclusive ([14cc41a](https://github.com/smaniches/semantic-scholar-mcp/commit/14cc41ad9a5c7a4d8b151df98de38ddefe82fce5))
+
 ## [1.7.13](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.12...semantic-scholar-mcp-v1.7.13) (2026-10-30)
 
 
