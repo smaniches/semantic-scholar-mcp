@@ -25,9 +25,9 @@ Design decisions:
   base64 ``?config=`` parameter. The key is request-scoped (see
   :data:`semantic_scholar_mcp.client._request_api_key`) and never leaks
   across concurrent requests. Application code never logs it, but a key sent
-  in the URL query string is part of the request line that uvicorn's access
-  log (enabled at ``log_level="info"``) and any proxy may record; prefer the
-  header.
+  in the URL query string can still be recorded by upstream proxies and
+  gateways. The built-in Uvicorn request access log is disabled by this server
+  to avoid logging such credentials locally; prefer the header.
 - **Loopback bind by default** (``127.0.0.1``). Exposing the server on a
   public interface is an explicit opt-in (``--host 0.0.0.0``) because the
   HTTP transport itself performs no authentication.
@@ -335,7 +335,9 @@ def run_http(
         config.stateless,
         config.json_response,
     )
-    uvicorn.run(app, host=config.host, port=config.port, log_level="info")
+    # Legacy clients can put API keys in URLs. Do not log those request lines.
+    # Upstream ingress/proxy access logs remain outside this process's control.
+    uvicorn.run(app, host=config.host, port=config.port, log_level="info", access_log=False)
 
 
 __all__ = [

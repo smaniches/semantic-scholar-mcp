@@ -47,9 +47,11 @@ The server accepts the Semantic Scholar API key in three places:
    in the `x-api-key` header (preferred) or a
    `SEMANTIC_SCHOLAR_API_KEY`/`api_key` query parameter. The key is bound to
    a request-scoped context variable and cannot leak across concurrent
-   requests. The server's application code never logs it, but a key in a
-   query string is part of the request URL, which this server's own uvicorn
-   access log (on by default) and any proxy can record. Prefer the header.
+   requests. The built-in Uvicorn request access log is disabled to avoid
+   recording URL credentials. However, reverse proxies, gateways and other
+   upstream HTTP infrastructure can still log the full query string before
+   it reaches this server. A base64-encoded `?config=` value is not secret
+   storage. Use the header or a server-side environment variable instead.
 
 In all cases this server forwards the key only to `api.semanticscholar.org`
 over HTTPS, as the `x-api-key` header, and never writes it to disk. Be aware
