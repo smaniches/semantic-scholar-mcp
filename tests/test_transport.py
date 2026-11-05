@@ -485,8 +485,8 @@ class TestRunHttp:
     def test_run_http_applies_settings_and_starts_uvicorn(self, monkeypatch):
         served: dict = {}
 
-        def fake_uvicorn_run(app, host, port, log_level):
-            served.update(app=app, host=host, port=port, log_level=log_level)
+        def fake_uvicorn_run(app, host, port, log_level, access_log):
+            served.update(app=app, host=host, port=port, log_level=log_level, access_log=access_log)
 
         monkeypatch.setattr("uvicorn.run", fake_uvicorn_run)
         server = FastMCP("transport-test")
@@ -509,6 +509,8 @@ class TestRunHttp:
         assert isinstance(served["app"], Starlette)
         assert served["host"] == "0.0.0.0"
         assert served["port"] == 9050
+        assert served["log_level"] == "info"
+        assert served["access_log"] is False
 
 
 class TestHostValidation:

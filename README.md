@@ -398,11 +398,12 @@ out of the box.
 
 - The HTTP transport performs **no authentication of inbound callers**. The
   default bind is loopback (`127.0.0.1`). Expose it publicly only behind a
-  TLS-terminating reverse proxy, and prefer the `x-api-key` header over query
-  parameters (URLs end up in access logs).
-- API keys are request-scoped, and the server itself never logs them. (A key
-  placed in a URL query parameter can still appear in access logs, as noted
-  above — prefer the `x-api-key` header.)
+  TLS-terminating reverse proxy.
+- The built-in Uvicorn request access log is disabled to avoid recording URL
+  credentials, but proxies, gateways and other upstream systems may still log
+  full request URLs. Query parameters, including base64 `?config=`, are not
+  safe places for secrets. Prefer the `x-api-key` header or a server-side
+  environment variable. See [SECURITY.md](SECURITY.md).
 - See [SECURITY.md](SECURITY.md) for the project's broader threat model.
 
 ---
