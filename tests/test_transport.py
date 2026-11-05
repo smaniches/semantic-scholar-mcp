@@ -486,9 +486,7 @@ class TestRunHttp:
         served: dict = {}
 
         def fake_uvicorn_run(app, host, port, log_level, access_log):
-            served.update(
-                app=app, host=host, port=port, log_level=log_level, access_log=access_log
-            )
+            served.update(app=app, host=host, port=port, log_level=log_level, access_log=access_log)
 
         monkeypatch.setattr("uvicorn.run", fake_uvicorn_run)
         server = FastMCP("transport-test")
