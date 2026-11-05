@@ -2,6 +2,13 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.15](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.14...semantic-scholar-mcp-v1.7.15) (2026-11-05)
+
+
+### Bug Fixes
+
+* **security:** prevent Uvicorn URL access-log credential exposure ([#201](https://github.com/smaniches/semantic-scholar-mcp/issues/201)) ([cd3893d](https://github.com/smaniches/semantic-scholar-mcp/commit/cd3893daae519e19cc178af4316c6ed48ee4dc2b))
+
 ## [1.7.14](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.13...semantic-scholar-mcp-v1.7.14) (2026-11-02)
 
 
