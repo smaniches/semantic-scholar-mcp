@@ -367,7 +367,11 @@ def handle_error(
             msg = "Forbidden. Check SEMANTIC_SCHOLAR_API_KEY env var or provide api_key parameter."
         raise AuthenticationError(msg, status_code=403)
     if status == 404:
-        raise NotFoundError("Not found. Check ID format.", status_code=404)
+        raise NotFoundError(
+            "Not found in Semantic Scholar. The identifier format may be valid, "
+            "but no matching indexed record was returned.",
+            status_code=404,
+        )
     if status == 429:
         if api_key:
             msg = f"Rate limited. Retry in {retry_after}s." if retry_after else "Rate limited."

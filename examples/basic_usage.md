@@ -202,7 +202,9 @@ name, and excerpt.
 }
 ```
 
-**Expected output:** A BibTeX string for the paper.
+**Expected output:** Semantic Scholar's automatically generated BibTeX entry,
+returned verbatim. Bibliographic metadata, including DOI, may be missing or
+inaccurate; verify it against authoritative records before citing.
 
 ## 11. Match Paper by Title
 

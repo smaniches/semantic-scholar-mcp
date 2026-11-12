@@ -16,6 +16,10 @@ updates:
     ignore:
       - dependency-name: "mcp"
         update-types: ["version-update:semver-major"]
+      # The release-tool pin, resolver cutoff, and hash lock require a coordinated
+      # refresh before adopting a new CycloneDX major version.
+      - dependency-name: "cyclonedx-bom"
+        update-types: ["version-update:semver-major"]
     groups:
       production-dependencies:
         dependency-type: "production"
