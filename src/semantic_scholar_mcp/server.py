@@ -919,7 +919,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
     structured_output=False,
 )
 async def export_citation(params: CitationExportInput) -> str:
-    """Export S2 BibTeX verbatim by default, or opt in to add S2's structured DOI.
+    """Export Semantic Scholar BibTeX verbatim by default, or opt in to add its structured DOI.
 
     The upstream entry is not independently validated or corrected. DOI,
     authors, titles, venues, and other metadata may be missing or inaccurate;

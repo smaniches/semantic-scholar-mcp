@@ -660,8 +660,9 @@ next page (when more results exist).
 
 ### 8. `semantic_scholar_export_citation`
 
-Return Semantic Scholar's automatically generated BibTeX entry verbatim by default.
-An explicit opt-in can add its structured DOI when missing from that entry.
+Return Semantic Scholar's automatically generated BibTeX entry verbatim by default,
+without alteration. An explicit opt-in can add its structured DOI when missing
+from that entry. The server does not independently validate either mode.
 
 **Parameters:**
 | Parameter | Type | Required | Description |
