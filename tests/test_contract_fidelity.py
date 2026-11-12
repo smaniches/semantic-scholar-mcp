@@ -156,7 +156,6 @@ class TestMatchPaperNoMatch:
                 "semantic_scholar_get_paper", {"params": {"paper_id": "DOI:10.0/none"}}
             )
 
-
     @respx.mock
     @pytest.mark.asyncio
     async def test_valid_doi_not_indexed_is_not_called_malformed(self, reset_all):
@@ -408,9 +407,7 @@ class TestCycloneDxDependabotContract:
     def test_major_upgrades_require_coordinated_refresh(self):
         import yaml
 
-        config = yaml.safe_load(
-            (REPO_ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
-        )
+        config = yaml.safe_load((REPO_ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"))
         pip_config = next(
             update for update in config["updates"] if update["package-ecosystem"] == "pip"
         )
