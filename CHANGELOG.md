@@ -2,6 +2,15 @@
 
 All notable changes documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/). Versioning: [Semantic Versioning](https://semver.org/).
 
+## [1.7.16](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.15...semantic-scholar-mcp-v1.7.16) (2026-11-12)
+
+
+### Bug Fixes
+
+* close November 2026 S2 citation, DOI and Dependabot findings ([28e9626](https://github.com/smaniches/semantic-scholar-mcp/commit/28e96268b7366fdf975e85ba94ce194e8be8318e))
+* close November S2 citation, DOI, and dependency policy findings ([71032a0](https://github.com/smaniches/semantic-scholar-mcp/commit/71032a0fe9fae970e9f0f88d9be8d35f7b3deb2e))
+* keep shared S2 HTTP 404 errors endpoint-neutral ([4101c6f](https://github.com/smaniches/semantic-scholar-mcp/commit/4101c6fee422fdc421181627bc39b283c8449067))
+
 ## [1.7.15](https://github.com/smaniches/semantic-scholar-mcp/compare/semantic-scholar-mcp-v1.7.14...semantic-scholar-mcp-v1.7.15) (2026-11-05)
 
 
