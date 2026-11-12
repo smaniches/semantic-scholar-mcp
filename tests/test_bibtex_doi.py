@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
-
 import random
 import string
 import unittest
+from contextlib import suppress
 
 from semantic_scholar_mcp.bibtex_doi import (
     CitationEnrichmentError,
