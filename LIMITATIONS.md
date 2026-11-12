@@ -1,19 +1,57 @@
 # Known Limitations
 
-Explicit boundaries on what this project provides today. These are not
-defects — they are tracked gaps for follow-up releases.
+This document distinguishes limitations of this server from observed
+limitations of its upstream services. Documenting an upstream metadata
+inconsistency does not mean the server created it or can independently
+resolve it.
 
-## BibTeX export is not bibliographically verified
+## BibTeX export: provenance and verification scope
 
-`semantic_scholar_export_citation` returns the `citationStyles.bibtex` entry
-from Semantic Scholar unchanged when `format="bibtex"` (the default).
-`format="bibtex+doi"` can add only the DOI from the same record's
-`externalIds.DOI`, and refuses missing, invalid or contradictory DOI evidence
-rather than overwriting the entry. No additional provider is queried.
-Neither mode independently verifies titles, author lists, venue, year, page
-ranges, publication versions, or the DOI itself. An enriched DOI must not be
-mistaken for a publisher-validated citation. Check authoritative bibliographic
-records before using an exported entry in a publication.
+Bibliographic metadata and generated BibTeX originate from Semantic Scholar.
+This MCP server provides access to those records; it does not independently
+validate publication identity, version relationships, or citation accuracy.
+Inconsistent upstream records are not silently corrected.
+
+`semantic_scholar_export_citation` returns the upstream
+`citationStyles.bibtex` unchanged when `format="bibtex"` (the default).
+The opt-in `format="bibtex+doi"` mode can insert the DOI from that same
+record's `externalIds.DOI` when missing. It rejects missing, malformed, or
+contradictory DOI evidence rather than inventing or overwriting an identifier.
+Neither mode queries an independent bibliographic source or verifies that
+the DOI, date, authors, venue, and other fields refer to the same publication
+version. An enriched DOI is **not** a publisher-validated citation.
+
+### Observed upstream example: AlexNet publication versions
+
+**Observation date:** November 12, 2026
+**Semantic Scholar paper ID:** `abd1c342495432171beb7ca8fd9551ef13cbd0ff`
+**Queried identifier:** `DOI:10.1145/3065386`
+
+The Semantic Scholar Academic Graph response contained:
+
+- `year: 2012` and `publicationDate: 2012-12-03`;
+- `externalIds.DBLP: conf/nips/KrizhevskySH12`;
+- `venue: Communications of the ACM`, journal volume `60`, pages `84 - 90`;
+- `externalIds.DOI: 10.1145/3065386`;
+- generated `citationStyles.bibtex` with `year = {2012}`, the ACM journal
+  fields, and no `doi` field.
+
+The [ACM publication](https://doi.org/10.1145/3065386) identifies that DOI
+with *Communications of the ACM*, **60(6):84–90 (2017)** (published
+May 24, 2017). The [original 2012 NeurIPS proceedings
+record](https://proceedings.neurips.cc/paper/2012/hash/c399862d3b9d6b76c8436e924a68c-Abstract.html)
+identifies the earlier conference publication.
+
+**Interpretation:** This particular Semantic Scholar response combines a
+2012 publication year with the journal, volume, pages, and DOI of the 2017
+ACM publication. Those values are already present in the upstream response;
+the MCP did not generate the mixed metadata. Opt-in DOI insertion preserves
+the year and other fields and does not reconcile the two publication versions.
+
+This is one reproducible upstream-record observation, **not** a claim about
+the frequency of such inconsistencies or their internal cause. The source
+record may change. Verify the intended version against the publisher or
+proceedings before using the citation in scholarly work.
 
 ## Shared anonymous API access and rate limits
 
