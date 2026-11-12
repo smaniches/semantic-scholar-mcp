@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import random
 import string
 import unittest
@@ -170,10 +172,8 @@ class CitationDoiTests(unittest.TestCase):
         alphabet = string.ascii_letters + '{}(),=\\\n"'
         for _ in range(2000):
             raw = "@article{" + "".join(rng.choices(alphabet, k=32))
-            try:
+            with suppress(CitationEnrichmentError):
                 enrich_bibtex_with_s2_doi(raw, DOI)
-            except CitationEnrichmentError:
-                pass
 
     def test_paren_with_close_brace_at_top_level_is_rejected(self):
         with self.assertRaises(CitationEnrichmentError):
