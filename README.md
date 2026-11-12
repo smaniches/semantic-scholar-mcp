@@ -422,6 +422,10 @@ The server accepts the following paper identifier formats:
 | ACL | `ACL:xxx` | `ACL:P19-1285` |
 | URL | `URL:xxx` | `URL:https://arxiv.org/abs/2106.15928` |
 
+A syntactically accepted identifier can still be absent from Semantic Scholar's
+index. HTTP 404 does not establish that the underlying DOI is malformed or
+nonexistent in other bibliographic registries.
+
 ---
 
 ## Tools Reference
@@ -656,7 +660,7 @@ next page (when more results exist).
 
 ### 8. `semantic_scholar_export_citation`
 
-Export a citation for a paper in BibTeX format.
+Return Semantic Scholar's automatically generated BibTeX entry verbatim.
 
 **Parameters:**
 | Parameter | Type | Required | Description |
@@ -673,7 +677,10 @@ Export a citation for a paper in BibTeX format.
 }
 ```
 
-**Returns:** the BibTeX string for the requested paper.
+**Returns:** the BibTeX entry supplied by Semantic Scholar, without alteration.
+The server does not independently validate or correct bibliographic metadata;
+DOI, authors, title, venue, or other fields may be missing or inaccurate. Verify
+against authoritative records before citing in a publication.
 
 ---
 

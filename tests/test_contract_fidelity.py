@@ -88,6 +88,19 @@ class TestSearchSyntaxContract:
         await mcp.call_tool("semantic_scholar_search_papers", {"params": {"query": q}})
         assert route.calls.last.request.url.params["query"] == q
 
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search_404_does_not_claim_invalid_identifier(self, reset_all):
+        respx.get(SEARCH_URL).mock(return_value=Response(404))
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers", {"params": {"query": "missing query"}}
+            )
+        message = str(exc_info.value)
+        assert "Not found in Semantic Scholar" in message
+        assert "identifier" not in message.lower()
+        assert "Check ID format" not in message
+
     def test_readme_search_row_does_not_promise_boolean_syntax(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
         assert "supports AND, OR, NOT operators" not in readme
@@ -155,6 +168,25 @@ class TestMatchPaperNoMatch:
             await mcp.call_tool(
                 "semantic_scholar_get_paper", {"params": {"paper_id": "DOI:10.0/none"}}
             )
+
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_valid_doi_not_indexed_is_not_called_malformed(self, reset_all):
+        doi = "DOI:10.1038/s41586-021-03819-2"
+        respx.get(f"{SEMANTIC_SCHOLAR_API_BASE}/paper/{doi}").mock(
+            return_value=Response(404, json={"error": "Paper not found"})
+        )
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool("semantic_scholar_get_paper", {"params": {"paper_id": doi}})
+        message = str(exc_info.value)
+        assert "Not found in Semantic Scholar" in message
+        assert "HTTP 404 does not establish" in message
+        assert "Check ID format" not in message
+
+    @pytest.mark.asyncio
+    async def test_invalid_doi_format_still_fails_validation(self, reset_all):
+        with pytest.raises(ToolError, match="Invalid paper ID format"):
+            await mcp.call_tool("semantic_scholar_get_paper", {"params": {"paper_id": "DOI:"}})
 
 
 # ---------------------------------------------------------------------------
@@ -350,3 +382,49 @@ class TestCredentialLoggingLanguage:
         sec = " ".join((REPO_ROOT / "SECURITY.md").read_text(encoding="utf-8").split())
         assert "is never written to the server's own logs" not in sec
         assert "access log" in sec
+
+
+# ---------------------------------------------------------------------------
+# 6. Citation provenance, discoverability, and published input/output shape
+# ---------------------------------------------------------------------------
+
+
+class TestCitationExportDiscoveryContract:
+    @pytest.mark.asyncio
+    async def test_discovery_discloses_upstream_unverified_bibtex(self):
+        tool = await _tool("semantic_scholar_export_citation")
+        description = " ".join((tool.description or "").lower().split())
+        assert "semantic scholar" in description
+        assert "verbatim" in description
+        assert "not independently validated" in description
+        assert "doi" in description
+
+        # Preserve the published v1.7.15 input model and text-only output contract.
+        params_schema = tool.inputSchema["$defs"]["CitationExportInput"]["properties"]
+        assert set(params_schema) == {"paper_id", "format", "api_key"}
+        assert params_schema["format"]["default"] == "bibtex"
+        assert getattr(tool, "outputSchema", None) is None
+
+    def test_readme_explains_verbatim_unverified_bibtex(self):
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        section = readme.split("### 8. `semantic_scholar_export_citation`", 1)[1].split(
+            "### 9.", 1
+        )[0]
+        assert "Semantic Scholar" in section
+        assert "without alteration" in section
+        assert "does not independently validate" in section
+        assert "DOI" in section
+
+
+class TestCycloneDxDependabotContract:
+    def test_major_upgrades_require_coordinated_refresh(self):
+        import yaml
+
+        config = yaml.safe_load((REPO_ROOT / ".github/dependabot.yml").read_text(encoding="utf-8"))
+        pip_config = next(
+            update for update in config["updates"] if update["package-ecosystem"] == "pip"
+        )
+        assert {
+            "dependency-name": "cyclonedx-bom",
+            "update-types": ["version-update:semver-major"],
+        } in pip_config["ignore"]

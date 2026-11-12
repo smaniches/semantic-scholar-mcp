@@ -245,7 +245,8 @@ mcp = _S2FastMCP(
     semantic_scholar_multi_recommend (several positive/negative examples) for
     similar-paper discovery; semantic_scholar_search_authors,
     semantic_scholar_get_author, and semantic_scholar_paper_authors for author
-    profiles; semantic_scholar_export_citation for BibTeX;
+    profiles; semantic_scholar_export_citation for upstream-generated
+    BibTeX (bibliographic metadata not independently verified);
     semantic_scholar_status for connectivity and rate-tier checks.
 
     Paper IDs accept: 40-char S2 hex ID, DOI:..., ARXIV:..., PMID:...,
@@ -917,7 +918,11 @@ async def bulk_search(params: BulkSearchInput) -> str:
     structured_output=False,
 )
 async def export_citation(params: CitationExportInput) -> str:
-    """Export a citation for a paper in BibTeX format.
+    """Export a paper's Semantic Scholar-generated BibTeX entry verbatim.
+
+    The upstream entry is not independently validated or corrected. DOI,
+    authors, titles, venues, and other metadata may be missing or inaccurate;
+    verify against authoritative bibliographic records before publication.
 
     Use once you have a paper ID (from semantic_scholar_search_papers or
     semantic_scholar_match_paper), e.g. paper_id='DOI:10.18653/v1/N18-3011'.
