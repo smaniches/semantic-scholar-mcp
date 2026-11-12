@@ -7,7 +7,7 @@
 # pure-Python, so a single stage needs no separate build stage. This matches the
 # build pattern proven on the sibling MCP servers (alphafold-sovereign-mcp,
 # uniprot-mcp).
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 LABEL org.opencontainers.image.source="https://github.com/smaniches/semantic-scholar-mcp"
 LABEL org.opencontainers.image.description="MCP server for Semantic Scholar - 200M+ academic papers"
