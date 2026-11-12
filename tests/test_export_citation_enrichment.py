@@ -79,7 +79,7 @@ async def test_opt_in_rejects_conflicting_existing_doi(upstream):
 async def test_opt_in_rejects_missing_structured_doi(upstream):
     paper, _ = upstream
     paper["externalIds"] = {"ArXiv": "1201.00001"}
-    with pytest.raises(ToolError, match="Missing or invalid"):
+    with pytest.raises(ToolError, match="No usable DOI"):
         await server.export_citation(CitationExportInput(paper_id=PAPER_ID, format="bibtex+doi"))
 
 
@@ -87,7 +87,7 @@ async def test_opt_in_rejects_missing_structured_doi(upstream):
 async def test_opt_in_rejects_missing_external_ids_map(upstream):
     paper, _ = upstream
     paper["externalIds"] = None
-    with pytest.raises(ToolError, match="Missing or invalid"):
+    with pytest.raises(ToolError, match="No usable DOI"):
         await server.export_citation(CitationExportInput(paper_id=PAPER_ID, format="bibtex+doi"))
 
 

@@ -10,13 +10,19 @@ data, it is identified separately from the server's own processing.
 `citationStyles.bibtex` without alteration when `format="bibtex"` (the
 default). The optional `format="bibtex+doi"` mode can insert
 `externalIds.DOI` from the same Semantic Scholar record when the entry lacks
-a DOI. It rejects missing, invalid, or conflicting DOI data rather than
-guessing or overwriting an identifier.
+a DOI. It rejects unavailable, conflicting, or unsupported DOI values
+rather than guessing or overwriting an identifier.
 
 Neither mode independently validates the bibliography against a publisher or
 DOI registration agency. In particular, inserting a DOI does not establish
 that the publication year, authors, venue, and DOI refer to the same version
 of a work. The server does not silently change upstream publication metadata.
+
+The enrichment path accepts a deliberately restricted set of DOI characters.
+Some legitimate older DOIs have additional punctuation, as
+[Crossref documents](https://www.crossref.org/documentation/member-setup/constructing-your-dois/suffixes-containing-special-characters/).
+Such values are reported as unsupported for this optional insertion, not as
+invalid DOI identifiers. The default verbatim export is unaffected.
 
 A [documented AlexNet record](docs/upstream-semantic-scholar-metadata.md)
 illustrates a publication-version discrepancy observed in a Semantic Scholar

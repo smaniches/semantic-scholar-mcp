@@ -21,15 +21,15 @@ _FIELD_RE = re.compile(r"([A-Za-z][A-Za-z0-9_-]*)\s*=", re.ASCII)
 
 def _normalize_doi(value: object) -> str:
     """Accept only BibTeX-safe DOI strings; do not guess or sanitize bad input."""
-    if not isinstance(value, str):
-        raise CitationEnrichmentError("Missing or invalid Semantic Scholar externalIds.DOI")
+    if not isinstance(value, str) or not value.strip():
+        raise CitationEnrichmentError("No usable DOI available in Semantic Scholar externalIds.DOI")
     doi = value.strip()
     for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
         if doi.casefold().startswith(prefix):
             doi = doi[len(prefix) :]
             break
     if len(doi) > 255 or not _DOI_RE.fullmatch(doi):
-        raise CitationEnrichmentError("Missing or invalid Semantic Scholar externalIds.DOI")
+        raise CitationEnrichmentError("DOI is outside the supported BibTeX enrichment syntax")
     return doi
 
 

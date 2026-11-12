@@ -31,6 +31,16 @@ class CitationDoiTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(CitationEnrichmentError):
                 enrich_bibtex_with_s2_doi(BIB, value)
 
+    def test_legacy_doi_with_special_characters_is_unsupported(self):
+        # Crossref documents these historical SICI-style identifiers as valid DOIs.
+        # The insertion path intentionally rejects unsupported suffix punctuation.
+        legacy = (
+            "10.1002/(SICI)1521-3951(199911)216:1"
+            "<135::AID-PSSB135>3.0.CO;2-#"
+        )
+        with self.assertRaisesRegex(CitationEnrichmentError, "outside the supported"):
+            enrich_bibtex_with_s2_doi(BIB, legacy)
+
     def test_invalid_bibtex(self):
         invalid = (
             None,
