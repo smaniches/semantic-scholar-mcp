@@ -368,8 +368,8 @@ def handle_error(
         raise AuthenticationError(msg, status_code=403)
     if status == 404:
         raise NotFoundError(
-            "Not found in Semantic Scholar. The identifier format may be valid, "
-            "but no matching indexed record was returned.",
+            "Not found in Semantic Scholar. HTTP 404 does not establish "
+            "that the request syntax is invalid.",
             status_code=404,
         )
     if status == 429:

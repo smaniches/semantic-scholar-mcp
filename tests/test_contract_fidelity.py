@@ -88,6 +88,19 @@ class TestSearchSyntaxContract:
         await mcp.call_tool("semantic_scholar_search_papers", {"params": {"query": q}})
         assert route.calls.last.request.url.params["query"] == q
 
+    @respx.mock
+    @pytest.mark.asyncio
+    async def test_search_404_does_not_claim_invalid_identifier(self, reset_all):
+        respx.get(SEARCH_URL).mock(return_value=Response(404))
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool(
+                "semantic_scholar_search_papers", {"params": {"query": "missing query"}}
+            )
+        message = str(exc_info.value)
+        assert "Not found in Semantic Scholar" in message
+        assert "identifier" not in message.lower()
+        assert "Check ID format" not in message
+
     def test_readme_search_row_does_not_promise_boolean_syntax(self):
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
         assert "supports AND, OR, NOT operators" not in readme
@@ -167,7 +180,7 @@ class TestMatchPaperNoMatch:
             await mcp.call_tool("semantic_scholar_get_paper", {"params": {"paper_id": doi}})
         message = str(exc_info.value)
         assert "Not found in Semantic Scholar" in message
-        assert "identifier format may be valid" in message
+        assert "HTTP 404 does not establish" in message
         assert "Check ID format" not in message
 
     @pytest.mark.asyncio
