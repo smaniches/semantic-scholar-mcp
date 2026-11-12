@@ -48,9 +48,9 @@ async def test_verbatim_default_remains_byte_for_byte(upstream):
 @pytest.mark.asyncio
 async def test_opt_in_adds_only_structured_doi(upstream):
     _, calls = upstream
-    output = await server.export_citation(CitationExportInput(
-        paper_id=PAPER_ID, format="bibtex+doi", api_key="staging-test-key"
-    ))
+    output = await server.export_citation(
+        CitationExportInput(paper_id=PAPER_ID, format="bibtex+doi", api_key="staging-test-key")
+    )
     assert "doi = {10.1145/3065386}" in output
     assert "year={2012}" in output  # deliberately NOT silently 'corrected' to 2017
     assert len(calls) == 1
@@ -120,6 +120,6 @@ async def test_requested_doi_must_match_returned_alias(upstream):
     paper, _ = upstream
     paper["externalIds"]["DOI"] = "10.5555/not-requested"
     with pytest.raises(ToolError, match="identity mismatch"):
-        await server.export_citation(CitationExportInput(
-            paper_id="DOI:" + DOI, format="bibtex+doi"
-        ))
+        await server.export_citation(
+            CitationExportInput(paper_id="DOI:" + DOI, format="bibtex+doi")
+        )

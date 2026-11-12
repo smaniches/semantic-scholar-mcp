@@ -26,7 +26,7 @@ def _normalize_doi(value: object) -> str:
     doi = value.strip()
     for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
         if doi.casefold().startswith(prefix):
-            doi = doi[len(prefix):]
+            doi = doi[len(prefix) :]
             break
     if len(doi) > 255 or not _DOI_RE.fullmatch(doi):
         raise CitationEnrichmentError("Missing or invalid Semantic Scholar externalIds.DOI")
@@ -90,13 +90,13 @@ def _bibtex_body(entry: str) -> tuple[str, int]:
                 elif opening == "{":
                     if entry[i + 1 :].strip():
                         raise CitationEnrichmentError("Multiple or trailing BibTeX entries")
-                    return entry[head.end():i], i
+                    return entry[head.end() : i], i
                 else:
                     raise CitationEnrichmentError("Unbalanced BibTeX entry braces")
             elif char == ")" and depth == 0 and opening == "(":
                 if entry[i + 1 :].strip():
                     raise CitationEnrichmentError("Multiple or trailing BibTeX entries")
-                return entry[head.end():i], i
+                return entry[head.end() : i], i
     raise CitationEnrichmentError("Unclosed BibTeX entry")
 
 
@@ -121,10 +121,9 @@ def enrich_bibtex_with_s2_doi(entry: str, external_doi: object) -> str:
             raise CitationEnrichmentError("BibTeX field syntax is ambiguous")
         if match.group(1).casefold() != "doi":
             continue
-        value = part[match.end():].strip()
+        value = part[match.end() :].strip()
         if len(value) >= 2 and (
-            (value[0] == "{" and value[-1] == "}")
-            or (value[0] == '"' and value[-1] == '"')
+            (value[0] == "{" and value[-1] == "}") or (value[0] == '"' and value[-1] == '"')
         ):
             value = value[1:-1].strip()
         found.append(_normalize_doi(value))
