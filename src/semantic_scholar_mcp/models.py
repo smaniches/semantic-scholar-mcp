@@ -292,7 +292,11 @@ class CitationExportInput(BaseModel):
     )
     format: str = Field(
         default="bibtex",
-        description="Citation format (currently only 'bibtex' supported; anything else errors)",
+        description=(
+            "Citation format: 'bibtex' returns upstream verbatim (default); "
+            "'bibtex+doi' safely inserts DOI from the same S2 paper's externalIds. "
+            "Does not independently validate bibliographic metadata."
+        ),
     )
     api_key: str | None = _API_KEY_FIELD
 

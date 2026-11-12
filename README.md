@@ -660,27 +660,34 @@ next page (when more results exist).
 
 ### 8. `semantic_scholar_export_citation`
 
-Return Semantic Scholar's automatically generated BibTeX entry verbatim.
+Return Semantic Scholar's automatically generated BibTeX entry verbatim by default.
+An explicit opt-in can add its structured DOI when missing from that entry.
 
 **Parameters:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `paper_id` | string | Yes | Paper ID in any supported format |
-| `format` | string | No | Citation format (currently only `"bibtex"`) |
+| `format` | string | No | `"bibtex"` (verbatim default) or `"bibtex+doi"` (opt-in) |
 | `api_key` | string | No | Override environment API key |
 
 **JSON Example:**
 ```json
 {
   "paper_id": "DOI:10.1038/s41586-021-03819-2",
-  "format": "bibtex"
+  "format": "bibtex+doi"
 }
 ```
 
-**Returns:** the BibTeX entry supplied by Semantic Scholar, without alteration.
-The server does not independently validate or correct bibliographic metadata;
-DOI, authors, title, venue, or other fields may be missing or inaccurate. Verify
-against authoritative records before citing in a publication.
+**Returns:** BibTeX plain text. The default `"bibtex"` is the exact upstream
+entry. `"bibtex+doi"` inserts **only** `externalIds.DOI` already returned by
+Semantic Scholar if the BibTeX lacks a DOI. If both DOIs disagree, the S2 DOI
+is missing or invalid, or the entry cannot be safely edited, it raises a tool
+error without returning a guessed citation. It makes no additional network
+requests. A matching existing DOI leaves the original bytes untouched.
+
+Neither mode verifies the bibliography against Crossref or a publisher, or
+corrects title, author list, venue, publication year, or version ambiguity.
+DOI enrichment is not proof of publication identity or publication readiness.
 
 ---
 

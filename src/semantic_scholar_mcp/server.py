@@ -43,6 +43,7 @@ from . import __version__
 # Re-exports for back-compat: tests and downstream callers import these names
 # from ``semantic_scholar_mcp.server``. The leading-underscore aliases preserve
 # the old "private" surface while the implementations live in focused modules.
+from .bibtex_doi import CitationEnrichmentError, enrich_bibtex_with_s2_doi
 from .cache import _MAX_SIZE as _CACHE_MAX_SIZE  # noqa: F401
 from .cache import _TTL as _CACHE_TTL  # noqa: F401
 from .cache import _cache, cache_clear, cache_get, cache_set  # noqa: F401
@@ -918,7 +919,7 @@ async def bulk_search(params: BulkSearchInput) -> str:
     structured_output=False,
 )
 async def export_citation(params: CitationExportInput) -> str:
-    """Export a paper's Semantic Scholar-generated BibTeX entry verbatim.
+    """Export S2 BibTeX verbatim by default, or opt in to add S2's structured DOI.
 
     The upstream entry is not independently validated or corrected. DOI,
     authors, titles, venues, and other metadata may be missing or inaccurate;
@@ -928,7 +929,8 @@ async def export_citation(params: CitationExportInput) -> str:
     semantic_scholar_match_paper), e.g. paper_id='DOI:10.18653/v1/N18-3011'.
     Returns the BibTeX entry as plain text - there is no response_format
     option. Raises an error for an unknown ID, a paper without citation data,
-    or any format other than 'bibtex'.
+    or any format other than 'bibtex' or 'bibtex+doi'. The latter only
+    inserts externalIds.DOI when absent; it is NOT an independent audit.
     """
     logger.info("Exporting citation for: %s", params.paper_id)
 
@@ -950,13 +952,21 @@ async def export_citation(params: CitationExportInput) -> str:
         citation_styles = paper.get("citationStyles") or {}
         fmt = params.format.lower()
 
-        if fmt != "bibtex":
-            raise ToolError(f"Unsupported citation format: '{fmt}'. Supported: bibtex")
+        if fmt not in {"bibtex", "bibtex+doi"}:
+            raise ToolError(f"Unsupported citation format: '{fmt}'. Supported: bibtex, bibtex+doi")
 
         citation = citation_styles.get("bibtex")
         if not citation:
             title = paper.get("title", params.paper_id)
             raise ToolError(f"No BibTeX citation available for '{title}'")
+
+        if fmt == "bibtex+doi":
+            external = paper.get("externalIds")
+            doi = external.get("DOI") if isinstance(external, dict) else None
+            try:
+                return enrich_bibtex_with_s2_doi(str(citation), doi)
+            except CitationEnrichmentError as exc:
+                raise ToolError(str(exc)) from exc
 
         return str(citation)
 
